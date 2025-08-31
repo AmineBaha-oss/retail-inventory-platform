@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:retail_inventory_dev
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+        show_sql: true
+    show-sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  flyway:
+    enabled:
+      false
+
+      # Redis and Kafka are disabled via DevConfig.java
+
+# Disable security for development
+app:
+  security:
+    jwt:
+      secret: dev-secret-key
+      expiration: 86400000ms
+      refresh-expiration: 604800000ms
+
+logging:
+  level:
+    com.retailinventory: DEBUG
+    org.springframework.security: DEBUG

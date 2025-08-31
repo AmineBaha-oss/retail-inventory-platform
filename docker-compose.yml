@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: retail_inventory_db
+    environment:
+      POSTGRES_DB: retail_inventory
+      POSTGRES_USER: retail_user
+      POSTGRES_PASSWORD: retail_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - retail_network
+
+  # Redis for caching and queues
+  redis:
+    image: redis:7-alpine
+    container_name: retail_inventory_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - retail_network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: retail_inventory_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://retail_user:retail_password@postgres:5432/retail_inventory
+      - REDIS_URL=redis://redis:6379
+      - DEBUG=true
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - retail_network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: retail_inventory_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - retail_network
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  retail_network:
+    driver: bridge

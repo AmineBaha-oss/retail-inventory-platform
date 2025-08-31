@@ -1,0 +1,142 @@
+spring:
+  application:
+    name: retail-inventory-platform
+  
+  profiles:
+    active: dev
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/retail_inventory
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        show_sql: ${SHOW_SQL:false}
+    show-sql: ${SHOW_SQL:false}
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: retail-inventory-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  
+  graphql:
+    graphiql:
+      enabled: true
+      path: /graphiql
+    schema:
+      locations: classpath:graphql/
+  
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope:
+              - email
+              - profile
+
+# Application specific configuration
+app:
+  name: Retail Inventory Platform
+  version: 1.0.0
+  
+  # ML Service Integration (Python FastAPI)
+  ml-service:
+    base-url: ${ML_SERVICE_URL:http://localhost:8001}
+    timeout: 30000ms
+  
+  # Forecasting Configuration
+  forecasting:
+    default-confidence-level: 0.95
+    forecast-horizon-days: 90
+    backtest-periods: 12
+  
+  # Replenishment Configuration
+  replenishment:
+    default-service-level: 0.95
+    safety-stock-multiplier: 1.5
+    reorder-point-buffer: 7
+  
+  # Integration Settings
+  integrations:
+    shopify:
+      webhook-timeout: 10000ms
+      max-retries: 3
+    lightspeed:
+      api-timeout: 15000ms
+      rate-limit-delay: 100ms
+    square:
+      webhook-timeout: 10000ms
+      max-retries: 3
+  
+  # Security Configuration
+  security:
+    jwt:
+      secret: ${JWT_SECRET:your-secret-key-here}
+      expiration: 86400000ms # 24 hours
+      refresh-expiration: 604800000ms # 7 days
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: true
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    com.retailinventory: ${LOG_LEVEL:INFO}
+    org.springframework.security: ${SECURITY_LOG_LEVEL:WARN}
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${SQL_PARAM_LOG_LEVEL:WARN}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
