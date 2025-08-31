@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   SimpleGrid,
@@ -8,11 +8,6 @@ import {
   Text,
   Card,
   CardBody,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
   Button,
   Badge,
   useToast,
@@ -28,7 +23,6 @@ import {
   FormLabel,
   Input,
   Select,
-  Textarea,
   NumberInput,
   NumberInputField,
   NumberInputStepper,
@@ -39,34 +33,40 @@ import {
   TabPanels,
   Tab,
   TabPanel,
-  Progress,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
+  Grid,
+  GridItem,
 } from "@chakra-ui/react";
-import { 
-  FiTrendingUp, 
-  FiBarChart3, 
-  FiRefreshCw, 
-  FiPlay,
-  FiSettings,
+import {
+  FiPlus,
+  FiTrendingUp,
   FiDownload,
-  FiEye,
-  FiAlertTriangle,
-  FiCheckCircle,
-  FiClock,
-  FiTarget,
-  FiZap,
-  FiPlus
+  FiRefreshCw,
+  FiPlay,
+  FiBarChart,
+  FiPieChart,
 } from "react-icons/fi";
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  ComposedChart,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
+import { Tr, Th, Td } from "@chakra-ui/react";
 import PageHeader from "../components/ui/PageHeader";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
 import { forecastingAPI } from "../services/api";
-import { showSuccess, showError, showInfo, formatCurrency, formatDate, formatPercentage } from "../utils/helpers";
-
-type ForecastStatus = "Pending" | "In Progress" | "Completed" | "Failed" | "Outdated";
+import { showSuccess, showError, showInfo, formatCurrency, formatPercentage } from "../utils/helpers";
 
 type ForecastItem = {
   id: string;
@@ -75,15 +75,12 @@ type ForecastItem = {
   store: string;
   currentStock: number;
   forecastedDemand: number;
-  confidenceLevel: number;
-  p50Forecast: number;
-  p90Forecast: number;
+  confidenceP50: number;
+  confidenceP90: number;
   leadTime: number;
   reorderPoint: number;
-  safetyStock: number;
+  suggestedOrder: number;
   lastUpdated: string;
-  accuracy: number;
-  status: ForecastStatus;
 };
 
 type WhatIfScenario = {
@@ -92,141 +89,162 @@ type WhatIfScenario = {
   description: string;
   leadTimeChange: number;
   demandChange: number;
-  promoImpact: number;
-  stockoutRisk: number;
-  overstockRisk: number;
   costImpact: number;
+  stockoutRisk: number;
+  status: "Draft" | "Running" | "Completed" | "Failed";
   createdAt: string;
 };
+
+// Chart data
+const demandForecastData = [
+  { week: "Week 1", actual: 120, forecast: 125, p50: 125, p90: 140, stock: 200 },
+  { week: "Week 2", actual: 135, forecast: 130, p50: 130, p90: 145, stock: 175 },
+  { week: "Week 3", actual: 118, forecast: 135, p50: 135, p90: 150, stock: 160 },
+  { week: "Week 4", actual: 142, forecast: 140, p50: 140, p90: 155, stock: 145 },
+  { week: "Week 5", actual: 128, forecast: 145, p50: 145, p90: 160, stock: 130 },
+  { week: "Week 6", actual: null, forecast: 150, p50: 150, p90: 165, stock: 115 },
+  { week: "Week 7", actual: null, forecast: 155, p50: 155, p90: 170, stock: 100 },
+  { week: "Week 8", actual: null, forecast: 160, p50: 160, p90: 175, stock: 85 },
+];
+
+const forecastAccuracyData = [
+  { sku: "TSH-001", accuracy: 92, bias: -2.1, mape: 8.5 },
+  { sku: "JKT-002", accuracy: 87, bias: 1.8, mape: 12.3 },
+  { sku: "SHP-003", accuracy: 95, bias: -0.5, mape: 5.2 },
+  { sku: "PNT-004", accuracy: 89, bias: 3.2, mape: 10.8 },
+  { sku: "HT-005", accuracy: 91, bias: -1.5, mape: 9.1 },
+];
+
+const seasonalPatternData = [
+  { month: "Jan", demand: 1200, seasonality: 0.85 },
+  { month: "Feb", demand: 1100, seasonality: 0.78 },
+  { month: "Mar", demand: 1300, seasonality: 0.92 },
+  { month: "Apr", demand: 1400, seasonality: 1.00 },
+  { month: "May", demand: 1500, seasonality: 1.07 },
+  { month: "Jun", demand: 1600, seasonality: 1.14 },
+  { month: "Jul", demand: 1550, seasonality: 1.11 },
+  { month: "Aug", demand: 1450, seasonality: 1.04 },
+  { month: "Sep", demand: 1350, seasonality: 0.96 },
+  { month: "Oct", demand: 1250, seasonality: 0.89 },
+  { month: "Nov", demand: 1150, seasonality: 0.82 },
+  { month: "Dec", demand: 1050, seasonality: 0.75 },
+];
 
 // Demo data
 const initialForecasts: ForecastItem[] = [
   {
     id: "1",
-    sku: "TEE-Black-S",
+    sku: "TSH-001",
     name: "Black T-Shirt (Small)",
     store: "Downtown",
     currentStock: 45,
-    forecastedDemand: 3.2,
-    confidenceLevel: 85,
-    p50Forecast: 3.2,
-    p90Forecast: 4.8,
+    forecastedDemand: 120,
+    confidenceP50: 120,
+    confidenceP90: 140,
     leadTime: 14,
-    reorderPoint: 20,
-    safetyStock: 15,
+    reorderPoint: 30,
+    suggestedOrder: 95,
     lastUpdated: "2024-01-15",
-    accuracy: 92.5,
-    status: "Completed",
   },
   {
     id: "2",
-    sku: "JKT-Navy-M",
+    sku: "JKT-002",
     name: "Navy Jacket (Medium)",
     store: "Longueuil",
-    currentStock: 8,
-    forecastedDemand: 2.1,
-    confidenceLevel: 78,
-    p50Forecast: 2.1,
-    p90Forecast: 3.2,
+    currentStock: 28,
+    forecastedDemand: 85,
+    confidenceP50: 85,
+    confidenceP90: 95,
     leadTime: 21,
-    reorderPoint: 15,
-    safetyStock: 12,
+    reorderPoint: 25,
+    suggestedOrder: 67,
     lastUpdated: "2024-01-15",
-    accuracy: 88.3,
-    status: "Completed",
   },
   {
     id: "3",
-    sku: "SHO-Brown-42",
+    sku: "SHP-003",
     name: "Brown Shoes (42)",
     store: "Plateau",
-    currentStock: 0,
-    forecastedDemand: 1.8,
-    confidenceLevel: 82,
-    p50Forecast: 1.8,
-    p90Forecast: 2.7,
+    currentStock: 32,
+    forecastedDemand: 65,
+    confidenceP50: 65,
+    confidenceP90: 75,
     leadTime: 28,
-    reorderPoint: 10,
-    safetyStock: 8,
+    reorderPoint: 20,
+    suggestedOrder: 43,
     lastUpdated: "2024-01-15",
-    accuracy: 91.2,
-    status: "Completed",
   },
 ];
 
 const initialScenarios: WhatIfScenario[] = [
   {
     id: "1",
-    name: "Extended Lead Time",
-    description: "Supplier lead time increases from 14 to 21 days",
+    name: "Lead Time Increase",
+    description: "What if supplier lead time increases by 7 days?",
     leadTimeChange: 7,
     demandChange: 0,
-    promoImpact: 0,
+    costImpact: 2500,
     stockoutRisk: 15,
-    overstockRisk: -5,
-    costImpact: 1200,
-    createdAt: "2024-01-15",
+    status: "Completed",
+    createdAt: "2024-01-10",
   },
   {
     id: "2",
-    name: "Holiday Promotion",
-    description: "20% increase in demand due to holiday promotion",
+    name: "Demand Surge",
+    description: "What if demand increases by 25% during holiday season?",
     leadTimeChange: 0,
-    demandChange: 20,
-    promoImpact: 20,
-    stockoutRisk: 25,
-    overstockRisk: 10,
-    costImpact: 800,
-    createdAt: "2024-01-15",
+    demandChange: 25,
+    costImpact: -1800,
+    stockoutRisk: 35,
+    status: "Completed",
+    createdAt: "2024-01-12",
+  },
+  {
+    id: "3",
+    name: "Supply Chain Disruption",
+    description: "What if lead time doubles and demand drops by 10%?",
+    leadTimeChange: 14,
+    demandChange: -10,
+    costImpact: 4200,
+    stockoutRisk: 8,
+    status: "Draft",
+    createdAt: "2024-01-14",
   },
 ];
 
 export default function Forecasting() {
   const [forecasts, setForecasts] = useState<ForecastItem[]>(initialForecasts);
   const [scenarios, setScenarios] = useState<WhatIfScenario[]>(initialScenarios);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingScenario, setEditingScenario] = useState<Partial<WhatIfScenario>>({});
+  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("forecasts");
+  const [newScenario, setNewScenario] = useState<Partial<WhatIfScenario>>({});
   const toast = useToast();
 
   // Calculate stats
-  const stats = {
-    totalItems: forecasts.length,
-    completed: forecasts.filter(f => f.status === "Completed").length,
-    pending: forecasts.filter(f => f.status === "Pending").length,
-    averageAccuracy: forecasts.reduce((sum, f) => sum + f.accuracy, 0) / forecasts.length,
-    totalStockoutRisk: forecasts.filter(f => f.currentStock < f.reorderPoint).length,
-  };
+  const stats = useMemo(() => ({
+    totalForecasts: forecasts.length,
+    averageAccuracy: 90.8,
+    totalScenarios: scenarios.length,
+    completedScenarios: scenarios.filter(s => s.status === "Completed").length,
+  }), [forecasts, scenarios]);
 
-  // Handle generate forecast
   const handleGenerateForecast = async () => {
     try {
-      setIsGeneratingForecast(true);
-      showInfo("Generating demand forecasts for all stores...");
+      setIsLoading(true);
+      showInfo("Generating new forecasts...");
       
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Update forecasts with new data
-      setForecasts(prev => prev.map(f => ({
-        ...f,
-        status: "Completed" as ForecastStatus,
-        lastUpdated: new Date().toISOString().split('T')[0],
-        accuracy: Math.random() * 20 + 80, // Random accuracy between 80-100%
-        forecastedDemand: f.forecastedDemand * (0.8 + Math.random() * 0.4), // Random variation
-      })));
-      
-      showSuccess("Demand forecasts generated successfully!");
+      showSuccess("Forecasts generated successfully!");
     } catch (error) {
       showError("Failed to generate forecasts");
     } finally {
-      setIsGeneratingForecast(false);
+      setIsLoading(false);
     }
   };
 
-  // Handle refresh forecasts
   const handleRefreshForecasts = async () => {
     try {
       setIsLoading(true);
@@ -237,61 +255,58 @@ export default function Forecasting() {
       
       showSuccess("Forecast data refreshed successfully!");
     } catch (error) {
-      showError("Failed to refresh forecasts");
+      showError("Failed to refresh forecast data");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle create scenario
   const handleCreateScenario = () => {
-    setEditingScenario({});
+    setNewScenario({});
     setIsModalOpen(true);
   };
 
-  // Handle save scenario
   const handleSaveScenario = () => {
-    if (editingScenario.id) {
-      // Update existing scenario
-      setScenarios(prev => 
-        prev.map(s => 
-          s.id === editingScenario.id 
-            ? { ...s, ...editingScenario }
-            : s
-        )
-      );
-      showSuccess("Scenario updated successfully!");
-    } else {
-      // Create new scenario
-      const newScenario: WhatIfScenario = {
-        id: Date.now().toString(),
-        name: editingScenario.name || "",
-        description: editingScenario.description || "",
-        leadTimeChange: editingScenario.leadTimeChange || 0,
-        demandChange: editingScenario.demandChange || 0,
-        promoImpact: editingScenario.promoImpact || 0,
-        stockoutRisk: editingScenario.stockoutRisk || 0,
-        overstockRisk: editingScenario.overstockRisk || 0,
-        costImpact: editingScenario.costImpact || 0,
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-      setScenarios(prev => [newScenario, ...prev]);
-      showSuccess("Scenario created successfully!");
+    if (!newScenario.name || !newScenario.description) {
+      showError("Please fill in all required fields");
+      return;
     }
+
+    const scenario: WhatIfScenario = {
+      id: Date.now().toString(),
+      name: newScenario.name,
+      description: newScenario.description,
+      leadTimeChange: newScenario.leadTimeChange || 0,
+      demandChange: newScenario.demandChange || 0,
+      costImpact: newScenario.costImpact || 0,
+      stockoutRisk: newScenario.stockoutRisk || 0,
+      status: "Draft",
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+
+    setScenarios(prev => [scenario, ...prev]);
     setIsModalOpen(false);
-    setEditingScenario({});
+    setNewScenario({});
+    showSuccess("Scenario created successfully!");
   };
 
-  // Handle run scenario
   const handleRunScenario = async (scenario: WhatIfScenario) => {
     try {
       setIsLoading(true);
       showInfo(`Running scenario: ${scenario.name}...`);
       
-      // Simulate scenario analysis
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      showSuccess(`Scenario "${scenario.name}" completed! Check results for impact analysis.`);
+      setScenarios(prev => 
+        prev.map(s => 
+          s.id === scenario.id 
+            ? { ...s, status: "Completed" as const }
+            : s
+        )
+      );
+      
+      showSuccess(`Scenario ${scenario.name} completed successfully!`);
     } catch (error) {
       showError("Failed to run scenario");
     } finally {
@@ -299,23 +314,22 @@ export default function Forecasting() {
     }
   };
 
-  // Handle export forecasts
   const handleExportForecasts = async () => {
     try {
       setIsLoading(true);
       showInfo("Exporting forecast data...");
       
       // Create CSV content
-      const csvContent = `SKU,Store,Current Stock,Forecasted Demand,Confidence Level,P50 Forecast,P90 Forecast,Lead Time,Reorder Point,Safety Stock,Accuracy
+      const csvContent = `SKU,Name,Store,Current Stock,Forecasted Demand,Confidence P50,Confidence P90,Lead Time,Reorder Point,Suggested Order
 ${forecasts.map(f => 
-  `${f.sku},${f.store},${f.currentStock},${f.forecastedDemand},${f.confidenceLevel}%,${f.p50Forecast},${f.p90Forecast},${f.leadTime},${f.reorderPoint},${f.safetyStock},${f.accuracy.toFixed(1)}%`
+  `${f.sku},${f.name},${f.store},${f.currentStock},${f.forecastedDemand},${f.confidenceP50},${f.confidenceP90},${f.leadTime},${f.reorderPoint},${f.suggestedOrder}`
 ).join('\n')}`;
       
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `demand-forecasts-${new Date().toISOString().split('T')[0]}.csv`;
+      link.download = `forecasts-${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -323,17 +337,17 @@ ${forecasts.map(f =>
       
       showSuccess("Forecast data exported successfully!");
     } catch (error) {
-      showError("Failed to export forecasts");
+      showError("Failed to export forecast data");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <>
+    <div>
       <PageHeader
         title="Demand Forecasting"
-        subtitle="AI-powered demand forecasting with probabilistic models and what-if scenario analysis."
+        subtitle="Predict future demand and analyze what-if scenarios"
         actions={
           <HStack spacing={3}>
             <Button
@@ -342,9 +356,8 @@ ${forecasts.map(f =>
               leftIcon={<FiDownload />}
               onClick={handleExportForecasts}
               isLoading={isLoading}
-              loadingText="Exporting..."
             >
-              Export Forecasts
+              Export Data
             </Button>
             <Button
               variant="outline"
@@ -352,17 +365,15 @@ ${forecasts.map(f =>
               leftIcon={<FiRefreshCw />}
               onClick={handleRefreshForecasts}
               isLoading={isLoading}
-              loadingText="Refreshing..."
             >
-              Refresh Data
+              Refresh
             </Button>
             <Button
               colorScheme="brand"
               size="sm"
-              leftIcon={<FiPlay />}
+              leftIcon={<FiTrendingUp />}
               onClick={handleGenerateForecast}
-              isLoading={isGeneratingForecast}
-              loadingText="Generating..."
+              isLoading={isLoading}
             >
               Generate Forecasts
             </Button>
@@ -370,255 +381,273 @@ ${forecasts.map(f =>
         }
       />
 
-      {/* Summary Stats */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 5 }} spacing={6} mb={6}>
-        <Card bg="gray.800" border="none" outline="none">
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Total Items
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                {stats.totalItems}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="gray.400">
-                Being forecasted
-              </StatHelpText>
-            </Stat>
+      {/* Stats Cards */}
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
+        <Card>
+          <CardBody>
+            <Text fontSize="sm" color="gray.400" mb={1}>Total Forecasts</Text>
+            <Text fontSize="2xl" fontWeight="bold" color="gray.100">{stats.totalForecasts}</Text>
           </CardBody>
         </Card>
-
-        <Card bg="gray.800" border="none" outline="none">
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Completed
-              </StatLabel>
-              <StatNumber color="green.400" fontSize="2xl" fontWeight="bold">
-                {stats.completed}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="green.300">
-                <StatArrow type="increase" /> Ready
-              </StatHelpText>
-            </Stat>
+        <Card>
+          <CardBody>
+            <Text fontSize="sm" color="gray.400" mb={1}>Average Accuracy</Text>
+            <Text fontSize="2xl" fontWeight="bold" color="gray.100">{stats.averageAccuracy}%</Text>
           </CardBody>
         </Card>
-
-        <Card bg="gray.800" border="none" outline="none">
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Pending
-              </StatLabel>
-              <StatNumber color="orange.400" fontSize="2xl" fontWeight="bold">
-                {stats.pending}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="orange.300">
-                Awaiting analysis
-              </StatHelpText>
-            </Stat>
+        <Card>
+          <CardBody>
+            <Text fontSize="sm" color="gray.400" mb={1}>Total Scenarios</Text>
+            <Text fontSize="2xl" fontWeight="bold" color="gray.100">{stats.totalScenarios}</Text>
           </CardBody>
         </Card>
-
-        <Card bg="gray.800" border="none" outline="none">
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Avg Accuracy
-              </StatLabel>
-              <StatNumber color="blue.400" fontSize="2xl" fontWeight="bold">
-                {stats.averageAccuracy.toFixed(1)}%
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="blue.300">
-                Model performance
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card bg="gray.800" border="none" outline="none">
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Stockout Risk
-              </StatLabel>
-              <StatNumber color="red.400" fontSize="2xl" fontWeight="bold">
-                {stats.totalStockoutRisk}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="red.300">
-                Items below reorder point
-              </StatHelpText>
-            </Stat>
+        <Card>
+          <CardBody>
+            <Text fontSize="sm" color="gray.400" mb={1}>Completed</Text>
+            <Text fontSize="2xl" fontWeight="bold" color="gray.100">{stats.completedScenarios}</Text>
           </CardBody>
         </Card>
       </SimpleGrid>
 
-      {/* Main Content Tabs */}
-      <Tabs index={["forecasts", "scenarios"].indexOf(activeTab)} onChange={(index) => {
-        const tabs = ["forecasts", "scenarios"];
-        setActiveTab(tabs[index]);
-      }} mb={6}>
+      {/* Charts Section */}
+      <Grid templateColumns={{ base: "1fr", lg: "2fr 1fr" }} gap={6} mb={8}>
+        {/* Demand Forecast Chart */}
+        <GridItem>
+          <Card>
+            <CardBody>
+              <Text fontSize="lg" fontWeight="semibold" mb={4}>
+                Demand Forecast with Confidence Intervals
+              </Text>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={demandForecastData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="week" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="actual"
+                    stroke="#48BB78"
+                    strokeWidth={3}
+                    name="Actual Demand"
+                    connectNulls={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="forecast"
+                    stroke="#3182CE"
+                    strokeWidth={2}
+                    name="Forecast"
+                  />
+                  <Area
+                    dataKey="p90"
+                    fill="#E53E3E"
+                    fillOpacity={0.1}
+                    stroke="#E53E3E"
+                    strokeDasharray="5 5"
+                    name="P90 Confidence"
+                  />
+                  <Area
+                    dataKey="p50"
+                    fill="#ED8936"
+                    fillOpacity={0.1}
+                    stroke="#ED8936"
+                    strokeDasharray="3 3"
+                    name="P50 Confidence"
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </CardBody>
+          </Card>
+        </GridItem>
+
+        {/* Forecast Accuracy Chart */}
+        <GridItem>
+          <Card>
+            <CardBody>
+              <Text fontSize="lg" fontWeight="semibold" mb={4}>
+                Forecast Accuracy by SKU
+              </Text>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={forecastAccuracyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="sku" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="accuracy" fill="#48BB78" name="Accuracy (%)" />
+                  <Bar dataKey="mape" fill="#E53E3E" name="MAPE (%)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardBody>
+          </Card>
+        </GridItem>
+      </Grid>
+
+      {/* Seasonal Pattern Chart */}
+      <Card mb={8}>
+        <CardBody>
+          <Text fontSize="lg" fontWeight="semibold" mb={4}>
+            Seasonal Demand Patterns
+          </Text>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={seasonalPatternData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis yAxisId="left" />
+              <YAxis yAxisId="right" orientation="right" />
+              <Tooltip />
+              <Legend />
+              <Area
+                yAxisId="left"
+                type="monotone"
+                dataKey="demand"
+                stroke="#3182CE"
+                fill="#3182CE"
+                fillOpacity={0.6}
+                name="Demand"
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="seasonality"
+                stroke="#E53E3E"
+                strokeWidth={2}
+                name="Seasonality Index"
+              />
+              <ReferenceLine y={1} stroke="#E53E3E" strokeDasharray="3 3" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardBody>
+      </Card>
+
+      {/* Tabs for Forecasts and Scenarios */}
+      <Tabs index={activeTab === "forecasts" ? 0 : 1} onChange={(index) => setActiveTab(index === 0 ? "forecasts" : "scenarios")} mb={6}>
         <TabList>
-          <Tab>Demand Forecasts</Tab>
-          <Tab>What-If Scenarios</Tab>
+          <Tab>Demand Forecasts ({forecasts.length})</Tab>
+          <Tab>What-If Scenarios ({scenarios.length})</Tab>
         </TabList>
 
         <TabPanels>
           {/* Forecasts Tab */}
-          <TabPanel p={0}>
+          <TabPanel>
             <SectionCard title="Demand Forecasts">
               <DataTable
                 head={
-                  <tr>
-                    <th>SKU</th>
-                    <th>Store</th>
-                    <th>Current Stock</th>
-                    <th>Forecasted Demand</th>
-                    <th>Confidence</th>
-                    <th>P50/P90</th>
-                    <th>Lead Time</th>
-                    <th>Accuracy</th>
-                    <th>Status</th>
-                  </tr>
+                  <Tr>
+                    <Th>SKU</Th>
+                    <Th>Name</Th>
+                    <Th>Store</Th>
+                    <Th>Current Stock</Th>
+                    <Th>Forecasted Demand</Th>
+                    <Th>Confidence P90</Th>
+                    <Th>Lead Time</Th>
+                    <Th>Suggested Order</Th>
+                  </Tr>
                 }
               >
                 {forecasts.map((forecast) => (
-                  <tr key={forecast.id} style={{ backgroundColor: parseInt(forecast.id) % 2 === 0 ? '#1a202c' : 'transparent' }}>
-                    <td style={{ fontWeight: 'medium' }}>{forecast.sku}</td>
-                    <td>{forecast.store}</td>
-                    <td style={{ fontWeight: 'semibold' }}>{forecast.currentStock}</td>
-                    <td style={{ fontWeight: 'semibold' }}>{forecast.forecastedDemand.toFixed(1)}/day</td>
-                    <td>
-                      <Progress 
-                        value={forecast.confidenceLevel} 
-                        size="sm" 
-                        colorScheme={forecast.confidenceLevel > 80 ? "green" : forecast.confidenceLevel > 60 ? "yellow" : "red"}
-                        borderRadius="md"
-                      />
-                      <Text fontSize="xs" color="gray.400" mt={1}>
-                        {forecast.confidenceLevel}%
-                      </Text>
-                    </td>
-                    <td>
-                      <VStack spacing={1} align="start">
-                        <Text fontSize="xs" color="gray.300">P50: {forecast.p50Forecast.toFixed(1)}</Text>
-                        <Text fontSize="xs" color="gray.300">P90: {forecast.p90Forecast.toFixed(1)}</Text>
-                      </VStack>
-                    </td>
-                    <td>{forecast.leadTime} days</td>
-                    <td>
-                      <Badge
-                        colorScheme={
-                          forecast.accuracy > 90 ? "success" :
-                          forecast.accuracy > 80 ? "warning" : "error"
-                        }
-                        variant="solid"
-                      >
-                        {forecast.accuracy.toFixed(1)}%
+                  <Tr key={forecast.id}>
+                    <Td fontWeight="medium">{forecast.sku}</Td>
+                    <Td>{forecast.name}</Td>
+                    <Td>{forecast.store}</Td>
+                    <Td>{forecast.currentStock}</Td>
+                    <Td fontWeight="semibold">{forecast.forecastedDemand}</Td>
+                    <Td>
+                      <Badge colorScheme="orange" variant="solid">
+                        {forecast.confidenceP90}
                       </Badge>
-                    </td>
-                    <td>
-                      <Badge
-                        colorScheme={
-                          forecast.status === "Completed" ? "success" :
-                          forecast.status === "In Progress" ? "blue" :
-                          forecast.status === "Pending" ? "orange" :
-                          forecast.status === "Failed" ? "red" : "gray"
-                        }
-                        variant="solid"
-                      >
-                        {forecast.status}
-                      </Badge>
-                    </td>
-                  </tr>
+                    </Td>
+                    <Td>{forecast.leadTime} days</Td>
+                    <Td fontWeight="semibold" color="brand.400">
+                      {forecast.suggestedOrder}
+                    </Td>
+                  </Tr>
                 ))}
               </DataTable>
             </SectionCard>
           </TabPanel>
 
           {/* Scenarios Tab */}
-          <TabPanel p={0}>
+          <TabPanel>
             <SectionCard 
-              title="What-If Scenarios" 
-              actions={
+              title="What-If Scenarios"
+              action={
                 <Button
+                  leftIcon={<FiPlus />}
                   colorScheme="brand"
                   size="sm"
-                  leftIcon={<FiPlus />}
                   onClick={handleCreateScenario}
                 >
-                  Create Scenario
+                  New Scenario
                 </Button>
               }
             >
               <DataTable
                 head={
-                  <tr>
-                    <th>Scenario Name</th>
-                    <th>Description</th>
-                    <th>Lead Time Change</th>
-                    <th>Demand Change</th>
-                    <th>Stockout Risk</th>
-                    <th>Cost Impact</th>
-                    <th>Actions</th>
-                  </tr>
+                  <Tr>
+                    <Th>Name</Th>
+                    <Th>Description</Th>
+                    <Th>Lead Time Change</Th>
+                    <Th>Demand Change</Th>
+                    <Th>Cost Impact</Th>
+                    <Th>Stockout Risk</Th>
+                    <Th>Status</Th>
+                    <Th>Actions</Th>
+                  </Tr>
                 }
               >
                 {scenarios.map((scenario) => (
-                  <tr key={scenario.id} style={{ backgroundColor: parseInt(scenario.id) % 2 === 0 ? '#1a202c' : 'transparent' }}>
-                    <td style={{ fontWeight: 'medium' }}>{scenario.name}</td>
-                    <td>{scenario.description}</td>
-                    <td>
-                      <Badge
-                        colorScheme={scenario.leadTimeChange > 0 ? "red" : "green"}
-                        variant="solid"
-                      >
-                        {scenario.leadTimeChange > 0 ? "+" : ""}{scenario.leadTimeChange} days
-                      </Badge>
-                    </td>
-                    <td>
-                      <Badge
-                        colorScheme={scenario.demandChange > 0 ? "green" : "red"}
-                        variant="solid"
-                      >
-                        {scenario.demandChange > 0 ? "+" : ""}{scenario.demandChange}%
-                      </Badge>
-                    </td>
-                    <td>
-                      <Badge
-                        colorScheme={
-                          scenario.stockoutRisk > 20 ? "red" :
-                          scenario.stockoutRisk > 10 ? "orange" : "green"
-                        }
+                  <Tr key={scenario.id}>
+                    <Td fontWeight="medium">{scenario.name}</Td>
+                    <Td fontSize="sm" color="gray.300">{scenario.description}</Td>
+                    <Td>
+                      {scenario.leadTimeChange > 0 ? '+' : ''}{scenario.leadTimeChange} days
+                    </Td>
+                    <Td>
+                      {scenario.demandChange > 0 ? '+' : ''}{scenario.demandChange}%
+                    </Td>
+                    <Td color={scenario.costImpact > 0 ? "red.400" : "green.400"}>
+                      {scenario.costImpact > 0 ? '+' : ''}{formatCurrency(scenario.costImpact)}
+                    </Td>
+                    <Td>
+                      <Badge 
+                        colorScheme={scenario.stockoutRisk > 20 ? "red" : scenario.stockoutRisk > 10 ? "orange" : "green"}
                         variant="solid"
                       >
                         {scenario.stockoutRisk}%
                       </Badge>
-                    </td>
-                    <td style={{ fontWeight: 'semibold' }}>{formatCurrency(scenario.costImpact)}</td>
-                    <td>
+                    </Td>
+                    <Td>
+                      <Badge 
+                        colorScheme={
+                          scenario.status === "Completed" ? "green" : 
+                          scenario.status === "Running" ? "blue" : 
+                          scenario.status === "Failed" ? "red" : "gray"
+                        }
+                        variant="solid"
+                      >
+                        {scenario.status}
+                      </Badge>
+                    </Td>
+                    <Td>
                       <HStack spacing={2}>
-                        <Button
-                          size="sm"
-                          variant="solid"
-                          colorScheme="blue"
-                          leftIcon={<FiPlay />}
-                          onClick={() => handleRunScenario(scenario)}
-                          isLoading={isLoading}
-                        >
-                          Run
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          colorScheme="blue"
-                          leftIcon={<FiEye />}
-                        >
-                          View
-                        </Button>
+                        {scenario.status === "Draft" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            colorScheme="brand"
+                            leftIcon={<FiPlay />}
+                            onClick={() => handleRunScenario(scenario)}
+                            isLoading={isLoading}
+                          >
+                            Run
+                          </Button>
+                        )}
                       </HStack>
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
               </DataTable>
             </SectionCard>
@@ -626,45 +655,42 @@ ${forecasts.map(f =>
         </TabPanels>
       </Tabs>
 
-      {/* Scenario Modal */}
+      {/* New Scenario Modal */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="xl">
         <ModalOverlay />
         <ModalContent bg="gray.800" border="1px solid" borderColor="gray.700">
-          <ModalHeader color="gray.100">
-            {editingScenario.id ? "Edit Scenario" : "Create What-If Scenario"}
-          </ModalHeader>
+          <ModalHeader color="gray.100">Create New What-If Scenario</ModalHeader>
           <ModalCloseButton color="gray.400" />
           <ModalBody>
             <VStack spacing={4}>
               <FormControl>
                 <FormLabel color="gray.200">Scenario Name</FormLabel>
                 <Input
-                  value={editingScenario.name || ""}
-                  onChange={(e) => setEditingScenario({ ...editingScenario, name: e.target.value })}
+                  value={newScenario.name || ""}
+                  onChange={(e) => setNewScenario({ ...newScenario, name: e.target.value })}
                   bg="gray.700"
                   borderColor="gray.600"
                   color="gray.100"
-                  placeholder="e.g., Extended Lead Time, Holiday Promotion"
+                  placeholder="e.g., Lead Time Increase"
                 />
               </FormControl>
               <FormControl>
                 <FormLabel color="gray.200">Description</FormLabel>
-                <Textarea
-                  value={editingScenario.description || ""}
-                  onChange={(e) => setEditingScenario({ ...editingScenario, description: e.target.value })}
+                <Input
+                  value={newScenario.description || ""}
+                  onChange={(e) => setNewScenario({ ...newScenario, description: e.target.value })}
                   bg="gray.700"
                   borderColor="gray.600"
                   color="gray.100"
-                  rows={3}
-                  placeholder="Describe the scenario and its business impact"
+                  placeholder="Describe the scenario and its impact"
                 />
               </FormControl>
-              <HStack spacing={4} w="full">
+              <SimpleGrid columns={2} spacing={4} w="full">
                 <FormControl>
                   <FormLabel color="gray.200">Lead Time Change (days)</FormLabel>
                   <NumberInput
-                    value={editingScenario.leadTimeChange || 0}
-                    onChange={(_, value) => setEditingScenario({ ...editingScenario, leadTimeChange: value })}
+                    value={newScenario.leadTimeChange || 0}
+                    onChange={(_, value) => setNewScenario({ ...newScenario, leadTimeChange: value })}
                     bg="gray.700"
                     borderColor="gray.600"
                     color="gray.100"
@@ -679,8 +705,8 @@ ${forecasts.map(f =>
                 <FormControl>
                   <FormLabel color="gray.200">Demand Change (%)</FormLabel>
                   <NumberInput
-                    value={editingScenario.demandChange || 0}
-                    onChange={(_, value) => setEditingScenario({ ...editingScenario, demandChange: value })}
+                    value={newScenario.demandChange || 0}
+                    onChange={(_, value) => setNewScenario({ ...newScenario, demandChange: value })}
                     bg="gray.700"
                     borderColor="gray.600"
                     color="gray.100"
@@ -692,41 +718,7 @@ ${forecasts.map(f =>
                     </NumberInputStepper>
                   </NumberInput>
                 </FormControl>
-              </HStack>
-              <HStack spacing={4} w="full">
-                <FormControl>
-                  <FormLabel color="gray.200">Promo Impact (%)</FormLabel>
-                  <NumberInput
-                    value={editingScenario.promoImpact || 0}
-                    onChange={(_, value) => setEditingScenario({ ...editingScenario, promoImpact: value })}
-                    bg="gray.700"
-                    borderColor="gray.600"
-                    color="gray.100"
-                  >
-                    <NumberInputField />
-                    <NumberInputStepper>
-                      <NumberIncrementStepper />
-                      <NumberDecrementStepper />
-                    </NumberInputStepper>
-                  </NumberInput>
-                </FormControl>
-                <FormControl>
-                  <FormLabel color="gray.200">Cost Impact ($)</FormLabel>
-                  <NumberInput
-                    value={editingScenario.costImpact || 0}
-                    onChange={(_, value) => setEditingScenario({ ...editingScenario, costImpact: value })}
-                    bg="gray.700"
-                    borderColor="gray.600"
-                    color="gray.100"
-                  >
-                    <NumberInputField />
-                    <NumberInputStepper>
-                      <NumberIncrementStepper />
-                      <NumberDecrementStepper />
-                    </NumberInputStepper>
-                  </NumberInput>
-                </FormControl>
-              </HStack>
+              </SimpleGrid>
             </VStack>
           </ModalBody>
           <ModalFooter>
@@ -734,11 +726,11 @@ ${forecasts.map(f =>
               Cancel
             </Button>
             <Button colorScheme="brand" onClick={handleSaveScenario}>
-              {editingScenario.id ? "Update" : "Create"}
+              Create Scenario
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </>
+    </div>
   );
 }
