@@ -99,30 +99,79 @@ export default function Dashboard() {
   const toast = useToast();
 
   // KPIs data
-  const kpis = useMemo(() => ({
-    totalRevenue: 328000,
-    totalOrders: 851,
-    averageOrderValue: 385.5,
-    stockoutRate: 2.8,
-    holdingCost: 12500,
-    customerSatisfaction: 4.6,
-    inventoryTurnover: 6.2,
-    forecastAccuracy: 87.5,
-  }), []);
+  const kpis = useMemo(
+    () => ({
+      totalRevenue: 328000,
+      totalOrders: 851,
+      averageOrderValue: 385.5,
+      stockoutRate: 2.8,
+      holdingCost: 12500,
+      customerSatisfaction: 4.6,
+      inventoryTurnover: 6.2,
+      forecastAccuracy: 87.5,
+    }),
+    []
+  );
 
   // At-risk items
-  const atRiskItems = useMemo(() => [
-    { sku: "TSH-001", name: "Black T-Shirt (Small)", store: "Downtown", currentStock: 5, reorderPoint: 20, daysUntilStockout: 3 },
-    { sku: "JKT-002", name: "Navy Jacket (Medium)", store: "Longueuil", currentStock: 3, reorderPoint: 15, daysUntilStockout: 2 },
-    { sku: "SHP-003", name: "Brown Shoes (42)", store: "Plateau", currentStock: 8, reorderPoint: 25, daysUntilStockout: 5 },
-    { sku: "PNT-004", name: "Khaki Pants (32)", store: "Downtown", currentStock: 12, reorderPoint: 30, daysUntilStockout: 7 },
-  ], []);
+  const atRiskItems = useMemo(
+    () => [
+      {
+        sku: "TSH-001",
+        name: "Black T-Shirt (Small)",
+        store: "Downtown",
+        currentStock: 5,
+        reorderPoint: 20,
+        daysUntilStockout: 3,
+      },
+      {
+        sku: "JKT-002",
+        name: "Navy Jacket (Medium)",
+        store: "Longueuil",
+        currentStock: 3,
+        reorderPoint: 15,
+        daysUntilStockout: 2,
+      },
+      {
+        sku: "SHP-003",
+        name: "Brown Shoes (42)",
+        store: "Plateau",
+        currentStock: 8,
+        reorderPoint: 25,
+        daysUntilStockout: 5,
+      },
+      {
+        sku: "PNT-004",
+        name: "Khaki Pants (32)",
+        store: "Downtown",
+        currentStock: 12,
+        reorderPoint: 30,
+        daysUntilStockout: 7,
+      },
+    ],
+    []
+  );
 
   // Open purchase orders
-  const openPOs = useMemo(() => [
-    { po: "PO-2024-001", supplier: "TechCorp", eta: "2024-02-15", status: "In Transit", lines: 12 },
-    { po: "PO-2024-002", supplier: "SupplyCo", eta: "2024-02-20", status: "Processing", lines: 8 },
-  ], []);
+  const openPOs = useMemo(
+    () => [
+      {
+        po: "PO-2024-001",
+        supplier: "TechCorp",
+        eta: "2024-02-15",
+        status: "In Transit",
+        lines: 12,
+      },
+      {
+        po: "PO-2024-002",
+        supplier: "SupplyCo",
+        eta: "2024-02-20",
+        status: "Processing",
+        lines: 8,
+      },
+    ],
+    []
+  );
 
   const handleExportReport = async () => {
     try {
@@ -231,10 +280,10 @@ Holding Cost,${kpis.holdingCost}`;
       />
 
       {/* KPI Cards */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={8} mb={8}>
         <StatCard
           label="Total Revenue"
-          value={formatCurrency(kpis.totalRevenue)}
+          value={`$${(kpis.totalRevenue / 1000).toFixed(0)}k`}
           hint="12.5% increase from last month"
           trend="increase"
           icon={FiDollarSign}
@@ -242,7 +291,7 @@ Holding Cost,${kpis.holdingCost}`;
         />
         <StatCard
           label="Total Orders"
-          value={kpis.totalOrders.toLocaleString()}
+          value={`${(kpis.totalOrders / 1000).toFixed(1)}k`}
           hint="8.2% increase from last month"
           trend="increase"
           icon={FiPackage}
@@ -250,7 +299,7 @@ Holding Cost,${kpis.holdingCost}`;
         />
         <StatCard
           label="Stockout Rate"
-          value={formatPercentage(kpis.stockoutRate)}
+          value={`${kpis.stockoutRate.toFixed(1)}%`}
           hint="2.1% decrease from last month"
           trend="decrease"
           icon={FiTrendingUp}
@@ -319,7 +368,9 @@ Holding Cost,${kpis.holdingCost}`;
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) =>
+                      `${name} ${(percent * 100).toFixed(0)}%`
+                    }
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
@@ -474,7 +525,9 @@ Holding Cost,${kpis.holdingCost}`;
                   {r.status}
                 </Badge>
               </Td>
-              <Td isNumeric fontWeight="semibold">{r.lines}</Td>
+              <Td isNumeric fontWeight="semibold">
+                {r.lines}
+              </Td>
               <Td textAlign="right">
                 <Button
                   size="sm"
