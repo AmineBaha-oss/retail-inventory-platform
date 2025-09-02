@@ -1,0 +1,95 @@
+spring:
+  application:
+    name: retail-inventory-platform
+
+  # Use H2 in-memory database with default settings
+  datasource:
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+    show-sql: false
+
+  h2:
+    console:
+      enabled: true
+
+  # Disable all optional services
+  flyway:
+    enabled: false
+
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  graphql:
+    graphiql:
+      enabled: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ""
+            client-secret: ""
+
+# Minimal application configuration
+app:
+  name: Retail Inventory Platform
+  version: 1.0.0
+
+  security:
+    jwt:
+      secret: "default-secret-key"
+      expiration: 86400000
+      refresh-expiration: 604800000
+    cors:
+      allowed-origins: "*"
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: true
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: false
+
+# Logging Configuration
+logging:
+  level:
+    com.retailinventory: INFO
+    org.springframework: INFO
+    org.springframework.boot: INFO
+    org.springframework.security: WARN
+    org.hibernate: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
