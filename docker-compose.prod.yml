@@ -1,0 +1,228 @@
+version: "3.8"
+
+services:
+  # TimescaleDB Database (Production)
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: retail_inventory_db_prod
+    environment:
+      POSTGRES_DB: ${DB_NAME:-retail_inventory}
+      POSTGRES_USER: ${DB_USERNAME:-retail_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d/
+      - ./backups:/backups
+    networks:
+      - retail_network_prod
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USERNAME:-retail_user} -d ${DB_NAME:-retail_inventory}",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching and queues (Production)
+  redis:
+    image: redis:7-alpine
+    container_name: retail_inventory_redis_prod
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - retail_network_prod
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Spring Boot API (Production)
+  spring-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.spring
+    container_name: retail_inventory_spring_api_prod
+    ports:
+      - "${SPRING_API_PORT:-8080}:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-retail_inventory}
+      - DB_USERNAME=${DB_USERNAME:-retail_user}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - ML_API_BASEURL=http://ml-api:8000
+      - JWT_SECRET=${JWT_SECRET}
+      - SERVER_PORT=8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - retail_network_prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+        reservations:
+          memory: 1G
+          cpus: "0.5"
+
+  # ML API (Production)
+  ml-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: retail_inventory_ml_api_prod
+    ports:
+      - "${ML_API_PORT:-8000}:8000"
+    environment:
+      - DATABASE_URL=postgresql://${DB_USERNAME:-retail_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-retail_inventory}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - retail_network_prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
+
+  # Frontend (Production)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: retail_inventory_frontend_prod
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - spring-api
+    networks:
+      - retail_network_prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: retail_inventory_nginx_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - spring-api
+      - ml-api
+    networks:
+      - retail_network_prod
+    restart: unless-stopped
+
+  # Observability Stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: retail_inventory_prometheus_prod
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
+      - "--storage.tsdb.retention.time=30d"
+    networks:
+      - retail_network_prod
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: retail_inventory_grafana_prod
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data_prod:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - retail_network_prod
+    restart: unless-stopped
+
+  # Database Backup Service
+  backup:
+    image: postgres:15-alpine
+    container_name: retail_inventory_backup_prod
+    environment:
+      - PGPASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh
+    networks:
+      - retail_network_prod
+    depends_on:
+      - postgres
+    restart: "no"
+    command: /bin/sh -c "chmod +x /backup.sh && crond -f"
+
+volumes:
+  postgres_data_prod:
+  redis_data_prod:
+  grafana_data_prod:
+  prometheus_data:
+
+networks:
+  retail_network_prod:
+    driver: bridge
