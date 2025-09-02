@@ -249,6 +249,7 @@ dbt test
 - Set up monitoring and alerting
 - Implement backup strategies for TimescaleDB
 
+
 ### Scaling
 - **Horizontal scaling**: Multiple API instances behind load balancer
 - **Database scaling**: TimescaleDB clustering for high availability
