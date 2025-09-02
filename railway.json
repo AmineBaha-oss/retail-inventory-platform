@@ -5,8 +5,8 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "java -Dspring.profiles.active=railway -jar /app/app.jar",
-    "healthcheckPath": "/actuator/health",
+    "startCommand": "java -Dspring.profiles.active=minimal -jar /app/app.jar",
+    "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
