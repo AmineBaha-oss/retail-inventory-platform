@@ -131,4 +131,21 @@ public class PurchaseOrder {
                 .add(taxAmount)
                 .add(shippingAmount);
     }
+
+    // Additional getter methods for compatibility
+    public UUID getStoreId() {
+        return store != null ? store.getId() : null;
+    }
+
+    public UUID getSupplierId() {
+        return supplier != null ? supplier.getId() : null;
+    }
+
+    public LocalDate getOrderDate() {
+        return expectedDeliveryDate;
+    }
+
+    public UUID getCreatedBy() {
+        return approvedBy;
+    }
 }

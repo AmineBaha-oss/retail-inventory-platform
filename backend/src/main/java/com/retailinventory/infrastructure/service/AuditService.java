@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -104,10 +106,10 @@ public class AuditService {
     }
 
     private Object createChangePayload(Object oldValue, Object newValue) {
-        return new Object() {
-            public final Object oldValue = oldValue;
-            public final Object newValue = newValue;
-            public final String timestamp = LocalDateTime.now().toString();
-        };
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("oldValue", oldValue);
+        payload.put("newValue", newValue);
+        payload.put("timestamp", LocalDateTime.now().toString());
+        return payload;
     }
 }

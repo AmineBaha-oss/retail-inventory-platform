@@ -69,4 +69,17 @@ public class PurchaseOrderItem {
         }
         return quantityOrdered;
     }
+
+    // Additional getter methods for compatibility
+    public UUID getProductId() {
+        return product != null ? product.getId() : null;
+    }
+
+    public Integer getQuantity() {
+        return quantityOrdered;
+    }
+
+    public BigDecimal getUnitPrice() {
+        return unitCost;
+    }
 }

@@ -50,4 +50,6 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     
     @Query("SELECT DISTINCT p.brand FROM Product p WHERE p.status = 'ACTIVE' ORDER BY p.brand")
     List<String> findAllActiveBrands();
+    
+    // Additional methods for compatibility
 }

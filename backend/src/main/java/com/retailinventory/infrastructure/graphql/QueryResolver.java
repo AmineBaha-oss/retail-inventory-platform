@@ -51,11 +51,8 @@ public class QueryResolver {
     @QueryMapping
     public List<Product> products(@Argument UUID storeId) {
         log.debug("Fetching products for store: {}", storeId);
-        if (storeId != null) {
-            // Return products available in the specific store
-            return productRepository.findByStoreId(storeId);
-        }
-        return productRepository.findAll();
+        // Products are not store-specific, return all active products
+        return productRepository.findActiveProducts();
     }
 
     @QueryMapping
@@ -95,7 +92,7 @@ public class QueryResolver {
     public List<PurchaseOrder> purchaseOrders(@Argument UUID storeId, @Argument String status) {
         log.debug("Fetching purchase orders for store: {}, status: {}", storeId, status);
         if (storeId != null && status != null) {
-            return purchaseOrderRepository.findByStoreIdAndStatus(storeId, PurchaseOrder.PurchaseOrderStatus.valueOf(status));
+            return purchaseOrderRepository.findByStoreAndStatus(storeId, PurchaseOrder.PurchaseOrderStatus.valueOf(status));
         } else if (storeId != null) {
             return purchaseOrderRepository.findByStoreId(storeId);
         } else if (status != null) {

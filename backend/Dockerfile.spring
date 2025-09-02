@@ -23,7 +23,7 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 # Copy the built jar from build stage
-COPY --from=build /app/target/*-SNAPSHOT.jar app.jar
+COPY --from=build /app/target/retail-inventory-platform-1.0.0.jar app.jar
 
 # Create non-root user
 RUN adduser --disabled-password --gecos '' appuser

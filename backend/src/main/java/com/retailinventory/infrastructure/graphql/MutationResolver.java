@@ -9,6 +9,7 @@ import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.stereotype.Controller;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,7 +33,7 @@ public class MutationResolver {
             input.getStoreId(), input.getProductId()
         ).orElseThrow(() -> new RuntimeException("Inventory not found"));
         
-        inventory.setQuantityOnHand(input.getQuantityOnHand());
+        inventory.setQuantityOnHand(BigDecimal.valueOf(input.getQuantityOnHand()));
         return inventoryRepository.save(inventory);
     }
 
@@ -44,8 +45,8 @@ public class MutationResolver {
             input.getStoreId(), input.getProductId()
         ).orElseThrow(() -> new RuntimeException("Inventory not found"));
         
-        int newQuantity = inventory.getQuantityOnHand() + input.getAdjustment();
-        inventory.setQuantityOnHand(Math.max(0, newQuantity));
+        BigDecimal newQuantity = inventory.getQuantityOnHand().add(BigDecimal.valueOf(input.getAdjustment()));
+        inventory.setQuantityOnHand(newQuantity.max(BigDecimal.ZERO));
         
         return inventoryRepository.save(inventory);
     }

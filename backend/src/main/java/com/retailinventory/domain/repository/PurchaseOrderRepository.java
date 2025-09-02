@@ -23,9 +23,11 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
     
     List<PurchaseOrder> findByStatus(PurchaseOrder.PurchaseOrderStatus status);
     
-    List<PurchaseOrder> findByStoreId(UUID storeId);
+    @Query("SELECT po FROM PurchaseOrder po WHERE po.store.id = :storeId")
+    List<PurchaseOrder> findByStoreId(@Param("storeId") UUID storeId);
     
-    List<PurchaseOrder> findBySupplierId(UUID supplierId);
+    @Query("SELECT po FROM PurchaseOrder po WHERE po.supplier.id = :supplierId")
+    List<PurchaseOrder> findBySupplierId(@Param("supplierId") UUID supplierId);
     
     @Query("SELECT po FROM PurchaseOrder po WHERE po.store.id = :storeId AND po.status = :status")
     List<PurchaseOrder> findByStoreAndStatus(@Param("storeId") UUID storeId, @Param("status") PurchaseOrder.PurchaseOrderStatus status);
@@ -64,7 +66,13 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
     @Query("SELECT COUNT(po) FROM PurchaseOrder po WHERE po.store.id = :storeId AND po.status = :status")
     Long countByStoreAndStatus(@Param("storeId") UUID storeId, @Param("status") PurchaseOrder.PurchaseOrderStatus status);
     
-    Page<PurchaseOrder> findByStoreIdOrderByCreatedAtDesc(UUID storeId, Pageable pageable);
+    @Query("SELECT po FROM PurchaseOrder po WHERE po.store.id = :storeId ORDER BY po.createdAt DESC")
+    Page<PurchaseOrder> findByStoreIdOrderByCreatedAtDesc(@Param("storeId") UUID storeId, Pageable pageable);
     
-    Page<PurchaseOrder> findBySupplierIdOrderByCreatedAtDesc(UUID supplierId, Pageable pageable);
+    @Query("SELECT po FROM PurchaseOrder po WHERE po.supplier.id = :supplierId ORDER BY po.createdAt DESC")
+    Page<PurchaseOrder> findBySupplierIdOrderByCreatedAtDesc(@Param("supplierId") UUID supplierId, Pageable pageable);
+    
+    // Additional methods for compatibility
+    // Note: Use findByStoreAndStatus instead of findByStoreIdAndStatus
+    // since PurchaseOrder has @ManyToOne Store store, not UUID storeId
 }

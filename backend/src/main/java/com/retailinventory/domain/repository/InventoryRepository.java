@@ -52,4 +52,17 @@ public interface InventoryRepository extends JpaRepository<Inventory, UUID> {
     Long countStockOutsByStore(@Param("storeId") UUID storeId);
     
     boolean existsByIdempotencyKey(String idempotencyKey);
+    
+    // Additional methods for compatibility
+    @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId AND i.product.id = :productId")
+    Optional<Inventory> findByStoreIdAndProductId(@Param("storeId") UUID storeId, @Param("productId") UUID productId);
+    
+    @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId")
+    List<Inventory> findByStoreId(@Param("storeId") UUID storeId);
+    
+    @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId AND i.quantityAvailable <= i.reorderPoint")
+    List<Inventory> findLowStockByStoreId(@Param("storeId") UUID storeId);
+    
+    @Query("SELECT i FROM Inventory i WHERE i.quantityAvailable <= i.reorderPoint")
+    List<Inventory> findLowStock();
 }

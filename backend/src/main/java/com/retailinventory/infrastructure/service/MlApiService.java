@@ -1,7 +1,11 @@
 package com.retailinventory.infrastructure.service;
 
 import com.retailinventory.domain.entity.Forecast;
+import com.retailinventory.domain.entity.Product;
+import com.retailinventory.domain.entity.Store;
 import com.retailinventory.domain.repository.ForecastRepository;
+import com.retailinventory.domain.repository.ProductRepository;
+import com.retailinventory.domain.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +29,8 @@ public class MlApiService {
 
     private final WebClient mlWebClient;
     private final ForecastRepository forecastRepository;
+    private final StoreRepository storeRepository;
+    private final ProductRepository productRepository;
 
     @Value("${app.ml-service.base-url}")
     private String mlServiceBaseUrl;
@@ -52,15 +58,22 @@ public class MlApiService {
                 // Parse the response and create Forecast entities
                 List<Map<String, Object>> forecastData = (List<Map<String, Object>>) response.get("forecast_data");
                 
+                // Get store and product entities
+                Store store = storeRepository.findById(UUID.fromString(storeId)).orElse(null);
+                Product product = productRepository.findById(UUID.fromString(productId)).orElse(null);
+                
+                if (store == null || product == null) {
+                    return Mono.error(new RuntimeException("Store or product not found"));
+                }
+                
                 List<Forecast> forecasts = forecastData.stream()
                     .map(data -> Forecast.builder()
-                        .storeId(UUID.fromString(storeId))
-                        .productId(UUID.fromString(productId))
+                        .store(store)
+                        .product(product)
                         .forecastDate(LocalDate.parse((String) data.get("date")))
                         .p50Forecast(new BigDecimal(data.get("p50").toString()))
                         .p90Forecast(new BigDecimal(data.get("p90").toString()))
                         .modelVersion((String) response.get("model_version"))
-                        .confidenceLevel(new BigDecimal(response.get("confidence_level").toString()))
                         .build())
                     .toList();
 
@@ -79,8 +92,8 @@ public class MlApiService {
     /**
      * Train a new forecasting model.
      */
-    public Mono<Map<String, Object>> trainModel(String storeId, String productId, 
-                                               List<Map<String, Object>> salesData) {
+    public Mono<Map> trainModel(String storeId, String productId, 
+                               List<Map<String, Object>> salesData) {
         log.info("Training model for store: {}, product: {}", storeId, productId);
 
         Map<String, Object> requestPayload = Map.of(
@@ -104,7 +117,7 @@ public class MlApiService {
     /**
      * Get model performance metrics.
      */
-    public Mono<Map<String, Object>> getModelPerformance(String storeId, String productId) {
+    public Mono<Map> getModelPerformance(String storeId, String productId) {
         return mlWebClient
             .get()
             .uri("/api/v1/forecasting/performance/{storeId}/{productId}", storeId, productId)

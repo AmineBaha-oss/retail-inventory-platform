@@ -14,20 +14,26 @@ import java.util.UUID;
 @Repository
 public interface ForecastRepository extends JpaRepository<Forecast, UUID> {
 
-    List<Forecast> findByStoreId(UUID storeId);
+    @Query("SELECT f FROM Forecast f WHERE f.store.id = :storeId")
+    List<Forecast> findByStoreId(@Param("storeId") UUID storeId);
     
-    List<Forecast> findByProductId(UUID productId);
+    @Query("SELECT f FROM Forecast f WHERE f.product.id = :productId")
+    List<Forecast> findByProductId(@Param("productId") UUID productId);
     
-    List<Forecast> findByStoreIdAndProductId(UUID storeId, UUID productId);
+    @Query("SELECT f FROM Forecast f WHERE f.store.id = :storeId AND f.product.id = :productId")
+    List<Forecast> findByStoreIdAndProductId(@Param("storeId") UUID storeId, @Param("productId") UUID productId);
     
-    Optional<Forecast> findTopByStoreIdAndProductIdOrderByForecastDateDesc(UUID storeId, UUID productId);
+    @Query("SELECT f FROM Forecast f WHERE f.store.id = :storeId AND f.product.id = :productId ORDER BY f.forecastDate DESC")
+    Optional<Forecast> findTopByStoreIdAndProductIdOrderByForecastDateDesc(@Param("storeId") UUID storeId, @Param("productId") UUID productId);
     
+    @Query("SELECT f FROM Forecast f WHERE f.store.id = :storeId AND f.product.id = :productId AND f.forecastDate BETWEEN :startDate AND :endDate")
     List<Forecast> findByStoreIdAndProductIdAndForecastDateBetween(
-        UUID storeId, UUID productId, LocalDate startDate, LocalDate endDate);
+        @Param("storeId") UUID storeId, @Param("productId") UUID productId, 
+        @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
     
-    @Query("SELECT f FROM Forecast f WHERE f.storeId = :storeId AND f.forecastDate >= :date")
+    @Query("SELECT f FROM Forecast f WHERE f.store.id = :storeId AND f.forecastDate >= :date")
     List<Forecast> findFutureForecastsByStore(@Param("storeId") UUID storeId, @Param("date") LocalDate date);
     
-    @Query("SELECT f FROM Forecast f WHERE f.productId = :productId AND f.forecastDate >= :date")
+    @Query("SELECT f FROM Forecast f WHERE f.product.id = :productId AND f.forecastDate >= :date")
     List<Forecast> findFutureForecastsByProduct(@Param("productId") UUID productId, @Param("date") LocalDate date);
 }

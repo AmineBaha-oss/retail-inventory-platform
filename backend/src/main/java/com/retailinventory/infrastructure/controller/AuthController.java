@@ -39,10 +39,10 @@ public class AuthController {
         // Create new user
         User user = User.builder()
                 .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
+                .username(request.getEmail()) // Use email as username
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
-                .role(User.Role.USER)
                 .build();
 
         userRepository.save(user);
@@ -50,7 +50,7 @@ public class AuthController {
         // Generate tokens
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("userId", user.getId().toString());
-        extraClaims.put("role", user.getRole().name());
+        extraClaims.put("roles", user.getRoles().stream().map(role -> role.getName()).toArray());
 
         String jwtToken = jwtService.generateToken(extraClaims, user);
         String refreshToken = jwtService.generateRefreshToken(user);
@@ -75,7 +75,7 @@ public class AuthController {
 
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("userId", user.getId().toString());
-        extraClaims.put("role", user.getRole().name());
+        extraClaims.put("roles", user.getRoles().stream().map(role -> role.getName()).toArray());
 
         String jwtToken = jwtService.generateToken(extraClaims, user);
         String refreshToken = jwtService.generateRefreshToken(user);

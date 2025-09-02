@@ -6,6 +6,7 @@ import com.retailinventory.domain.repository.SupplierRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -51,7 +52,7 @@ public class EmailService {
             String emailBody = buildPurchaseOrderEmailBody(purchaseOrder, supplier);
             helper.setText(emailBody, true);
             
-            helper.addAttachment(filename, new javax.mail.util.ByteArrayDataSource(pdfContent, "application/pdf"));
+            helper.addAttachment(filename, new ByteArrayResource(pdfContent));
 
             mailSender.send(message);
             log.info("Purchase order email sent successfully for PO: {}", purchaseOrder.getPoNumber());

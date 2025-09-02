@@ -11,10 +11,12 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0',
     port: 3000,
+    allowedHosts: ['localhost', 'frontend', 'retail_inventory_frontend'],
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://spring-api:8080',
         changeOrigin: true,
       },
     },

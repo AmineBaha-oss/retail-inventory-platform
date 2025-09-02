@@ -88,4 +88,9 @@ public class Supplier {
         PENDING,
         SUSPENDED
     }
+
+    // Additional getter methods for compatibility
+    public String getContactEmail() {
+        return email;
+    }
 }

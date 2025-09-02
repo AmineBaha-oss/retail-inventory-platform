@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # TimescaleDB Database (PostgreSQL with TimescaleDB extension)
   postgres:

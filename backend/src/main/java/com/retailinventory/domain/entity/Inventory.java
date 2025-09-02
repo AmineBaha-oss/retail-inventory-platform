@@ -36,14 +36,18 @@ public class Inventory {
     private Product product;
 
     @Column(name = "quantity_on_hand", nullable = false)
-    private Integer quantityOnHand;
+    private BigDecimal quantityOnHand;
+
+    @Column(name = "quantity_on_order")
+    @Builder.Default
+    private BigDecimal quantityOnOrder = BigDecimal.ZERO;
 
     @Column(name = "quantity_reserved")
     @Builder.Default
-    private Integer quantityReserved = 0;
+    private BigDecimal quantityReserved = BigDecimal.ZERO;
 
     @Column(name = "quantity_available", insertable = false, updatable = false)
-    private Integer quantityAvailable;
+    private BigDecimal quantityAvailable;
 
     @Column(name = "reorder_point")
     @Builder.Default
@@ -69,21 +73,21 @@ public class Inventory {
     private LocalDateTime createdAt;
 
     // Helper methods
-    public Integer getQuantityAvailable() {
-        return quantityOnHand - quantityReserved;
+    public BigDecimal getQuantityAvailable() {
+        return quantityOnHand.subtract(quantityReserved);
     }
 
     public boolean isBelowReorderPoint() {
-        return getQuantityAvailable() <= reorderPoint;
+        return getQuantityAvailable().compareTo(BigDecimal.valueOf(reorderPoint)) <= 0;
     }
 
     public boolean isStockOut() {
-        return getQuantityAvailable() <= 0;
+        return getQuantityAvailable().compareTo(BigDecimal.ZERO) <= 0;
     }
 
     public BigDecimal getTotalValue() {
         if (costPerUnit != null && quantityOnHand != null) {
-            return costPerUnit.multiply(BigDecimal.valueOf(quantityOnHand));
+            return costPerUnit.multiply(quantityOnHand);
         }
         return BigDecimal.ZERO;
     }
@@ -96,6 +100,39 @@ public class Inventory {
         } else {
             return InventoryStatus.HEALTHY;
         }
+    }
+
+    // Additional getter/setter methods for compatibility
+    public BigDecimal getOnHand() {
+        return quantityOnHand;
+    }
+
+    public void setOnHand(BigDecimal onHand) {
+        this.quantityOnHand = onHand;
+    }
+
+    public BigDecimal getOnOrder() {
+        return quantityOnOrder;
+    }
+
+    public void setOnOrder(BigDecimal onOrder) {
+        this.quantityOnOrder = onOrder;
+    }
+
+    public BigDecimal getQuantityAllocated() {
+        return quantityReserved;
+    }
+
+    public void setQuantityAllocated(BigDecimal quantityAllocated) {
+        this.quantityReserved = quantityAllocated;
+    }
+
+    public UUID getStoreId() {
+        return store != null ? store.getId() : null;
+    }
+
+    public UUID getProductId() {
+        return product != null ? product.getId() : null;
     }
 
     public enum InventoryStatus {

@@ -12,13 +12,15 @@ import java.util.UUID;
 @Repository
 public interface PurchaseOrderItemRepository extends JpaRepository<PurchaseOrderItem, UUID> {
 
-    List<PurchaseOrderItem> findByPurchaseOrderId(UUID purchaseOrderId);
+    @Query("SELECT poi FROM PurchaseOrderItem poi WHERE poi.purchaseOrder.id = :purchaseOrderId")
+    List<PurchaseOrderItem> findByPurchaseOrderId(@Param("purchaseOrderId") UUID purchaseOrderId);
     
-    List<PurchaseOrderItem> findByProductId(UUID productId);
+    @Query("SELECT poi FROM PurchaseOrderItem poi WHERE poi.product.id = :productId")
+    List<PurchaseOrderItem> findByProductId(@Param("productId") UUID productId);
     
-    @Query("SELECT poi FROM PurchaseOrderItem poi JOIN poi.purchaseOrder po WHERE po.storeId = :storeId")
+    @Query("SELECT poi FROM PurchaseOrderItem poi JOIN poi.purchaseOrder po WHERE po.store.id = :storeId")
     List<PurchaseOrderItem> findByStoreId(@Param("storeId") UUID storeId);
     
-    @Query("SELECT poi FROM PurchaseOrderItem poi JOIN poi.purchaseOrder po WHERE po.supplierId = :supplierId")
+    @Query("SELECT poi FROM PurchaseOrderItem poi JOIN poi.purchaseOrder po WHERE po.supplier.id = :supplierId")
     List<PurchaseOrderItem> findBySupplierId(@Param("supplierId") UUID supplierId);
 }

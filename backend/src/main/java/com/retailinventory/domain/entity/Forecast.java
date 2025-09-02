@@ -117,6 +117,15 @@ public class Forecast {
         };
     }
 
+    // Additional getter methods for compatibility
+    public UUID getStoreId() {
+        return store != null ? store.getId() : null;
+    }
+
+    public UUID getProductId() {
+        return product != null ? product.getId() : null;
+    }
+
     public enum ForecastQuantile {
         P50, P90, P95
     }

@@ -2,6 +2,7 @@ package com.retailinventory.domain.service;
 
 import com.retailinventory.domain.entity.*;
 import com.retailinventory.domain.repository.*;
+import com.retailinventory.infrastructure.dto.reorder.ReorderSuggestion;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -116,18 +117,13 @@ public class ReorderService {
         return qty;
     }
 
-    @lombok.Data
-    @lombok.Builder
-    public static class ReorderSuggestion {
-        private Product product;
-        private Integer currentStock;
-        private Integer onOrder;
-        private Integer allocated;
-        private Double p90DailyDemand;
-        private Integer leadTimeDays;
-        private Integer suggestedQuantity;
-        private Double unitCost;
-        private Double totalCost;
-        private String reason;
+    public List<ReorderSuggestion> generateReorderSuggestions(UUID storeId, UUID supplierId) {
+        return calculateReorderSuggestions(storeId, supplierId);
     }
+
+    public PurchaseOrder createPurchaseOrderFromSuggestions(UUID storeId, UUID supplierId, List<ReorderSuggestion> suggestions) {
+        // TODO: Implement purchase order creation from suggestions
+        throw new UnsupportedOperationException("Purchase order creation from suggestions not yet implemented");
+    }
+
 }

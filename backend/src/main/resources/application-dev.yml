@@ -10,11 +10,24 @@ spring:
     show-sql: true
 
   flyway:
-    enabled: true
+    enabled: false
     baseline-on-migrate:
       true
 
       # Redis and Kafka are disabled via DevConfig.java
+
+  # Mail configuration for development
+  mail:
+    host: localhost
+    port: 1025
+    username:
+    password:
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
 
 # Disable security for development
 app:

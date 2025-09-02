@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -208,8 +209,8 @@ public class WebhookService {
                 .productId(product.getId())
                 .transactionDate(LocalDateTime.parse(orderDate))
                 .quantitySold(quantity)
-                .unitPrice(price)
-                .totalAmount(quantity * price)
+                .unitPrice(BigDecimal.valueOf(price))
+                .totalAmount(BigDecimal.valueOf(quantity * price))
                 .externalOrderId(orderId)
                 .build();
         
@@ -232,8 +233,8 @@ public class WebhookService {
                 .productId(product.getId())
                 .transactionDate(LocalDateTime.parse(orderDate))
                 .quantitySold(quantity)
-                .unitPrice(price)
-                .totalAmount(quantity * price)
+                .unitPrice(BigDecimal.valueOf(price))
+                .totalAmount(BigDecimal.valueOf(quantity * price))
                 .externalOrderId(orderId)
                 .build();
         
@@ -271,17 +272,18 @@ public class WebhookService {
         Inventory inventory = inventoryRepository.findByStoreIdAndProductId(storeId, productId)
                 .orElseGet(() -> {
                     Inventory newInventory = Inventory.builder()
-                            .storeId(storeId)
-                            .productId(productId)
-                            .quantityOnHand(0)
-                            .quantityAllocated(0)
-                            .quantityOnOrder(0)
+                            .quantityOnHand(BigDecimal.ZERO)
+                            .quantityReserved(BigDecimal.ZERO)
+                            .quantityOnOrder(BigDecimal.ZERO)
                             .build();
+                    // Set the store and product relationships
+                    newInventory.setStore(storeRepository.findById(storeId).orElse(null));
+                    newInventory.setProduct(productRepository.findById(productId).orElse(null));
                     return inventoryRepository.save(newInventory);
                 });
         
-        int newQuantity = inventory.getQuantityOnHand() + quantityChange;
-        inventory.setQuantityOnHand(Math.max(0, newQuantity));
+        BigDecimal newQuantity = inventory.getQuantityOnHand().add(BigDecimal.valueOf(quantityChange));
+        inventory.setQuantityOnHand(newQuantity.max(BigDecimal.ZERO));
         inventoryRepository.save(inventory);
     }
 }
