@@ -145,7 +145,13 @@ run_tests() {
     if [[ -f "backend/pom.xml" ]]; then
         print_status "Running Spring Boot tests..."
         cd backend
-        ./mvnw test
+        if [[ -f "./mvnw" ]]; then
+            ./mvnw test
+        elif command -v mvn &> /dev/null; then
+            mvn test
+        else
+            print_warning "Maven not found, skipping Spring Boot tests"
+        fi
         cd ..
     fi
     
