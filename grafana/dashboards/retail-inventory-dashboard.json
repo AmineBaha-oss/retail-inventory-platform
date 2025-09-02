@@ -1,0 +1,150 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Retail Inventory Platform Dashboard",
+    "tags": ["retail", "inventory", "forecasting"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Inventory Updates",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(inventory_updates_total[5m])",
+            "legendFormat": "Updates/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            },
+            "mappings": []
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Purchase Orders Created",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(purchase_orders_created_total[5m])",
+            "legendFormat": "POs/sec"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Forecast Generation Time",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(forecasts_generation_time_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "Low Stock Alerts",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(alerts_low_stock_total[5m])",
+            "legendFormat": "Alerts/sec"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        }
+      },
+      {
+        "id": 5,
+        "title": "Webhook Processing Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(webhooks_processed_total[1m])",
+            "legendFormat": "{{source}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 6,
+        "title": "Forecast Accuracy Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "avg(forecast_accuracy) by (store_id)",
+            "legendFormat": "Store {{store_id}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "id": 7,
+        "title": "System Health",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "up{job=\"retail-inventory-platform\"}",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 16
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

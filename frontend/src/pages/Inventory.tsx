@@ -48,6 +48,7 @@ import { SearchIcon } from "@chakra-ui/icons";
 import { FiPlus, FiEdit3, FiTrash2, FiAlertTriangle } from "react-icons/fi";
 import { useRef } from "react";
 import PageHeader from "../components/ui/PageHeader";
+import { FiPackage } from "react-icons/fi";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
 import { inventoryAPI } from "../services/api";
@@ -154,7 +155,11 @@ export default function Inventory() {
   // Get filters from navigation state (when coming from dashboard)
   useEffect(() => {
     if (location.state) {
-      const { search: searchFilter, storeFilter: storeFilterState, statusFilter: statusFilterState } = location.state;
+      const {
+        search: searchFilter,
+        storeFilter: storeFilterState,
+        statusFilter: statusFilterState,
+      } = location.state;
       if (searchFilter) setSearch(searchFilter);
       if (storeFilterState) setStoreFilter(storeFilterState);
       if (statusFilterState) setStatusFilter(statusFilterState);
@@ -175,9 +180,13 @@ export default function Inventory() {
   );
 
   const totalItems = inventory.length;
-  const healthyCount = inventory.filter((item) => item.status === "Healthy").length;
+  const healthyCount = inventory.filter(
+    (item) => item.status === "Healthy"
+  ).length;
   const lowCount = inventory.filter((item) => item.status === "Low").length;
-  const criticalCount = inventory.filter((item) => item.status === "Critical").length;
+  const criticalCount = inventory.filter(
+    (item) => item.status === "Critical"
+  ).length;
 
   // Handle search
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,11 +210,9 @@ export default function Inventory() {
   const handleSaveEdit = () => {
     if (!editingItem.id) return;
 
-    setInventory(prev => 
-      prev.map(item => 
-        item.id === editingItem.id 
-          ? { ...item, ...editingItem }
-          : item
+    setInventory((prev) =>
+      prev.map((item) =>
+        item.id === editingItem.id ? { ...item, ...editingItem } : item
       )
     );
 
@@ -224,7 +231,7 @@ export default function Inventory() {
   const confirmDelete = () => {
     if (!selectedItem) return;
 
-    setInventory(prev => prev.filter(item => item.id !== selectedItem.id));
+    setInventory((prev) => prev.filter((item) => item.id !== selectedItem.id));
     showSuccess("Inventory item deleted successfully!");
     setIsDeleteDialogOpen(false);
     setSelectedItem(null);
@@ -235,11 +242,13 @@ export default function Inventory() {
     try {
       setIsLoading(true);
       showInfo(`Generating purchase order for ${item.sku}...`);
-      
+
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      showSuccess(`Purchase order generated for ${item.sku}! Check Purchase Orders page.`);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      showSuccess(
+        `Purchase order generated for ${item.sku}! Check Purchase Orders page.`
+      );
     } catch (error) {
       showError("Failed to generate purchase order");
     } finally {
@@ -252,10 +261,10 @@ export default function Inventory() {
     try {
       setIsLoading(true);
       showInfo("Refreshing inventory data...");
-      
+
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       showSuccess("Inventory data refreshed successfully!");
     } catch (error) {
       showError("Failed to refresh inventory data");
@@ -269,6 +278,8 @@ export default function Inventory() {
       <PageHeader
         title="Inventory Management"
         subtitle="Monitor stock levels, identify at-risk items, and manage replenishment across all stores."
+        icon={<FiPackage />}
+        accentColor="var(--chakra-colors-orange-400)"
         actions={
           <HStack spacing={3}>
             <Button
@@ -459,9 +470,15 @@ export default function Inventory() {
               <Td fontWeight="medium">{item.sku}</Td>
               <Td>{item.name}</Td>
               <Td>{item.store}</Td>
-              <Td isNumeric fontWeight="semibold">{item.quantity}</Td>
-              <Td isNumeric fontWeight="semibold">{item.reorderPoint}</Td>
-              <Td isNumeric fontWeight="semibold">{item.daysUntilStockout}</Td>
+              <Td isNumeric fontWeight="semibold">
+                {item.quantity}
+              </Td>
+              <Td isNumeric fontWeight="semibold">
+                {item.reorderPoint}
+              </Td>
+              <Td isNumeric fontWeight="semibold">
+                {item.daysUntilStockout}
+              </Td>
               <Td>
                 <Badge
                   colorScheme={
@@ -516,7 +533,11 @@ export default function Inventory() {
       </SectionCard>
 
       {/* Edit/Add Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} size="lg">
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        size="lg"
+      >
         <ModalOverlay />
         <ModalContent bg="gray.800" border="1px solid" borderColor="gray.700">
           <ModalHeader color="gray.100">
@@ -529,7 +550,9 @@ export default function Inventory() {
                 <FormLabel color="gray.200">SKU</FormLabel>
                 <Input
                   value={editingItem.sku || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, sku: e.target.value })}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, sku: e.target.value })
+                  }
                   bg="gray.700"
                   borderColor="gray.600"
                   color="gray.100"
@@ -539,7 +562,9 @@ export default function Inventory() {
                 <FormLabel color="gray.200">Name</FormLabel>
                 <Input
                   value={editingItem.name || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, name: e.target.value })
+                  }
                   bg="gray.700"
                   borderColor="gray.600"
                   color="gray.100"
@@ -549,7 +574,9 @@ export default function Inventory() {
                 <FormLabel color="gray.200">Store</FormLabel>
                 <Select
                   value={editingItem.store || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, store: e.target.value })}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, store: e.target.value })
+                  }
                   bg="gray.700"
                   borderColor="gray.600"
                   color="gray.100"
@@ -564,7 +591,12 @@ export default function Inventory() {
                 <Input
                   type="number"
                   value={editingItem.quantity || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, quantity: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setEditingItem({
+                      ...editingItem,
+                      quantity: parseInt(e.target.value) || 0,
+                    })
+                  }
                   bg="gray.700"
                   borderColor="gray.600"
                   color="gray.100"
@@ -575,7 +607,12 @@ export default function Inventory() {
                 <Input
                   type="number"
                   value={editingItem.reorderPoint || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, reorderPoint: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setEditingItem({
+                      ...editingItem,
+                      reorderPoint: parseInt(e.target.value) || 0,
+                    })
+                  }
                   bg="gray.700"
                   borderColor="gray.600"
                   color="gray.100"
@@ -584,7 +621,11 @@ export default function Inventory() {
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={() => setIsEditModalOpen(false)}>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={() => setIsEditModalOpen(false)}
+            >
               Cancel
             </Button>
             <Button colorScheme="brand" onClick={handleSaveEdit}>
@@ -601,18 +642,25 @@ export default function Inventory() {
         onClose={() => setIsDeleteDialogOpen(false)}
       >
         <AlertDialogOverlay>
-          <AlertDialogContent bg="gray.800" border="1px solid" borderColor="gray.700">
+          <AlertDialogContent
+            bg="gray.800"
+            border="1px solid"
+            borderColor="gray.700"
+          >
             <AlertDialogHeader fontSize="lg" fontWeight="bold" color="gray.100">
               Delete Inventory Item
             </AlertDialogHeader>
 
             <AlertDialogBody color="gray.200">
-              Are you sure you want to delete {selectedItem?.name} ({selectedItem?.sku})? 
-              This action cannot be undone.
+              Are you sure you want to delete {selectedItem?.name} (
+              {selectedItem?.sku})? This action cannot be undone.
             </AlertDialogBody>
 
             <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsDeleteDialogOpen(false)}>
+              <Button
+                ref={cancelRef}
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button colorScheme="red" onClick={confirmDelete} ml={3}>

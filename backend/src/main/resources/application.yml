@@ -1,16 +1,16 @@
 spring:
   application:
     name: retail-inventory-platform
-  
+
   profiles:
     active: dev
-  
+
   datasource:
-    url: jdbc:postgresql://localhost:5432/retail_inventory
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:password}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:retail_inventory}
+    username: ${DB_USERNAME:retail_user}
+    password: ${DB_PASSWORD:retail_password}
     driver-class-name: org.postgresql.Driver
-  
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -20,18 +20,18 @@ spring:
         format_sql: true
         show_sql: ${SHOW_SQL:false}
     show-sql: ${SHOW_SQL:false}
-  
+
   flyway:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
-  
+
   redis:
     host: ${REDIS_HOST:localhost}
     port: ${REDIS_PORT:6379}
     password: ${REDIS_PASSWORD:}
     timeout: 2000ms
-  
+
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
@@ -42,14 +42,14 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
-  
+
   graphql:
     graphiql:
       enabled: true
       path: /graphiql
     schema:
       locations: classpath:graphql/
-  
+
   security:
     oauth2:
       client:
@@ -65,24 +65,24 @@ spring:
 app:
   name: Retail Inventory Platform
   version: 1.0.0
-  
+
   # ML Service Integration (Python FastAPI)
   ml-service:
     base-url: ${ML_SERVICE_URL:http://localhost:8001}
     timeout: 30000ms
-  
+
   # Forecasting Configuration
   forecasting:
     default-confidence-level: 0.95
     forecast-horizon-days: 90
     backtest-periods: 12
-  
+
   # Replenishment Configuration
   replenishment:
     default-service-level: 0.95
     safety-stock-multiplier: 1.5
     reorder-point-buffer: 7
-  
+
   # Integration Settings
   integrations:
     shopify:
@@ -94,13 +94,13 @@ app:
     square:
       webhook-timeout: 10000ms
       max-retries: 3
-  
+
   # Security Configuration
   security:
     jwt:
       secret: ${JWT_SECRET:your-secret-key-here}
-      expiration: 86400000ms # 24 hours
-      refresh-expiration: 604800000ms # 7 days
+      expiration: 86400000 # 24 hours in milliseconds
+      refresh-expiration: 604800000 # 7 days in milliseconds
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
       allowed-methods: GET,POST,PUT,DELETE,OPTIONS

@@ -1,0 +1,234 @@
+# GraphQL Schema for Retail Inventory Platform
+
+type Query {
+  # Store queries
+  store(id: ID!): Store
+  stores: [Store!]!
+
+  # Product queries
+  product(id: ID!): Product
+  products(storeId: ID): [Product!]!
+
+  # Inventory queries
+  inventory(storeId: ID!, productId: ID!): Inventory
+  inventoryByStore(storeId: ID!): [Inventory!]!
+  lowStockItems(storeId: ID): [Inventory!]!
+
+  # Forecast queries
+  forecast(storeId: ID!, productId: ID!): [ForecastPoint!]!
+  forecasts(storeId: ID!): [Forecast!]!
+
+  # Purchase Order queries
+  purchaseOrder(id: ID!): PurchaseOrder
+  purchaseOrders(storeId: ID, status: POStatus): [PurchaseOrder!]!
+
+  # Reorder suggestions
+  reorderSuggestions(storeId: ID!, supplierId: ID!): [ReorderSuggestion!]!
+
+  # Dashboard KPIs
+  dashboardKPIs(storeId: ID): DashboardKPIs!
+}
+
+type Mutation {
+  # Inventory mutations
+  updateInventory(input: InventoryUpdateInput!): Inventory!
+  adjustInventory(input: InventoryAdjustmentInput!): Inventory!
+
+  # Purchase Order mutations
+  createPurchaseOrder(input: PurchaseOrderCreateInput!): PurchaseOrder!
+  approvePurchaseOrder(id: ID!): PurchaseOrder!
+  rejectPurchaseOrder(id: ID!, reason: String!): PurchaseOrder!
+
+  # Forecast mutations
+  generateForecast(input: ForecastGenerateInput!): [ForecastPoint!]!
+}
+
+type Subscription {
+  # Real-time updates
+  inventoryUpdates(storeId: ID!): Inventory!
+  purchaseOrderUpdates(storeId: ID!): PurchaseOrder!
+  forecastUpdates(storeId: ID!): Forecast!
+}
+
+# Types
+type Store {
+  id: ID!
+  name: String!
+  code: String!
+  address: String
+  city: String
+  country: String
+  timezone: String!
+  status: StoreStatus!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Product {
+  id: ID!
+  sku: String!
+  name: String!
+  category: String
+  brand: String
+  unitCost: Float
+  unitPrice: Float
+  casePackSize: Int!
+  supplier: Supplier
+  status: ProductStatus!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Supplier {
+  id: ID!
+  name: String!
+  code: String!
+  contactEmail: String
+  contactPhone: String
+  leadTimeDays: Int!
+  minimumOrderQuantity: Int!
+  fillRateTarget: Float
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Inventory {
+  id: ID!
+  store: Store!
+  product: Product!
+  quantityOnHand: Int!
+  quantityAllocated: Int!
+  quantityOnOrder: Int!
+  reorderPoint: Int!
+  safetyStock: Int!
+  maxStock: Int!
+  lastUpdated: String!
+}
+
+type Forecast {
+  id: ID!
+  store: Store!
+  product: Product!
+  forecastDate: String!
+  p50Forecast: Float!
+  p90Forecast: Float!
+  modelVersion: String!
+  confidenceLevel: Float!
+  createdAt: String!
+}
+
+type ForecastPoint {
+  date: String!
+  p50: Float!
+  p90: Float!
+  confidence: Float!
+}
+
+type PurchaseOrder {
+  id: ID!
+  poNumber: String!
+  store: Store!
+  supplier: Supplier!
+  status: POStatus!
+  totalAmount: Float!
+  orderDate: String!
+  expectedDeliveryDate: String
+  items: [PurchaseOrderItem!]!
+  createdBy: String!
+  approvedBy: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type PurchaseOrderItem {
+  id: ID!
+  product: Product!
+  quantity: Int!
+  unitPrice: Float!
+  totalPrice: Float!
+}
+
+type ReorderSuggestion {
+  product: Product!
+  currentStock: Int!
+  onOrder: Int!
+  allocated: Int!
+  p90DailyDemand: Float!
+  leadTimeDays: Int!
+  suggestedQuantity: Int!
+  unitCost: Float!
+  totalCost: Float!
+  reason: String!
+}
+
+type DashboardKPIs {
+  totalInventoryValue: Float!
+  lowStockItems: Int!
+  openPurchaseOrders: Int!
+  averageLeadTime: Float!
+  forecastAccuracy: Float!
+  topSellingProducts: [ProductSales!]!
+  inventoryTurnover: Float!
+}
+
+type ProductSales {
+  product: Product!
+  quantitySold: Int!
+  revenue: Float!
+}
+
+# Enums
+enum StoreStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  CLOSED
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+}
+
+enum POStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  RECEIVED
+  CANCELLED
+}
+
+# Input Types
+input InventoryUpdateInput {
+  storeId: ID!
+  productId: ID!
+  quantityOnHand: Int!
+}
+
+input InventoryAdjustmentInput {
+  storeId: ID!
+  productId: ID!
+  adjustment: Int!
+  reason: String!
+}
+
+input PurchaseOrderCreateInput {
+  storeId: ID!
+  supplierId: ID!
+  items: [PurchaseOrderItemInput!]!
+  expectedDeliveryDate: String
+}
+
+input PurchaseOrderItemInput {
+  productId: ID!
+  quantity: Int!
+  unitPrice: Float!
+}
+
+input ForecastGenerateInput {
+  storeId: ID!
+  productId: ID!
+  horizonDays: Int!
+}

@@ -1,0 +1,126 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw data from TimescaleDB hypertables and regular tables"
+    tables:
+      - name: sales_daily
+        description: "Daily sales data from TimescaleDB hypertable"
+        columns:
+          - name: store_id
+            description: "Store identifier"
+            tests:
+              - not_null
+          - name: sku
+            description: "Product SKU"
+            tests:
+              - not_null
+          - name: date
+            description: "Sales date"
+            tests:
+              - not_null
+          - name: qty_sold
+            description: "Quantity sold"
+            tests:
+              - not_null
+          - name: revenue
+            description: "Revenue amount"
+            tests:
+              - not_null
+
+      - name: forecasts_daily
+        description: "Daily forecasts from TimescaleDB hypertable"
+        columns:
+          - name: store_id
+            description: "Store identifier"
+            tests:
+              - not_null
+          - name: sku
+            description: "Product SKU"
+            tests:
+              - not_null
+          - name: date
+            description: "Forecast date"
+            tests:
+              - not_null
+          - name: p50
+            description: "P50 forecast (median)"
+            tests:
+              - not_null
+          - name: p90
+            description: "P90 forecast (90th percentile)"
+            tests:
+              - not_null
+
+      - name: inventory_positions
+        description: "Current inventory positions"
+        columns:
+          - name: store_id
+            description: "Store identifier"
+            tests:
+              - not_null
+          - name: sku
+            description: "Product SKU"
+            tests:
+              - not_null
+          - name: on_hand
+            description: "Quantity on hand"
+            tests:
+              - not_null
+          - name: allocated
+            description: "Allocated quantity"
+            tests:
+              - not_null
+          - name: on_order
+            description: "Quantity on order"
+            tests:
+              - not_null
+
+      - name: stores
+        description: "Store information"
+        columns:
+          - name: id
+            description: "Store identifier"
+            tests:
+              - not_null
+              - unique
+          - name: code
+            description: "Store code"
+            tests:
+              - not_null
+              - unique
+          - name: name
+            description: "Store name"
+            tests:
+              - not_null
+
+      - name: products
+        description: "Product information"
+        columns:
+          - name: id
+            description: "Product identifier"
+            tests:
+              - not_null
+              - unique
+          - name: sku
+            description: "Product SKU"
+            tests:
+              - not_null
+              - unique
+          - name: name
+            description: "Product name"
+            tests:
+              - not_null
+
+      - name: suppliers
+        description: "Supplier information"
+        columns:
+          - name: id
+            description: "Supplier identifier"
+            tests:
+              - not_null
+              - unique
+          - name: name
+            description: "Supplier name"
+            tests:
+              - not_null

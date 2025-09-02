@@ -1,6 +1,6 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
-import { Box } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Stores from "./pages/Stores";
@@ -17,10 +17,7 @@ import { useAuthStore } from "./stores/authStore";
 function App() {
   const { isAuthenticated } = useAuthStore();
 
-  // Temporarily bypass authentication for development
-  const devMode = false; // Set to false when you want to enable authentication
-
-  if (!devMode && !isAuthenticated) {
+  if (!isAuthenticated) {
     return <Login />;
   }
 

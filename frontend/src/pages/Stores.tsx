@@ -38,6 +38,7 @@ import {
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
 import PageHeader from "../components/ui/PageHeader";
+import { FiMapPin } from "react-icons/fi";
 import SectionCard from "../components/ui/SectionCard";
 
 type StoreStatus = "Active" | "Inactive";
@@ -254,6 +255,8 @@ const Stores: React.FC = () => {
       <PageHeader
         title="Stores"
         subtitle="Manage locations, sync status, and settings."
+        icon={<FiMapPin />}
+        accentColor="var(--chakra-colors-green-400)"
         actions={
           <Button colorScheme="brand" onClick={() => setIsModalOpen(true)}>
             Add Store

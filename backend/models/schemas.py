@@ -206,6 +206,10 @@ class InventoryResponse(InventoryBase):
     last_updated: datetime
 
 
+# Alias for compatibility
+InventoryItem = InventoryResponse
+
+
 # Sales transaction schemas
 class SalesTransactionBase(BaseSchema):
     store_id: str = Field(..., description="Store ID")

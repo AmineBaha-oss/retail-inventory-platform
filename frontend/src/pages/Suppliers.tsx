@@ -38,6 +38,7 @@ import {
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
 import PageHeader from "../components/ui/PageHeader";
+import { FiUsers } from "react-icons/fi";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
 
@@ -152,6 +153,8 @@ export default function Suppliers() {
       <PageHeader
         title="Suppliers"
         subtitle="Manage vendor relationships, performance metrics, and contact information."
+        icon={<FiUsers />}
+        accentColor="var(--chakra-colors-purple-400)"
         actions={
           <Button colorScheme="brand" onClick={() => setIsModalOpen(true)}>
             Add Supplier

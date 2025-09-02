@@ -14,14 +14,15 @@ import uuid
 
 from core.config import settings
 
-# Database engine - using SQLite for development simplicity
-DATABASE_URL = "sqlite+aiosqlite:///./retail_inventory.db"
+# Database engine - using PostgreSQL from environment
+DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-# Create async engine for SQLite
+# Create async engine for PostgreSQL
 engine = create_async_engine(
     DATABASE_URL,
     echo=settings.DEBUG,
-    connect_args={"check_same_thread": False}
+    pool_size=settings.DATABASE_POOL_SIZE,
+    max_overflow=settings.DATABASE_MAX_OVERFLOW
 )
 
 # Session factory

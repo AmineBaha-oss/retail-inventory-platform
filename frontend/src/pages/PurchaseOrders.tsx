@@ -418,6 +418,8 @@ ${purchaseOrders
       <PageHeader
         title="Purchase Orders"
         subtitle="Manage purchase orders, approvals, and track supplier deliveries across all stores."
+        icon={<FiTruck />}
+        accentColor="var(--chakra-colors-blue-400)"
         actions={
           <HStack spacing={3}>
             <Button

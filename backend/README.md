@@ -1,296 +1,263 @@
-# Retail Inventory Platform - Java Spring Boot Backend
+# Retail Inventory Platform - Backend
 
-## Overview
+Intelligent demand forecasting and automated PO generation for multi-store retailers using Prophet-based probabilistic forecasting.
 
-This is the Java Spring Boot backend for the **Multi-store Demand Forecasting & Auto-Replenishment Platform**. It provides a robust, enterprise-grade foundation for managing retail stores, inventory, and forecasting operations.
+## 🚀 New Features (v2.0)
 
-## Tech Stack
+### Prophet-Based Probabilistic Forecasting
 
-- **Framework**: Spring Boot 3.2.0
-- **Java Version**: 17
-- **Database**: PostgreSQL with TimescaleDB extension
-- **ORM**: Spring Data JPA with Hibernate
-- **Security**: Spring Security with JWT
-- **API Documentation**: OpenAPI 3.0 (Swagger)
-- **Caching**: Redis
-- **Message Queue**: Apache Kafka
-- **GraphQL**: Spring GraphQL
-- **Testing**: JUnit 5, TestContainers
-- **Build Tool**: Maven
+- **P50/P90 Quantiles**: Generate forecasts with confidence intervals for better inventory planning
+- **Seasonality Modeling**: Automatic detection of weekly, monthly, quarterly, and yearly patterns
+- **Holiday Effects**: Built-in US holiday calendar integration
+- **Cross-Validation**: Automatic model performance evaluation with MAE, MAPE, RMSE metrics
+- **Model Updates**: Incremental training with new data
 
-## Architecture
+### Intelligent Reorder Point Engine
 
-The backend follows a clean, layered architecture:
+- **P90 Lead Time Demand**: Uses 90th percentile forecasts for conservative inventory planning
+- **Safety Stock Calculation**: Dynamic safety stock based on demand and lead time variability
+- **Case Pack Optimization**: Respects minimum order quantities and case pack sizes
+- **Budget Constraints**: Automatic reorder quantity adjustment within budget limits
+- **Urgency Classification**: Critical/High/Medium/Low priority recommendations
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Infrastructure Layer                     │
-├─────────────────────────────────────────────────────────────┤
-│  Controllers | Security | Exception Handling | Validation  │
-├─────────────────────────────────────────────────────────────┤
-│                    Application Layer                        │
-├─────────────────────────────────────────────────────────────┤
-│  Services | Business Logic | Transaction Management        │
-├─────────────────────────────────────────────────────────────┤
-│                     Domain Layer                           │
-├─────────────────────────────────────────────────────────────┤
-│  Entities | Repositories | Domain Services                 │
-├─────────────────────────────────────────────────────────────┤
-│                    Data Layer                              │
-├─────────────────────────────────────────────────────────────┤
-│  Database | Cache | Message Queue | External APIs          │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Key Features
-
-### 🏪 **Store Management**
-
-- Multi-store support (Retail, Warehouse, Pop-up, Outlet)
-- Store performance metrics and analytics
-- POS system integration (Shopify, Lightspeed, Square, WooCommerce)
-- Geographic and timezone management
-
-### 📊 **Performance Monitoring**
-
-- Service level tracking (95%, 98%, etc.)
-- Stockout rate monitoring with alerts
-- Inventory turnover analysis
-- Lead time optimization
-
-### 🔄 **Data Integration**
-
-- Real-time POS data synchronization
-- Configurable sync frequencies
-- Webhook support for external systems
-- Data quality validation
-
-### 🚀 **Advanced Analytics**
-
-- Multi-dimensional filtering and search
-- Performance benchmarking
-- Risk assessment indicators
-- Bulk operations support
-
-## Getting Started
-
-### Prerequisites
-
-- Java 17 or higher
-- Maven 3.6+
-- PostgreSQL 13+
-- Redis 6+
-- Apache Kafka 2.8+
-
-### Environment Setup
-
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd retail-inventory-platform/backend
-   ```
-
-2. **Configure environment variables**
-
-   ```bash
-   export DB_USERNAME=postgres
-   export DB_PASSWORD=your_password
-   export REDIS_HOST=localhost
-   export KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-   export JWT_SECRET=your-secret-key
-   ```
-
-3. **Start dependencies**
-
-   ```bash
-   # Using Docker Compose (recommended)
-   docker-compose up -d postgres redis kafka
-
-   # Or start services individually
-   ```
-
-4. **Build and run**
-   ```bash
-   mvn clean install
-   mvn spring-boot:run
-   ```
-
-### API Endpoints
-
-The application runs on `http://localhost:8080/api`
-
-- **Swagger UI**: `http://localhost:8080/swagger-ui.html`
-- **GraphiQL**: `http://localhost:8080/graphiql`
-- **Health Check**: `http://localhost:8080/api/actuator/health`
-
-## API Documentation
-
-### Store Management Endpoints
-
-| Method   | Endpoint                       | Description      | Auth Required |
-| -------- | ------------------------------ | ---------------- | ------------- |
-| `POST`   | `/api/v1/stores`               | Create new store | ADMIN/MANAGER |
-| `GET`    | `/api/v1/stores`               | List all stores  | USER          |
-| `GET`    | `/api/v1/stores/{id}`          | Get store by ID  | USER          |
-| `PUT`    | `/api/v1/stores/{id}`          | Update store     | ADMIN/MANAGER |
-| `DELETE` | `/api/v1/stores/{id}`          | Delete store     | ADMIN         |
-| `POST`   | `/api/v1/stores/{id}/sync`     | Sync store data  | ADMIN/MANAGER |
-| `POST`   | `/api/v1/stores/{id}/forecast` | Update forecast  | ADMIN/MANAGER |
-
-### Advanced Features
-
-- **Search & Filtering**: Multi-criteria store search
-- **Bulk Operations**: Mass status updates, sync, and forecasting
-- **Analytics**: Performance metrics and risk indicators
-- **Real-time Updates**: WebSocket support for live data
-
-## Database Schema
-
-### Core Tables
-
-- **stores**: Store information and configuration
-- **inventories**: Inventory levels and tracking
-- **products**: Product catalog and variants
-- **suppliers**: Supplier profiles and constraints
-- **purchase_orders**: Purchase order management
-- **sales_transactions**: Sales data for forecasting
-
-### Key Relationships
+## 🏗️ Architecture
 
 ```
-Store (1) ←→ (N) Inventory
-Store (1) ←→ (N) SalesTransaction
-Store (1) ←→ (N) PurchaseOrder
-Product (1) ←→ (N) Inventory
-Supplier (1) ←→ (N) PurchaseOrder
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Sales Data    │───▶│  Prophet Model   │───▶│ P50/P90/P95     │
+│   (Historical)  │    │   Training       │    │   Forecasts     │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                                ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│ Reorder Config  │───▶│ Reorder Engine   │───▶│ Recommendations  │
+│ (Service Level, │    │ (Safety Stock,   │    │ (Quantity,      │
+│  Lead Time)     │    │  Reorder Point)  │    │  Urgency)       │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-## Integration Points
+## 📊 API Endpoints
 
-### Python ML Service
+### Forecasting
 
-- **Endpoint**: `http://localhost:8001` (configurable)
-- **Purpose**: Demand forecasting and ML predictions
-- **Protocol**: REST API with JSON payloads
-- **Authentication**: API key or JWT
+#### Train Model
 
-### External POS Systems
+```http
+POST /api/v1/forecasting/train
+Content-Type: application/json
 
-- **Shopify**: Webhook-based real-time sync
-- **Lightspeed**: REST API integration
-- **Square**: Webhook and API integration
-- **WooCommerce**: REST API integration
+{
+  "product_id": "PROD_001",
+  "store_id": "STORE_001",
+  "sales_data": [
+    {"date": "2024-01-01", "quantity_sold": 10},
+    {"date": "2024-01-02", "quantity_sold": 15}
+  ]
+}
+```
 
-## Security
+#### Generate Forecast
 
-### Authentication & Authorization
+```http
+POST /api/v1/forecasting/generate
+Content-Type: application/json
 
-- JWT-based authentication
-- Role-based access control (RBAC)
-- OAuth2 support for external providers
-- SSO integration capabilities
+{
+  "product_id": "PROD_001",
+  "store_id": "STORE_001",
+  "horizon_days": 30,
+  "include_components": true
+}
+```
 
-### Data Protection
+#### Get Model Performance
 
-- Input validation and sanitization
-- SQL injection prevention
-- XSS protection
-- CORS configuration
+```http
+GET /api/v1/forecasting/PROD_001/performance?store_id=STORE_001
+```
 
-## Performance & Scalability
+### Inventory & Reorder Points
 
-### Caching Strategy
+#### Get Reorder Recommendations
 
-- Redis for session and data caching
-- JPA second-level cache
-- HTTP response caching
+```http
+POST /api/v1/inventory/reorder-recommendations
+Content-Type: application/json
 
-### Database Optimization
+{
+  "inventory_items": [
+    {
+      "product_id": "PROD_001",
+      "store_id": "STORE_001",
+      "current_inventory": 75,
+      "unit_cost": 25.99
+    }
+  ],
+  "config": {
+    "service_level": 0.95,
+    "lead_time_days": 7,
+    "lead_time_std_days": 2.0,
+    "min_order_quantity": 1,
+    "case_pack_size": 1
+  }
+}
+```
 
-- Indexed queries for common operations
-- Connection pooling
-- Query optimization
-- TimescaleDB for time-series data
+#### Calculate Reorder Points
 
-### Monitoring & Observability
+```http
+POST /api/v1/inventory/reorder-points/calculate
+Content-Type: application/json
 
-- Spring Boot Actuator
-- Prometheus metrics
-- OpenTelemetry tracing
-- Structured logging
+{
+  "product_id": "PROD_001",
+  "store_id": "STORE_001",
+  "current_inventory": 75,
+  "unit_cost": 25.99,
+  "config": {
+    "service_level": 0.95,
+    "lead_time_days": 7,
+    "lead_time_std_days": 2.0
+  }
+}
+```
 
-## Development
+## 🔧 Configuration
 
-### Code Quality
+### Prophet Forecaster
 
-- **Linting**: Checkstyle, PMD
-- **Testing**: JUnit 5, Mockito, TestContainers
-- **Coverage**: JaCoCo
-- **Documentation**: JavaDoc, OpenAPI
+```python
+from core.forecasting.models import ProphetForecaster
 
-### Testing Strategy
+forecaster = ProphetForecaster(
+    confidence_level=0.95,           # 95% confidence intervals
+    seasonality_mode='multiplicative', # Multiplicative seasonality
+    changepoint_prior_scale=0.05,    # Flexibility of trend changes
+    seasonality_prior_scale=10.0     # Strength of seasonality
+)
+```
 
-- **Unit Tests**: Service and repository layers
-- **Integration Tests**: API endpoints
-- **End-to-End Tests**: Full workflow validation
-- **Performance Tests**: Load and stress testing
+### Reorder Engine
 
-### Development Workflow
+```python
+from core.optimization.reorder_engine import ReorderPointConfig
 
-1. Feature branch creation
-2. Code implementation with tests
-3. Code review and approval
-4. Integration testing
-5. Deployment to staging
-6. Production deployment
+config = ReorderPointConfig(
+    service_level=0.95,        # 95% service level
+    lead_time_days=7,          # Expected lead time
+    lead_time_std_days=2.0,    # Lead time variability
+    min_order_quantity=1,      # Minimum order size
+    case_pack_size=1,          # Case pack size
+    budget_cap=1000.0          # Optional budget constraint
+)
+```
 
-## Deployment
+## 🧪 Testing
 
-### Docker Support
+Run the comprehensive test suite:
 
 ```bash
-# Build Docker image
-docker build -t retail-inventory-backend .
-
-# Run container
-docker run -p 8080:8080 retail-inventory-backend
+cd backend
+python test_forecasting.py
 ```
 
-### Kubernetes Deployment
+This will test:
 
-- Helm charts provided
-- ConfigMap and Secret management
-- Horizontal Pod Autoscaling
-- Ingress configuration
+- Prophet model training and forecasting
+- Reorder point calculations
+- Integration between forecasting and reorder engines
 
-### CI/CD Pipeline
+## 📈 Example Usage
 
-- GitHub Actions workflow
-- Automated testing
-- Security scanning
-- Deployment automation
+### 1. Train a Forecasting Model
 
-## Contributing
+```python
+from core.forecasting.models import ProphetForecaster
+import pandas as pd
+
+# Initialize forecaster
+forecaster = ProphetForecaster()
+
+# Load historical sales data
+sales_data = pd.read_csv('sales_history.csv')
+
+# Train model
+result = forecaster.train(sales_data, "PROD_001", "STORE_001")
+print(f"Model trained with MAE: {result['performance_metrics']['mae']:.2f}")
+```
+
+### 2. Generate Forecasts
+
+```python
+# Generate 30-day forecast
+forecast = forecaster.forecast("PROD_001", 30, "STORE_001")
+
+# Access different quantiles
+p50_forecast = forecast['p50_forecast']  # Median forecast
+p90_forecast = forecast['p90_forecast']  # 90th percentile
+p95_forecast = forecast['p95_forecast']  # 95th percentile
+```
+
+### 3. Calculate Reorder Points
+
+```python
+from core.optimization.reorder_engine import ReorderPointEngine, ReorderPointConfig
+
+# Initialize reorder engine
+config = ReorderPointConfig(
+    service_level=0.95,
+    lead_time_days=7,
+    lead_time_std_days=2.0
+)
+engine = ReorderPointEngine(config)
+
+# Generate reorder recommendation
+recommendation = engine.generate_reorder_recommendation(
+    "PROD_001",
+    "STORE_001",
+    current_inventory=75,
+    daily_forecasts=p90_forecast,  # Use P90 forecasts
+    unit_cost=25.99,
+    config=config
+)
+
+print(f"Reorder point: {recommendation.reorder_point}")
+print(f"Reorder quantity: {recommendation.reorder_quantity}")
+print(f"Urgency: {recommendation.urgency}")
+```
+
+## 🔍 Key Benefits
+
+1. **Probabilistic Forecasting**: P50/P90 quantiles provide better uncertainty quantification
+2. **Automatic Seasonality**: Prophet handles complex seasonal patterns automatically
+3. **Conservative Planning**: P90-based reorder points reduce stockout risk
+4. **Performance Metrics**: Cross-validation provides model accuracy insights
+5. **Flexible Configuration**: Customizable service levels, lead times, and constraints
+
+## 🚧 Next Steps
+
+- [ ] Integrate with TimescaleDB for time-series storage
+- [ ] Add Shopify/Lightspeed webhook ingestion
+- [ ] Implement PO approval workflow
+- [ ] Add real-time dashboard with SSE/WebSockets
+- [ ] Migrate frontend to Next.js + Tailwind + shadcn/ui
+
+## 📚 Dependencies
+
+- **FastAPI**: Modern web framework
+- **Prophet**: Facebook's forecasting library
+- **Pandas**: Data manipulation
+- **NumPy**: Numerical computing
+- **TimescaleDB**: Time-series database (PostgreSQL extension)
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Implement changes with tests
-4. Submit a pull request
-5. Code review and approval
+3. Add tests for new functionality
+4. Ensure all tests pass
+5. Submit a pull request
 
-## License
+## 📄 License
 
-[License Information]
-
-## Support
-
-For questions and support:
-
-- Create an issue in the repository
-- Contact the development team
-- Check the documentation wiki
-
----
-
-**Built with ❤️ for the retail industry**
+MIT License - see LICENSE file for details.

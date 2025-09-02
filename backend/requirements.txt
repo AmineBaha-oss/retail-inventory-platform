@@ -1,54 +1,33 @@
-# Core Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
-
-# Database - Using SQLAlchemy 1.4.x for Airflow compatibility
-sqlalchemy==1.4.53
-alembic==1.13.1
-psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
 asyncpg==0.29.0
-
-# Authentication & Security
+aiosqlite==0.19.0
+redis==5.0.1
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+PyJWT==2.8.0
 python-multipart==0.0.6
+pydantic==2.5.0
+pydantic-settings==2.1.0
+alembic==1.13.0
+httpx==0.25.2
+pytest==7.4.3
+pytest-asyncio==0.21.1
 
-# Data Processing & Analytics
+# ML & Forecasting
+prophet==1.1.4
 pandas==2.1.4
 numpy==1.25.2
 scikit-learn==1.3.2
-prophet==1.1.5
 scipy==1.11.4
+matplotlib==3.8.2
+seaborn==0.13.0
 
-# Optimization & Operations Research
-pulp==2.7.0
-ortools==9.8.3296
-
-# Workflow & Task Management
-apache-airflow==2.8.1
-celery==5.3.4
+# Database & Caching
+psycopg2-binary==2.9.9
 redis==5.0.1
-
-# HTTP & API
-httpx==0.25.2
-aiohttp==3.9.1
-requests==2.31.0
 
 # Utilities
 python-dotenv==1.0.0
-click==8.1.7
-rich==13.7.0
-loguru==0.7.2
-
-# Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
-pytest-cov==4.1.0
-
-# Code Quality
-black==23.11.0
-isort==5.12.0
-flake8==6.1.0
-mypy==1.7.1
+pytz==2023.3

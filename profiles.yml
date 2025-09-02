@@ -1,0 +1,30 @@
+retail_inventory_platform:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      user: retail_user
+      password: retail_password
+      port: 5432
+      dbname: retail_inventory
+      schema: public
+      threads: 4
+      keepalives_idle: 0
+      connect_timeout: 10
+      retries: 1
+      retry_on_database_errors: true
+
+    prod:
+      type: postgres
+      host: "{{ env_var('DB_HOST') }}"
+      user: "{{ env_var('DB_USERNAME') }}"
+      password: "{{ env_var('DB_PASSWORD') }}"
+      port: "{{ env_var('DB_PORT', 5432) }}"
+      dbname: "{{ env_var('DB_NAME') }}"
+      schema: public
+      threads: 8
+      keepalives_idle: 0
+      connect_timeout: 10
+      retries: 1
+      retry_on_database_errors: true

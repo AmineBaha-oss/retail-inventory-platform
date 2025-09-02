@@ -1,274 +1,367 @@
 """
-Core forecasting models for demand prediction.
+Core forecasting models for demand prediction using Prophet.
 """
 
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime, timedelta
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 import logging
+from prophet import Prophet
+from prophet.diagnostics import cross_validation, performance_metrics
+import warnings
 
+warnings.filterwarnings('ignore')
 logger = logging.getLogger(__name__)
 
 
-class ProbabilisticForecaster:
+class ProphetForecaster:
     """
-    Probabilistic demand forecaster with confidence intervals.
+    Probabilistic demand forecaster using Facebook Prophet with P50/P90 quantiles.
     """
     
-    def __init__(self, confidence_level: float = 0.95):
+    def __init__(self, 
+                 confidence_level: float = 0.95,
+                 seasonality_mode: str = 'multiplicative',
+                 changepoint_prior_scale: float = 0.05,
+                 seasonality_prior_scale: float = 10.0):
         self.confidence_level = confidence_level
+        self.seasonality_mode = seasonality_mode
+        self.changepoint_prior_scale = changepoint_prior_scale
+        self.seasonality_prior_scale = seasonality_prior_scale
         self.models = {}
-        self.scalers = {}
-        self.feature_columns = [
-            'day_of_week', 'month', 'quarter', 'is_holiday',
-            'days_since_last_sale', 'rolling_mean_7d', 'rolling_mean_30d',
-            'rolling_std_7d', 'trend', 'seasonality'
-        ]
-    
-    def prepare_features(self, sales_data: pd.DataFrame) -> pd.DataFrame:
+        self.performance_metrics = {}
+        
+    def prepare_data_for_prophet(self, sales_data: pd.DataFrame) -> pd.DataFrame:
         """
-        Prepare features for forecasting.
+        Prepare sales data for Prophet format (ds, y).
         
         Args:
             sales_data: DataFrame with columns: date, quantity_sold
             
         Returns:
-            DataFrame with engineered features
+            DataFrame in Prophet format with columns: ds, y
         """
         df = sales_data.copy()
         df['date'] = pd.to_datetime(df['date'])
         df = df.sort_values('date')
         
-        # Time-based features
-        df['day_of_week'] = df['date'].dt.dayofweek
-        df['month'] = df['date'].dt.month
-        df['quarter'] = df['date'].dt.quarter
-        df['days_since_last_sale'] = self._calculate_days_since_last_sale(df)
+        # Prophet expects 'ds' for dates and 'y' for values
+        prophet_df = pd.DataFrame({
+            'ds': df['date'],
+            'y': df['quantity_sold']
+        })
         
-        # Rolling statistics
-        df['rolling_mean_7d'] = df['quantity_sold'].rolling(7, min_periods=1).mean()
-        df['rolling_mean_30d'] = df['quantity_sold'].rolling(30, min_periods=1).mean()
-        df['rolling_std_7d'] = df['quantity_sold'].rolling(7, min_periods=1).std()
+        # Remove rows with NaN values
+        prophet_df = prophet_df.dropna()
         
-        # Trend and seasonality
-        df['trend'] = np.arange(len(df))
-        df['seasonality'] = np.sin(2 * np.pi * df['trend'] / 365.25)
+        # Ensure y values are non-negative
+        prophet_df['y'] = np.maximum(prophet_df['y'], 0)
         
-        # Fill NaN values
-        df = df.fillna(method='ffill').fillna(0)
-        
-        return df
+        return prophet_df
     
-    def _calculate_days_since_last_sale(self, df: pd.DataFrame) -> pd.Series:
-        """Calculate days since last sale for each row."""
-        days_since = []
-        last_sale_idx = -1
-        
-        for i, row in df.iterrows():
-            if row['quantity_sold'] > 0:
-                if last_sale_idx == -1:
-                    days_since.append(0)
-                else:
-                    days_since.append((i - last_sale_idx).days)
-                last_sale_idx = i
-            else:
-                if last_sale_idx == -1:
-                    days_since.append(0)
-                else:
-                    days_since.append((i - last_sale_idx).days)
-        
-        return pd.Series(days_since, index=df.index)
-    
-    def train(self, sales_data: pd.DataFrame, product_id: str) -> Dict[str, Any]:
+    def train(self, sales_data: pd.DataFrame, product_id: str, 
+              store_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Train forecasting model for a specific product.
+        Train Prophet forecasting model for a specific product/store combination.
         
         Args:
             sales_data: Historical sales data
             product_id: Product identifier
+            store_id: Store identifier (optional)
             
         Returns:
-            Training results and metrics
+            Training results and performance metrics
         """
         try:
-            # Prepare features
-            df = self.prepare_features(sales_data)
+            # Prepare data for Prophet
+            prophet_df = self.prepare_data_for_prophet(sales_data)
             
-            # Split data
-            train_size = int(len(df) * 0.8)
-            train_df = df[:train_size]
-            test_df = df[train_size:]
-            
-            if len(train_df) < 30:
+            if len(prophet_df) < 30:
                 raise ValueError(f"Insufficient data for product {product_id}. Need at least 30 days.")
             
-            # Prepare training data
-            X_train = train_df[self.feature_columns]
-            y_train = train_df['quantity_sold']
-            
-            # Scale features
-            scaler = StandardScaler()
-            X_train_scaled = scaler.fit_transform(X_train)
-            
-            # Train model
-            model = RandomForestRegressor(
-                n_estimators=100,
-                max_depth=10,
-                random_state=42,
-                n_jobs=-1
+            # Create and configure Prophet model
+            model = Prophet(
+                seasonality_mode=self.seasonality_mode,
+                changepoint_prior_scale=self.changepoint_prior_scale,
+                seasonality_prior_scale=self.seasonality_prior_scale,
+                daily_seasonality=False,
+                weekly_seasonality=True,
+                yearly_seasonality=True,
+                interval_width=self.confidence_level
             )
-            model.fit(X_train_scaled, y_train)
             
-            # Store model and scaler
-            self.models[product_id] = model
-            self.scalers[product_id] = scaler
+            # Add custom seasonalities for retail
+            model.add_seasonality(
+                name='monthly', 
+                period=30.5, 
+                fourier_order=5
+            )
+            model.add_seasonality(
+                name='quarterly', 
+                period=91.25, 
+                fourier_order=8
+            )
             
-            # Evaluate on test set
-            X_test = test_df[self.feature_columns]
-            y_test = test_df['quantity_sold']
-            X_test_scaled = scaler.transform(X_test)
+            # Add holiday effects for major retail periods
+            model.add_country_holidays(country_name='US')
             
-            y_pred = model.predict(X_test_scaled)
+            # Fit the model
+            model.fit(prophet_df)
             
-            # Calculate metrics
-            mae = mean_absolute_error(y_test, y_pred)
-            mse = mean_squared_error(y_test, y_pred)
-            rmse = np.sqrt(mse)
+            # Store the model
+            model_key = f"{product_id}_{store_id}" if store_id else product_id
+            self.models[model_key] = model
             
-            # Calculate confidence intervals using model predictions
-            predictions = []
-            for _ in range(100):
-                # Bootstrap prediction
-                sample_indices = np.random.choice(len(X_test_scaled), len(X_test_scaled), replace=True)
-                X_sample = X_test_scaled[sample_indices]
-                y_sample = y_test.iloc[sample_indices]
-                
-                # Train on sample
-                sample_model = RandomForestRegressor(n_estimators=50, random_state=np.random.randint(1000))
-                sample_model.fit(X_sample, y_sample)
-                
-                # Predict
-                sample_pred = sample_model.predict(X_test_scaled)
-                predictions.append(sample_pred)
+            # Perform cross-validation for performance metrics
+            cv_results = cross_validation(
+                model, 
+                initial='90 days', 
+                period='30 days', 
+                horizon='30 days',
+                disable_tqdm=True
+            )
             
-            predictions = np.array(predictions)
-            confidence_lower = np.percentile(predictions, (1 - self.confidence_level) * 100 / 2, axis=0)
-            confidence_upper = np.percentile(predictions, (1 + self.confidence_level) * 100 / 2, axis=0)
+            # Calculate performance metrics
+            perf_metrics = performance_metrics(cv_results)
+            
+            # Store performance metrics
+            self.performance_metrics[model_key] = {
+                'mae': perf_metrics['mae'].mean(),
+                'mape': perf_metrics['mape'].mean(),
+                'rmse': perf_metrics['rmse'].mean(),
+                'mdape': perf_metrics['mdape'].mean(),
+                'smape': perf_metrics['smape'].mean(),
+                'coverage': perf_metrics['coverage'].mean()
+            }
             
             results = {
                 'product_id': product_id,
-                'mae': mae,
-                'mse': mse,
-                'rmse': rmse,
-                'confidence_lower': confidence_lower.tolist(),
-                'confidence_upper': confidence_upper.tolist(),
-                'training_samples': len(train_df),
-                'test_samples': len(test_df),
-                'feature_importance': dict(zip(self.feature_columns, model.feature_importances_))
+                'store_id': store_id,
+                'training_samples': len(prophet_df),
+                'date_range': {
+                    'start': prophet_df['ds'].min().strftime('%Y-%m-%d'),
+                    'end': prophet_df['ds'].max().strftime('%Y-%m-%d')
+                },
+                'performance_metrics': self.performance_metrics[model_key],
+                'model_config': {
+                    'seasonality_mode': self.seasonality_mode,
+                    'confidence_level': self.confidence_level,
+                    'changepoint_prior_scale': self.changepoint_prior_scale,
+                    'seasonality_prior_scale': self.seasonality_prior_scale
+                }
             }
             
-            logger.info(f"Model trained successfully for product {product_id}. MAE: {mae:.2f}, RMSE: {rmse:.2f}")
+            logger.info(f"Prophet model trained successfully for {model_key}. MAE: {results['performance_metrics']['mae']:.2f}")
             return results
             
         except Exception as e:
-            logger.error(f"Error training model for product {product_id}: {str(e)}")
+            logger.error(f"Error training Prophet model for product {product_id}: {str(e)}")
             raise
     
     def forecast(self, product_id: str, horizon_days: int, 
-                 last_sales_data: pd.DataFrame) -> Dict[str, Any]:
+                 store_id: Optional[str] = None,
+                 include_components: bool = True) -> Dict[str, Any]:
         """
-        Generate forecast for a product.
+        Generate probabilistic forecast with P50/P90 quantiles.
         
         Args:
             product_id: Product identifier
             horizon_days: Number of days to forecast
-            last_sales_data: Recent sales data for feature generation
+            store_id: Store identifier (optional)
+            include_components: Whether to include trend/seasonality breakdown
             
         Returns:
-            Forecast results with confidence intervals
+            Forecast results with P50/P90 quantiles and confidence intervals
         """
-        if product_id not in self.models:
-            raise ValueError(f"No trained model found for product {product_id}")
+        model_key = f"{product_id}_{store_id}" if store_id else product_id
+        
+        if model_key not in self.models:
+            raise ValueError(f"No trained model found for {model_key}")
         
         try:
-            model = self.models[product_id]
-            scaler = self.scalers[product_id]
+            model = self.models[model_key]
             
             # Generate future dates
-            last_date = last_sales_data['date'].max()
+            last_date = model.history['ds'].max()
             future_dates = pd.date_range(
                 start=last_date + timedelta(days=1),
                 periods=horizon_days,
                 freq='D'
             )
             
-            # Prepare future features
-            future_df = pd.DataFrame({'date': future_dates})
-            future_df['day_of_week'] = future_df['date'].dt.dayofweek
-            future_df['month'] = future_df['date'].dt.month
-            future_df['quarter'] = future_df['date'].dt.quarter
+            # Create future dataframe
+            future_df = pd.DataFrame({'ds': future_dates})
             
-            # Use last known values for rolling features
-            last_rolling_mean_7d = last_sales_data['quantity_sold'].tail(7).mean()
-            last_rolling_mean_30d = last_sales_data['quantity_sold'].tail(30).mean()
-            last_rolling_std_7d = last_sales_data['quantity_sold'].tail(7).std()
+            # Generate forecast
+            forecast = model.predict(future_df)
             
-            future_df['days_since_last_sale'] = np.arange(1, horizon_days + 1)
-            future_df['rolling_mean_7d'] = last_rolling_mean_7d
-            future_df['rolling_mean_30d'] = last_rolling_mean_30d
-            future_df['rolling_std_7d'] = last_rolling_mean_7d
-            
-            # Trend and seasonality
-            last_trend = len(last_sales_data)
-            future_df['trend'] = np.arange(last_trend, last_trend + horizon_days)
-            future_df['seasonality'] = np.sin(2 * np.pi * future_df['trend'] / 365.25)
-            
-            # Prepare features for prediction
-            X_future = future_df[self.feature_columns]
-            X_future_scaled = scaler.transform(X_future)
-            
-            # Generate predictions
-            base_predictions = model.predict(X_future_scaled)
-            
-            # Generate confidence intervals using bootstrap
-            bootstrap_predictions = []
-            for _ in range(100):
-                # Sample from training data residuals
-                residuals = model.predict(scaler.transform(last_sales_data[self.feature_columns])) - last_sales_data['quantity_sold']
-                noise = np.random.choice(residuals, size=horizon_days, replace=True)
-                
-                # Add noise to base predictions
-                noisy_pred = base_predictions + noise
-                bootstrap_predictions.append(noisy_pred)
-            
-            bootstrap_predictions = np.array(bootstrap_predictions)
-            
-            # Calculate confidence intervals
-            confidence_lower = np.percentile(bootstrap_predictions, (1 - self.confidence_level) * 100 / 2, axis=0)
-            confidence_upper = np.percentile(bootstrap_predictions, (1 + self.confidence_level) * 100 / 2, axis=0)
-            
-            # Ensure non-negative predictions
-            base_predictions = np.maximum(base_predictions, 0)
-            confidence_lower = np.maximum(confidence_lower, 0)
-            confidence_upper = np.maximum(confidence_upper, 0)
-            
+            # Extract key components
             forecast_results = {
                 'product_id': product_id,
+                'store_id': store_id,
                 'forecast_dates': future_dates.strftime('%Y-%m-%d').tolist(),
-                'forecasted_quantities': base_predictions.tolist(),
-                'confidence_lower': confidence_upper.tolist(),
+                'forecast_horizon_days': horizon_days,
                 'confidence_level': self.confidence_level,
-                'horizon_days': horizon_days,
-                'model_version': '1.0.0'
+                'model_version': '2.0.0-prophet',
+                'generated_at': datetime.now().isoformat()
             }
             
-            logger.info(f"Forecast generated for product {product_id}, horizon: {horizon_days} days")
+            # Extract quantiles and confidence intervals
+            if 'yhat' in forecast.columns:
+                forecast_results['p50_forecast'] = forecast['yhat'].tolist()
+                forecast_results['p50_forecast_rounded'] = np.round(forecast['yhat']).astype(int).tolist()
+            
+            if 'yhat_lower' in forecast.columns:
+                forecast_results['p05_forecast'] = forecast['yhat_lower'].tolist()
+                forecast_results['p05_forecast_rounded'] = np.round(forecast['yhat_lower']).astype(int).tolist()
+            
+            if 'yhat_upper' in forecast.columns:
+                forecast_results['p95_forecast'] = forecast['yhat_upper'].tolist()
+                forecast_results['p95_forecast_rounded'] = np.round(forecast['yhat_upper']).astype(int).tolist()
+            
+            # Calculate P90 (90th percentile) for reorder point calculations
+            if 'yhat' in forecast.columns and 'yhat_lower' in forecast.columns and 'yhat_upper' in forecast.columns:
+                # P90 is approximately 1.28 standard deviations above P50
+                # Using the confidence interval to estimate standard deviation
+                std_estimate = (forecast['yhat_upper'] - forecast['yhat_lower']) / (2 * 1.96)  # 95% CI = ±1.96σ
+                p90_forecast = forecast['yhat'] + (1.28 * std_estimate)
+                forecast_results['p90_forecast'] = p90_forecast.tolist()
+                forecast_results['p90_forecast_rounded'] = np.round(p90_forecast).astype(int).tolist()
+            
+            # Include trend and seasonality components if requested
+            if include_components:
+                if 'trend' in forecast.columns:
+                    forecast_results['trend'] = forecast['trend'].tolist()
+                if 'weekly' in forecast.columns:
+                    forecast_results['weekly_seasonality'] = forecast['weekly'].tolist()
+                if 'yearly' in forecast.columns:
+                    forecast_results['yearly_seasonality'] = forecast['yearly'].tolist()
+            
+            # Add performance metrics if available
+            if model_key in self.performance_metrics:
+                forecast_results['model_performance'] = self.performance_metrics[model_key]
+            
+            logger.info(f"Prophet forecast generated for {model_key}, horizon: {horizon_days} days")
             return forecast_results
             
         except Exception as e:
-            logger.error(f"Error generating forecast for product {product_id}: {str(e)}")
+            logger.error(f"Error generating forecast for {model_key}: {str(e)}")
             raise
+    
+    def get_model_performance(self, product_id: str, store_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get performance metrics for a trained model."""
+        model_key = f"{product_id}_{store_id}" if store_id else product_id
+        
+        if model_key not in self.performance_metrics:
+            raise ValueError(f"No performance metrics found for {model_key}")
+        
+        return self.performance_metrics[model_key]
+    
+    def update_model(self, product_id: str, new_sales_data: pd.DataFrame, 
+                     store_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Update existing model with new data.
+        
+        Args:
+            product_id: Product identifier
+            new_sales_data: New sales data to add
+            store_id: Store identifier (optional)
+            
+        Returns:
+            Update results
+        """
+        model_key = f"{product_id}_{store_id}" if store_id else product_id
+        
+        if model_key not in self.models:
+            raise ValueError(f"No existing model found for {model_key}")
+        
+        try:
+            # Prepare new data
+            new_prophet_df = self.prepare_data_for_prophet(new_sales_data)
+            
+            # Get existing model
+            model = self.models[model_key]
+            
+            # Add new data and refit
+            model.history = pd.concat([model.history, new_prophet_df]).drop_duplicates(subset=['ds'])
+            model.fit(model.history)
+            
+            # Update performance metrics
+            cv_results = cross_validation(
+                model, 
+                initial='90 days', 
+                period='30 days', 
+                horizon='30 days',
+                disable_tqdm=True
+            )
+            
+            perf_metrics = performance_metrics(cv_results)
+            self.performance_metrics[model_key] = {
+                'mae': perf_metrics['mae'].mean(),
+                'mape': perf_metrics['mape'].mean(),
+                'rmse': perf_metrics['rmse'].mean(),
+                'mdape': perf_metrics['mdape'].mean(),
+                'smape': perf_metrics['smape'].mean(),
+                'coverage': perf_metrics['coverage'].mean()
+            }
+            
+            results = {
+                'product_id': product_id,
+                'store_id': store_id,
+                'update_samples': len(new_prophet_df),
+                'total_samples': len(model.history),
+                'updated_at': datetime.now().isoformat(),
+                'performance_metrics': self.performance_metrics[model_key]
+            }
+            
+            logger.info(f"Model updated successfully for {model_key}")
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error updating model for {model_key}: {str(e)}")
+            raise
+
+
+class EnsembleForecaster:
+    """
+    Ensemble forecaster combining multiple models for improved accuracy.
+    """
+    
+    def __init__(self):
+        self.prophet_forecaster = ProphetForecaster()
+        self.models = {}
+    
+    def train_ensemble(self, sales_data: pd.DataFrame, product_id: str, 
+                       store_id: Optional[str] = None) -> Dict[str, Any]:
+        """Train ensemble of forecasting models."""
+        results = {}
+        
+        # Train Prophet model
+        try:
+            prophet_results = self.prophet_forecaster.train(sales_data, product_id, store_id)
+            results['prophet'] = prophet_results
+        except Exception as e:
+            logger.warning(f"Prophet training failed: {e}")
+            results['prophet'] = {'error': str(e)}
+        
+        return results
+    
+    def forecast_ensemble(self, product_id: str, horizon_days: int, 
+                         store_id: Optional[str] = None) -> Dict[str, Any]:
+        """Generate ensemble forecast."""
+        model_key = f"{product_id}_{store_id}" if store_id else product_id
+        
+        if model_key not in self.prophet_forecaster.models:
+            raise ValueError(f"No trained models found for {model_key}")
+        
+        # Get Prophet forecast
+        prophet_forecast = self.prophet_forecaster.forecast(
+            product_id, horizon_days, store_id
+        )
+        
+        return {
+            'ensemble_forecast': prophet_forecast,
+            'primary_model': 'prophet',
+            'ensemble_method': 'single_model'  # Will expand to include more models
+        }

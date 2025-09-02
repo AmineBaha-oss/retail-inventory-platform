@@ -255,6 +255,8 @@ Holding Cost,${kpis.holdingCost}`;
       <PageHeader
         title="Dashboard"
         subtitle="Overview of your retail inventory performance"
+        icon={<FiHome />}
+        accentColor="var(--chakra-colors-brand-400)"
         actions={
           <HStack spacing={3}>
             <Button

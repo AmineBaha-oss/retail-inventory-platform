@@ -66,7 +66,13 @@ import PageHeader from "../components/ui/PageHeader";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
 import { forecastingAPI } from "../services/api";
-import { showSuccess, showError, showInfo, formatCurrency, formatPercentage } from "../utils/helpers";
+import {
+  showSuccess,
+  showError,
+  showInfo,
+  formatCurrency,
+  formatPercentage,
+} from "../utils/helpers";
 
 type ForecastItem = {
   id: string;
@@ -97,14 +103,70 @@ type WhatIfScenario = {
 
 // Chart data
 const demandForecastData = [
-  { week: "Week 1", actual: 120, forecast: 125, p50: 125, p90: 140, stock: 200 },
-  { week: "Week 2", actual: 135, forecast: 130, p50: 130, p90: 145, stock: 175 },
-  { week: "Week 3", actual: 118, forecast: 135, p50: 135, p90: 150, stock: 160 },
-  { week: "Week 4", actual: 142, forecast: 140, p50: 140, p90: 155, stock: 145 },
-  { week: "Week 5", actual: 128, forecast: 145, p50: 145, p90: 160, stock: 130 },
-  { week: "Week 6", actual: null, forecast: 150, p50: 150, p90: 165, stock: 115 },
-  { week: "Week 7", actual: null, forecast: 155, p50: 155, p90: 170, stock: 100 },
-  { week: "Week 8", actual: null, forecast: 160, p50: 160, p90: 175, stock: 85 },
+  {
+    week: "Week 1",
+    actual: 120,
+    forecast: 125,
+    p50: 125,
+    p90: 140,
+    stock: 200,
+  },
+  {
+    week: "Week 2",
+    actual: 135,
+    forecast: 130,
+    p50: 130,
+    p90: 145,
+    stock: 175,
+  },
+  {
+    week: "Week 3",
+    actual: 118,
+    forecast: 135,
+    p50: 135,
+    p90: 150,
+    stock: 160,
+  },
+  {
+    week: "Week 4",
+    actual: 142,
+    forecast: 140,
+    p50: 140,
+    p90: 155,
+    stock: 145,
+  },
+  {
+    week: "Week 5",
+    actual: 128,
+    forecast: 145,
+    p50: 145,
+    p90: 160,
+    stock: 130,
+  },
+  {
+    week: "Week 6",
+    actual: null,
+    forecast: 150,
+    p50: 150,
+    p90: 165,
+    stock: 115,
+  },
+  {
+    week: "Week 7",
+    actual: null,
+    forecast: 155,
+    p50: 155,
+    p90: 170,
+    stock: 100,
+  },
+  {
+    week: "Week 8",
+    actual: null,
+    forecast: 160,
+    p50: 160,
+    p90: 175,
+    stock: 85,
+  },
 ];
 
 const forecastAccuracyData = [
@@ -119,7 +181,7 @@ const seasonalPatternData = [
   { month: "Jan", demand: 1200, seasonality: 0.85 },
   { month: "Feb", demand: 1100, seasonality: 0.78 },
   { month: "Mar", demand: 1300, seasonality: 0.92 },
-  { month: "Apr", demand: 1400, seasonality: 1.00 },
+  { month: "Apr", demand: 1400, seasonality: 1.0 },
   { month: "May", demand: 1500, seasonality: 1.07 },
   { month: "Jun", demand: 1600, seasonality: 1.14 },
   { month: "Jul", demand: 1550, seasonality: 1.11 },
@@ -214,7 +276,8 @@ const initialScenarios: WhatIfScenario[] = [
 
 export default function Forecasting() {
   const [forecasts, setForecasts] = useState<ForecastItem[]>(initialForecasts);
-  const [scenarios, setScenarios] = useState<WhatIfScenario[]>(initialScenarios);
+  const [scenarios, setScenarios] =
+    useState<WhatIfScenario[]>(initialScenarios);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("forecasts");
@@ -222,23 +285,30 @@ export default function Forecasting() {
   const toast = useToast();
 
   // Calculate stats
-  const stats = useMemo(() => ({
-    totalForecasts: forecasts.length,
-    averageAccuracy: 90.8,
-    totalScenarios: scenarios.length,
-    completedScenarios: scenarios.filter(s => s.status === "Completed").length,
-  }), [forecasts, scenarios]);
+  const stats = useMemo(
+    () => ({
+      totalForecasts: forecasts.length,
+      averageAccuracy: 90.8,
+      totalScenarios: scenarios.length,
+      completedScenarios: scenarios.filter((s) => s.status === "Completed")
+        .length,
+    }),
+    [forecasts, scenarios]
+  );
 
   const handleGenerateForecast = async () => {
     try {
       setIsLoading(true);
       showInfo("Generating new forecasts...");
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      showSuccess("Forecasts generated successfully!");
+
+      // Call the actual API
+      const response = await forecastingAPI.generateForecast("1");
+
+      if (response.data) {
+        showSuccess("Forecasts generated successfully!");
+      }
     } catch (error) {
+      console.error("Forecast generation error:", error);
       showError("Failed to generate forecasts");
     } finally {
       setIsLoading(false);
@@ -249,12 +319,15 @@ export default function Forecasting() {
     try {
       setIsLoading(true);
       showInfo("Refreshing forecast data...");
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      showSuccess("Forecast data refreshed successfully!");
+
+      // Call the actual API to get fresh data
+      const response = await forecastingAPI.getForecastHistory("1");
+
+      if (response.data) {
+        showSuccess("Forecast data refreshed successfully!");
+      }
     } catch (error) {
+      console.error("Forecast refresh error:", error);
       showError("Failed to refresh forecast data");
     } finally {
       setIsLoading(false);
@@ -266,48 +339,75 @@ export default function Forecasting() {
     setIsModalOpen(true);
   };
 
-  const handleSaveScenario = () => {
+  const handleSaveScenario = async () => {
     if (!newScenario.name || !newScenario.description) {
       showError("Please fill in all required fields");
       return;
     }
 
-    const scenario: WhatIfScenario = {
-      id: Date.now().toString(),
-      name: newScenario.name,
-      description: newScenario.description,
-      leadTimeChange: newScenario.leadTimeChange || 0,
-      demandChange: newScenario.demandChange || 0,
-      costImpact: newScenario.costImpact || 0,
-      stockoutRisk: newScenario.stockoutRisk || 0,
-      status: "Draft",
-      createdAt: new Date().toISOString().split('T')[0],
-    };
+    try {
+      setIsLoading(true);
 
-    setScenarios(prev => [scenario, ...prev]);
-    setIsModalOpen(false);
-    setNewScenario({});
-    showSuccess("Scenario created successfully!");
+      // Call the actual API to create scenario
+      const response = await forecastingAPI.createScenario({
+        name: newScenario.name,
+        description: newScenario.description,
+        leadTimeChange: newScenario.leadTimeChange || 0,
+        demandChange: newScenario.demandChange || 0,
+      });
+
+      if (response.data) {
+        const scenario: WhatIfScenario = {
+          id: response.data.id.toString(),
+          name: response.data.name,
+          description: newScenario.description,
+          leadTimeChange: newScenario.leadTimeChange || 0,
+          demandChange: newScenario.demandChange || 0,
+          costImpact: 0,
+          stockoutRisk: 0,
+          status: response.data.status,
+          createdAt: response.data.createdAt,
+        };
+
+        setScenarios((prev) => [scenario, ...prev]);
+        setIsModalOpen(false);
+        setNewScenario({});
+        showSuccess("Scenario created successfully!");
+      }
+    } catch (error) {
+      console.error("Scenario creation error:", error);
+      showError("Failed to create scenario");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleRunScenario = async (scenario: WhatIfScenario) => {
     try {
       setIsLoading(true);
       showInfo(`Running scenario: ${scenario.name}...`);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      setScenarios(prev => 
-        prev.map(s => 
-          s.id === scenario.id 
-            ? { ...s, status: "Completed" as const }
-            : s
-        )
-      );
-      
-      showSuccess(`Scenario ${scenario.name} completed successfully!`);
+
+      // Call the actual API to run scenario
+      const response = await forecastingAPI.runScenario(scenario.id);
+
+      if (response.data) {
+        setScenarios((prev) =>
+          prev.map((s) =>
+            s.id === scenario.id
+              ? {
+                  ...s,
+                  status: response.data.status,
+                  costImpact: response.data.costImpact,
+                  stockoutRisk: response.data.stockoutRisk,
+                }
+              : s
+          )
+        );
+
+        showSuccess(`Scenario ${scenario.name} completed successfully!`);
+      }
     } catch (error) {
+      console.error("Scenario run error:", error);
       showError("Failed to run scenario");
     } finally {
       setIsLoading(false);
@@ -318,23 +418,26 @@ export default function Forecasting() {
     try {
       setIsLoading(true);
       showInfo("Exporting forecast data...");
-      
+
       // Create CSV content
       const csvContent = `SKU,Name,Store,Current Stock,Forecasted Demand,Confidence P50,Confidence P90,Lead Time,Reorder Point,Suggested Order
-${forecasts.map(f => 
-  `${f.sku},${f.name},${f.store},${f.currentStock},${f.forecastedDemand},${f.confidenceP50},${f.confidenceP90},${f.leadTime},${f.reorderPoint},${f.suggestedOrder}`
-).join('\n')}`;
-      
-      const blob = new Blob([csvContent], { type: 'text/csv' });
+${forecasts
+  .map(
+    (f) =>
+      `${f.sku},${f.name},${f.store},${f.currentStock},${f.forecastedDemand},${f.confidenceP50},${f.confidenceP90},${f.leadTime},${f.reorderPoint},${f.suggestedOrder}`
+  )
+  .join("\n")}`;
+
+      const blob = new Blob([csvContent], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.download = `forecasts-${new Date().toISOString().split('T')[0]}.csv`;
+      link.download = `forecasts-${new Date().toISOString().split("T")[0]}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       showSuccess("Forecast data exported successfully!");
     } catch (error) {
       showError("Failed to export forecast data");
@@ -385,26 +488,42 @@ ${forecasts.map(f =>
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
         <Card>
           <CardBody>
-            <Text fontSize="sm" color="gray.400" mb={1}>Total Forecasts</Text>
-            <Text fontSize="2xl" fontWeight="bold" color="gray.100">{stats.totalForecasts}</Text>
+            <Text fontSize="sm" color="gray.400" mb={1}>
+              Total Forecasts
+            </Text>
+            <Text fontSize="2xl" fontWeight="bold" color="gray.100">
+              {stats.totalForecasts}
+            </Text>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
-            <Text fontSize="sm" color="gray.400" mb={1}>Average Accuracy</Text>
-            <Text fontSize="2xl" fontWeight="bold" color="gray.100">{stats.averageAccuracy}%</Text>
+            <Text fontSize="sm" color="gray.400" mb={1}>
+              Average Accuracy
+            </Text>
+            <Text fontSize="2xl" fontWeight="bold" color="gray.100">
+              {stats.averageAccuracy}%
+            </Text>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
-            <Text fontSize="sm" color="gray.400" mb={1}>Total Scenarios</Text>
-            <Text fontSize="2xl" fontWeight="bold" color="gray.100">{stats.totalScenarios}</Text>
+            <Text fontSize="sm" color="gray.400" mb={1}>
+              Total Scenarios
+            </Text>
+            <Text fontSize="2xl" fontWeight="bold" color="gray.100">
+              {stats.totalScenarios}
+            </Text>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
-            <Text fontSize="sm" color="gray.400" mb={1}>Completed</Text>
-            <Text fontSize="2xl" fontWeight="bold" color="gray.100">{stats.completedScenarios}</Text>
+            <Text fontSize="sm" color="gray.400" mb={1}>
+              Completed
+            </Text>
+            <Text fontSize="2xl" fontWeight="bold" color="gray.100">
+              {stats.completedScenarios}
+            </Text>
           </CardBody>
         </Card>
       </SimpleGrid>
@@ -491,39 +610,33 @@ ${forecasts.map(f =>
           <Text fontSize="lg" fontWeight="semibold" mb={4}>
             Seasonal Demand Patterns
           </Text>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={seasonalPatternData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip />
-              <Legend />
-              <Area
-                yAxisId="left"
-                type="monotone"
-                dataKey="demand"
-                stroke="#3182CE"
-                fill="#3182CE"
-                fillOpacity={0.6}
-                name="Demand"
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="seasonality"
-                stroke="#E53E3E"
-                strokeWidth={2}
-                name="Seasonality Index"
-              />
-              <ReferenceLine y={1} stroke="#E53E3E" strokeDasharray="3 3" />
-            </AreaChart>
-          </ResponsiveContainer>
+          {/* Temporarily commenting out the third chart as it's causing the page to break */}
+          <div
+            style={{
+              height: "300px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#1a202c",
+              border: "1px solid #374151",
+              borderRadius: "8px",
+            }}
+          >
+            <Text color="gray.400">
+              Seasonal Pattern Chart - Temporarily disabled
+            </Text>
+          </div>
         </CardBody>
       </Card>
 
       {/* Tabs for Forecasts and Scenarios */}
-      <Tabs index={activeTab === "forecasts" ? 0 : 1} onChange={(index) => setActiveTab(index === 0 ? "forecasts" : "scenarios")} mb={6}>
+      <Tabs
+        index={activeTab === "forecasts" ? 0 : 1}
+        onChange={(index) =>
+          setActiveTab(index === 0 ? "forecasts" : "scenarios")
+        }
+        mb={6}
+      >
         <TabList>
           <Tab>Demand Forecasts ({forecasts.length})</Tab>
           <Tab>What-If Scenarios ({scenarios.length})</Tab>
@@ -571,7 +684,7 @@ ${forecasts.map(f =>
 
           {/* Scenarios Tab */}
           <TabPanel>
-            <SectionCard 
+            <SectionCard
               title="What-If Scenarios"
               action={
                 <Button
@@ -601,30 +714,47 @@ ${forecasts.map(f =>
                 {scenarios.map((scenario) => (
                   <Tr key={scenario.id}>
                     <Td fontWeight="medium">{scenario.name}</Td>
-                    <Td fontSize="sm" color="gray.300">{scenario.description}</Td>
-                    <Td>
-                      {scenario.leadTimeChange > 0 ? '+' : ''}{scenario.leadTimeChange} days
+                    <Td fontSize="sm" color="gray.300">
+                      {scenario.description}
                     </Td>
                     <Td>
-                      {scenario.demandChange > 0 ? '+' : ''}{scenario.demandChange}%
-                    </Td>
-                    <Td color={scenario.costImpact > 0 ? "red.400" : "green.400"}>
-                      {scenario.costImpact > 0 ? '+' : ''}{formatCurrency(scenario.costImpact)}
+                      {scenario.leadTimeChange > 0 ? "+" : ""}
+                      {scenario.leadTimeChange} days
                     </Td>
                     <Td>
-                      <Badge 
-                        colorScheme={scenario.stockoutRisk > 20 ? "red" : scenario.stockoutRisk > 10 ? "orange" : "green"}
+                      {scenario.demandChange > 0 ? "+" : ""}
+                      {scenario.demandChange}%
+                    </Td>
+                    <Td
+                      color={scenario.costImpact > 0 ? "red.400" : "green.400"}
+                    >
+                      {scenario.costImpact > 0 ? "+" : ""}
+                      {formatCurrency(scenario.costImpact)}
+                    </Td>
+                    <Td>
+                      <Badge
+                        colorScheme={
+                          scenario.stockoutRisk > 20
+                            ? "red"
+                            : scenario.stockoutRisk > 10
+                            ? "orange"
+                            : "green"
+                        }
                         variant="solid"
                       >
                         {scenario.stockoutRisk}%
                       </Badge>
                     </Td>
                     <Td>
-                      <Badge 
+                      <Badge
                         colorScheme={
-                          scenario.status === "Completed" ? "green" : 
-                          scenario.status === "Running" ? "blue" : 
-                          scenario.status === "Failed" ? "red" : "gray"
+                          scenario.status === "Completed"
+                            ? "green"
+                            : scenario.status === "Running"
+                            ? "blue"
+                            : scenario.status === "Failed"
+                            ? "red"
+                            : "gray"
                         }
                         variant="solid"
                       >
@@ -656,10 +786,16 @@ ${forecasts.map(f =>
       </Tabs>
 
       {/* New Scenario Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="xl">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        size="xl"
+      >
         <ModalOverlay />
         <ModalContent bg="gray.800" border="1px solid" borderColor="gray.700">
-          <ModalHeader color="gray.100">Create New What-If Scenario</ModalHeader>
+          <ModalHeader color="gray.100">
+            Create New What-If Scenario
+          </ModalHeader>
           <ModalCloseButton color="gray.400" />
           <ModalBody>
             <VStack spacing={4}>
@@ -667,7 +803,9 @@ ${forecasts.map(f =>
                 <FormLabel color="gray.200">Scenario Name</FormLabel>
                 <Input
                   value={newScenario.name || ""}
-                  onChange={(e) => setNewScenario({ ...newScenario, name: e.target.value })}
+                  onChange={(e) =>
+                    setNewScenario({ ...newScenario, name: e.target.value })
+                  }
                   bg="gray.700"
                   borderColor="gray.600"
                   color="gray.100"
@@ -678,7 +816,12 @@ ${forecasts.map(f =>
                 <FormLabel color="gray.200">Description</FormLabel>
                 <Input
                   value={newScenario.description || ""}
-                  onChange={(e) => setNewScenario({ ...newScenario, description: e.target.value })}
+                  onChange={(e) =>
+                    setNewScenario({
+                      ...newScenario,
+                      description: e.target.value,
+                    })
+                  }
                   bg="gray.700"
                   borderColor="gray.600"
                   color="gray.100"
@@ -687,10 +830,14 @@ ${forecasts.map(f =>
               </FormControl>
               <SimpleGrid columns={2} spacing={4} w="full">
                 <FormControl>
-                  <FormLabel color="gray.200">Lead Time Change (days)</FormLabel>
+                  <FormLabel color="gray.200">
+                    Lead Time Change (days)
+                  </FormLabel>
                   <NumberInput
                     value={newScenario.leadTimeChange || 0}
-                    onChange={(_, value) => setNewScenario({ ...newScenario, leadTimeChange: value })}
+                    onChange={(_, value) =>
+                      setNewScenario({ ...newScenario, leadTimeChange: value })
+                    }
                     bg="gray.700"
                     borderColor="gray.600"
                     color="gray.100"
@@ -706,7 +853,9 @@ ${forecasts.map(f =>
                   <FormLabel color="gray.200">Demand Change (%)</FormLabel>
                   <NumberInput
                     value={newScenario.demandChange || 0}
-                    onChange={(_, value) => setNewScenario({ ...newScenario, demandChange: value })}
+                    onChange={(_, value) =>
+                      setNewScenario({ ...newScenario, demandChange: value })
+                    }
                     bg="gray.700"
                     borderColor="gray.600"
                     color="gray.100"
@@ -722,7 +871,11 @@ ${forecasts.map(f =>
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={() => setIsModalOpen(false)}
+            >
               Cancel
             </Button>
             <Button colorScheme="brand" onClick={handleSaveScenario}>

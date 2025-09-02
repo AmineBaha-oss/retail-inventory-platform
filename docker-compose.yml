@@ -1,9 +1,9 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # PostgreSQL Database
+  # TimescaleDB Database (PostgreSQL with TimescaleDB extension)
   postgres:
-    image: postgres:15
+    image: timescale/timescaledb:latest-pg15
     container_name: retail_inventory_db
     environment:
       POSTGRES_DB: retail_inventory
@@ -13,6 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d/
     networks:
       - retail_network
 
@@ -27,17 +28,44 @@ services:
     networks:
       - retail_network
 
-  # Backend API
-  backend:
+  # Spring Boot API (Primary Backend)
+  spring-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.spring
+    container_name: retail_inventory_spring_api
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=retail_inventory
+      - DB_USERNAME=retail_user
+      - DB_PASSWORD=retail_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+      - ML_API_BASEURL=http://ml-api:8000
+      - JWT_SECRET=your-secret-key-here-change-in-production
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - retail_network
+
+  # ML API (Python FastAPI)
+  ml-api:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: retail_inventory_backend
+    container_name: retail_inventory_ml_api
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://retail_user:retail_password@postgres:5432/retail_inventory
       - REDIS_URL=redis://redis:6379
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
       - DEBUG=true
     volumes:
       - ./backend:/app
@@ -60,14 +88,45 @@ services:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      - backend
+      - spring-api
     networks:
       - retail_network
     command: npm run dev
 
+  # Observability Stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: retail_inventory_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    networks:
+      - retail_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: retail_inventory_grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+    networks:
+      - retail_network
+
 volumes:
   postgres_data:
   redis_data:
+  grafana_data:
 
 networks:
   retail_network:
