@@ -45,9 +45,10 @@ public class ReorderService {
 
             if (inventory == null) {
                 // No inventory record, assume 0 on hand and on order
-                inventory = new Inventory();
-                inventory.setOnHand(BigDecimal.ZERO);
-                inventory.setOnOrder(BigDecimal.ZERO);
+                inventory = Inventory.builder()
+                        .quantityOnHand(BigDecimal.ZERO)
+                        .quantityOnOrder(BigDecimal.ZERO)
+                        .build();
             }
 
             // Get the latest P90 forecast for the product in the store
@@ -70,26 +71,27 @@ public class ReorderService {
             }
 
             // Calculate suggested quantity
+            Integer casePackSize = product.getCasePackSize() != null ? product.getCasePackSize() : 1;
             int suggestedQty = suggestQty(
-                    inventory.getOnHand(),
-                    inventory.getOnOrder(),
+                    inventory.getQuantityOnHand(),
+                    inventory.getQuantityOnOrder(),
                     p90DailyDemand,
                     leadTimeDays,
-                    product.getCasePackSize(),
-                    product.getCasePackSize()
+                    casePackSize,
+                    casePackSize
             );
 
             if (suggestedQty > 0) {
                 suggestions.add(ReorderSuggestion.builder()
                         .product(product)
-                        .currentStock(inventory.getOnHand().intValue())
-                        .onOrder(inventory.getOnOrder().intValue())
-                        .allocated(inventory.getQuantityAllocated().intValue())
+                        .currentStock(inventory.getQuantityOnHand().intValue())
+                        .onOrder(inventory.getQuantityOnOrder().intValue())
+                        .allocated(0) // TODO: Calculate allocated quantity
                         .p90DailyDemand(p90DailyDemand.doubleValue())
                         .leadTimeDays(leadTimeDays)
                         .suggestedQuantity(suggestedQty)
-                        .unitCost(product.getUnitCost().doubleValue())
-                        .totalCost(suggestedQty * product.getUnitCost().doubleValue())
+                        .unitCost(product.getUnitCost() != null ? product.getUnitCost().doubleValue() : 0.0)
+                        .totalCost(suggestedQty * (product.getUnitCost() != null ? product.getUnitCost().doubleValue() : 0.0))
                         .reason("Generated based on P90 forecast and lead time.")
                         .build());
             }
