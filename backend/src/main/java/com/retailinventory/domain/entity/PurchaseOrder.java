@@ -55,11 +55,17 @@ public class PurchaseOrder {
     @Builder.Default
     private BigDecimal shippingAmount = BigDecimal.ZERO;
 
+    @Column(name = "order_date")
+    private LocalDate orderDate;
+
     @Column(name = "expected_delivery_date")
     private LocalDate expectedDeliveryDate;
 
     @Column(name = "actual_delivery_date")
     private LocalDate actualDeliveryDate;
+
+    @Column(name = "created_by")
+    private UUID createdBy;
 
     @Column(name = "approved_by")
     private UUID approvedBy;
@@ -142,10 +148,10 @@ public class PurchaseOrder {
     }
 
     public LocalDate getOrderDate() {
-        return expectedDeliveryDate;
+        return orderDate;
     }
 
     public UUID getCreatedBy() {
-        return approvedBy;
+        return createdBy;
     }
 }

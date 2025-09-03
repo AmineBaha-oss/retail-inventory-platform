@@ -68,7 +68,7 @@ app:
 
   # ML Service Integration (Python FastAPI)
   ml-service:
-    base-url: ${ML_SERVICE_URL:http://localhost:8001}
+    base-url: ${ML_SERVICE_URL:http://localhost:8000}
     timeout: 30000ms
 
   # Forecasting Configuration
