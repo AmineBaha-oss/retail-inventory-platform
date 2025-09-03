@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS audit_events (
     action VARCHAR(50) NOT NULL,
     actor VARCHAR(255),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    payload JSONB
+    payload TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for better performance
