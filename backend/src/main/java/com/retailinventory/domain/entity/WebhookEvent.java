@@ -14,7 +14,8 @@ import java.util.UUID;
  * Entity for tracking webhook events from external systems.
  */
 @Entity
-@Table(name = "webhook_events")
+@Table(name = "webhook_events", 
+       uniqueConstraints = @UniqueConstraint(columnNames = {"source", "external_event_id"}))
 @Data
 @Builder
 @NoArgsConstructor
@@ -30,6 +31,9 @@ public class WebhookEvent {
 
     @Column(name = "event_type", nullable = false, length = 50)
     private String eventType; // order, inventory, etc.
+
+    @Column(name = "external_event_id", length = 255)
+    private String externalEventId; // External system's event ID for idempotency
 
     @Column(name = "shop_domain", length = 255)
     private String shopDomain;

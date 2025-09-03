@@ -6,10 +6,12 @@ import com.retailinventory.infrastructure.dto.reorder.ReorderSuggestion;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +28,9 @@ public class ReorderService {
     private final ForecastRepository forecastRepository;
     private final ProductRepository productRepository;
     private final SupplierRepository supplierRepository;
+    private final StoreRepository storeRepository;
+    private final PurchaseOrderRepository purchaseOrderRepository;
+    private final PurchaseOrderItemRepository purchaseOrderItemRepository;
 
     public List<ReorderSuggestion> calculateReorderSuggestions(UUID storeId, UUID supplierId) {
         List<ReorderSuggestion> suggestions = new ArrayList<>();
@@ -121,9 +126,88 @@ public class ReorderService {
         return calculateReorderSuggestions(storeId, supplierId);
     }
 
+    @Transactional
     public PurchaseOrder createPurchaseOrderFromSuggestions(UUID storeId, UUID supplierId, List<ReorderSuggestion> suggestions) {
-        // TODO: Implement purchase order creation from suggestions
-        throw new UnsupportedOperationException("Purchase order creation from suggestions not yet implemented");
+        if (suggestions == null || suggestions.isEmpty()) {
+            throw new IllegalArgumentException("Reorder suggestions cannot be null or empty");
+        }
+
+        log.info("Creating purchase order from {} suggestions for store {} and supplier {}", 
+                suggestions.size(), storeId, supplierId);
+
+        // Fetch store and supplier entities
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + storeId));
+        
+        Supplier supplier = supplierRepository.findById(supplierId)
+                .orElseThrow(() -> new IllegalArgumentException("Supplier not found with ID: " + supplierId));
+
+        // Generate PO number
+        String poNumber = generatePONumber(store, supplier);
+
+        // Create purchase order
+        PurchaseOrder purchaseOrder = PurchaseOrder.builder()
+                .poNumber(poNumber)
+                .store(store)
+                .supplier(supplier)
+                .status(PurchaseOrder.PurchaseOrderStatus.DRAFT)
+                .orderDate(LocalDate.now())
+                .expectedDeliveryDate(LocalDate.now().plusDays(supplier.getLeadTimeDays()))
+                .priority(PurchaseOrder.Priority.MEDIUM)
+                .notes("Auto-generated from reorder suggestions")
+                .build();
+
+        // Save purchase order first to get the ID
+        purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
+        log.info("Created purchase order {} with ID {}", poNumber, purchaseOrder.getId());
+
+        // Create purchase order items
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        List<PurchaseOrderItem> items = new ArrayList<>();
+
+        for (ReorderSuggestion suggestion : suggestions) {
+            PurchaseOrderItem item = PurchaseOrderItem.builder()
+                    .purchaseOrder(purchaseOrder)
+                    .product(suggestion.getProduct())
+                    .quantityOrdered(suggestion.getSuggestedQuantity())
+                    .unitCost(BigDecimal.valueOf(suggestion.getUnitCost()))
+                    .notes(String.format("Auto-generated: %s", suggestion.getReason()))
+                    .build();
+
+            items.add(item);
+            totalAmount = totalAmount.add(item.getTotalCost());
+        }
+
+        // Save all items
+        purchaseOrderItemRepository.saveAll(items);
+        log.info("Created {} purchase order items for PO {}", items.size(), poNumber);
+
+        // Update total amount and save
+        purchaseOrder.setTotalAmount(totalAmount);
+        purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
+
+        log.info("Successfully created purchase order {} with total amount {}", 
+                poNumber, totalAmount);
+
+        return purchaseOrder;
+    }
+
+    private String generatePONumber(Store store, Supplier supplier) {
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String storeCode = store.getCode() != null ? store.getCode() : "ST";
+        String supplierCode = supplier.getCode() != null ? supplier.getCode() : "SUP";
+        
+        String basePoNumber = String.format("PO-%s-%s-%s", storeCode, supplierCode, timestamp.substring(timestamp.length() - 6));
+        
+        // Ensure uniqueness
+        int counter = 1;
+        String poNumber = basePoNumber;
+        while (purchaseOrderRepository.existsByPoNumber(poNumber)) {
+            poNumber = basePoNumber + "-" + counter;
+            counter++;
+        }
+        
+        return poNumber;
     }
 
 }

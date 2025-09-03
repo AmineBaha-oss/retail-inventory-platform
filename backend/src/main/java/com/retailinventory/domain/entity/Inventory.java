@@ -18,7 +18,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Inventory {
+public class Inventory extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)

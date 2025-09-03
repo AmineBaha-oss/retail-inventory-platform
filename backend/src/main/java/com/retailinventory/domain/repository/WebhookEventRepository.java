@@ -24,4 +24,9 @@ public interface WebhookEventRepository extends JpaRepository<WebhookEvent, UUID
     
     @Query("SELECT w FROM WebhookEvent w WHERE w.source = :source AND w.eventType = :eventType")
     List<WebhookEvent> findBySourceAndEventType(@Param("source") String source, @Param("eventType") String eventType);
+    
+    @Query("SELECT w FROM WebhookEvent w WHERE w.source = :source AND w.externalEventId = :externalEventId")
+    WebhookEvent findBySourceAndExternalEventId(@Param("source") String source, @Param("externalEventId") String externalEventId);
+    
+    boolean existsBySourceAndExternalEventId(String source, String externalEventId);
 }

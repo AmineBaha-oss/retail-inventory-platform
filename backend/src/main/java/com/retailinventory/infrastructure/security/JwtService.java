@@ -91,6 +91,17 @@ public class JwtService {
     }
 
     /**
+     * Check if token is valid (without user validation)
+     */
+    public boolean isTokenValid(String token) {
+        try {
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * Check if token is expired
      */
     private boolean isTokenExpired(String token) {
