@@ -21,7 +21,7 @@ import java.util.UUID;
  * Controller for real-time updates using Server-Sent Events.
  */
 @RestController
-@RequestMapping("/api/v1/realtime")
+@RequestMapping("/v1/realtime")
 @RequiredArgsConstructor
 @Slf4j
 public class RealtimeController {

@@ -4,6 +4,8 @@ import com.retailinventory.domain.entity.*;
 import com.retailinventory.domain.repository.*;
 import com.retailinventory.domain.service.ReorderService;
 import com.retailinventory.infrastructure.dto.reorder.ReorderSuggestion;
+import com.retailinventory.infrastructure.dto.graphql.ForecastGenerateInput;
+import com.retailinventory.infrastructure.dto.graphql.ForecastPoint;
 import com.retailinventory.infrastructure.service.MlApiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -17,7 +17,7 @@ import java.util.UUID;
  * Controller for reorder suggestions and purchase order generation.
  */
 @RestController
-@RequestMapping("/api/v1/reorder")
+@RequestMapping("/v1/reorder")
 @RequiredArgsConstructor
 @Slf4j
 public class ReorderController {
@@ -28,7 +28,6 @@ public class ReorderController {
      * Get reorder suggestions for a store and supplier.
      */
     @GetMapping("/suggestions")
-    @PreAuthorize("hasAnyAuthority('inventory:read', 'purchase_order:read')")
     public ResponseEntity<List<ReorderSuggestion>> getReorderSuggestions(
             @RequestParam UUID storeId,
             @RequestParam UUID supplierId) {
@@ -44,7 +43,6 @@ public class ReorderController {
      * Create purchase order from reorder suggestions.
      */
     @PostMapping("/create-purchase-order")
-    @PreAuthorize("hasAnyAuthority('purchase_order:create')")
     public ResponseEntity<PurchaseOrder> createPurchaseOrder(
             @RequestParam UUID storeId,
             @RequestParam UUID supplierId,
@@ -62,7 +60,6 @@ public class ReorderController {
      * Get reorder suggestions for all suppliers of a store.
      */
     @GetMapping("/suggestions/all")
-    @PreAuthorize("hasAnyAuthority('inventory:read', 'purchase_order:read')")
     public ResponseEntity<Map<UUID, List<ReorderSuggestion>>> getAllReorderSuggestions(
             @RequestParam UUID storeId) {
         

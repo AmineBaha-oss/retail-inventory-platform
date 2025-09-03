@@ -22,7 +22,7 @@ import java.util.Map;
  * Authentication controller for user login and registration.
  */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/v1/auth")
 @RequiredArgsConstructor
 @Slf4j
 public class AuthController {
@@ -53,7 +53,7 @@ public class AuthController {
         // Generate tokens
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("userId", user.getId().toString());
-        extraClaims.put("roles", user.getRoles().stream().map(role -> role.getName()).toArray());
+        extraClaims.put("roles", user.getRoles().stream().map(role -> role.getName()).toArray(String[]::new));
 
         String jwtToken = jwtService.generateToken(extraClaims, user);
         String refreshToken = jwtService.generateRefreshToken(user);

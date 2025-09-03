@@ -98,7 +98,7 @@ app:
   # Security Configuration
   security:
     jwt:
-      secret: ${JWT_SECRET:your-secret-key-here}
+      secret: ${JWT_SECRET:dev-secret-key-that-is-long-enough-for-jwt-hmac-sha256-algorithm}
       expiration: 86400000 # 24 hours in milliseconds
       refresh-expiration: 604800000 # 7 days in milliseconds
     cors:

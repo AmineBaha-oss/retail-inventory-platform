@@ -17,7 +17,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * - Purchase order automation
  * - Supplier constraint management
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.retailinventory")
 @EnableJpaAuditing
 @EnableCaching
 @EnableAsync

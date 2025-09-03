@@ -39,7 +39,7 @@ public class AuditorAwareConfig {
             }
             
             // Fallback to authentication name
-            return Optional.ofNullable(authentication.getName()).orElse("system");
+            return Optional.ofNullable(authentication.getName()).or(() -> Optional.of("system"));
         }
     }
 }

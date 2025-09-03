@@ -44,8 +44,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
-      - ML_API_BASEURL=http://ml-api:8000
-      - JWT_SECRET=your-secret-key-here-change-in-production
+      - ML_SERVICE_URL=http://ml-api:8000
+      - JWT_SECRET=your-secret-key-here-change-in-production-that-is-long-enough-for-jwt-hmac-sha256-algorithm
     depends_on:
       - postgres
       - redis
