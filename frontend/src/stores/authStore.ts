@@ -43,7 +43,6 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          // Demo authentication - accept any valid email format
           if (!email || !password) {
             throw new Error("Please enter both email and password");
           }
@@ -54,24 +53,41 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error("Please enter a valid email address");
           }
 
-          // Simulate API delay
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          // Call the real API
+          const response = await fetch(
+            "http://localhost:8000/api/v1/auth/login",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: new URLSearchParams({
+                username: email,
+                password: password,
+              }),
+              // commit test
+            }
+          );
 
-          // Create demo user
-          const demoUser: User = {
-            id: "demo_user_001",
-            email: email,
-            username: email.split("@")[0],
-            full_name: "Demo User",
-            role: "admin",
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || "Login failed");
+          }
+
+          const data = await response.json();
+
+          // Extract user info from the response
+          const user: User = {
+            id: data.user?.id || "user_001",
+            email: data.user?.email || email,
+            username: data.user?.username || email.split("@")[0],
+            full_name: data.user?.full_name || "User",
+            role: data.user?.role || "buyer",
           };
 
-          // Generate demo token
-          const demoToken = `demo_token_${Date.now()}`;
-
           set({
-            user: demoUser,
-            token: demoToken,
+            user: user,
+            token: data.access_token,
             isAuthenticated: true,
             isLoading: false,
             error: null,
