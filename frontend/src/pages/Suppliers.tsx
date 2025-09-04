@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   SimpleGrid,
@@ -41,6 +41,8 @@ import PageHeader from "../components/ui/PageHeader";
 import { FiUsers } from "react-icons/fi";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
+import { supplierAPI } from "../services/api";
+import { showSuccess, showError } from "../utils/helpers";
 
 type Supplier = {
   id: string;
@@ -104,12 +106,52 @@ const initialSuppliers: Supplier[] = [
 ];
 
 export default function Suppliers() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSupplier, setNewSupplier] = useState<Partial<Supplier>>({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load suppliers data from API
+  useEffect(() => {
+    loadSuppliersData();
+  }, []);
+
+  const loadSuppliersData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await supplierAPI.getAll();
+
+      // Transform API data to match our interface
+      const transformedData: Supplier[] = response.data.map(
+        (supplier: any) => ({
+          id: supplier.id,
+          name: supplier.name,
+          category: "General", // Default category
+          contactPerson: "Contact Person", // Default
+          email: supplier.contact_email || "N/A",
+          phone: supplier.contact_phone || "N/A",
+          country: "Canada", // Default
+          city: "Montreal", // Default
+          status: supplier.is_active ? "Active" : "Inactive",
+          totalOrders: 0, // Default
+          totalValue: 0, // Default
+          lastOrder: "—", // Default
+        })
+      );
+
+      setSuppliers(transformedData);
+    } catch (error) {
+      console.error("Failed to load suppliers data:", error);
+      // Fallback to demo data if API fails
+      setSuppliers(initialSuppliers);
+      showError("Failed to load suppliers data. Showing demo data.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredSuppliers = suppliers.filter(
     (supplier) =>

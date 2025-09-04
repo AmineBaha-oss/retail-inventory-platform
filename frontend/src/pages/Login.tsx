@@ -192,7 +192,7 @@ export default function Login() {
                 🧪 Demo Credentials
               </Text>
               <Text color="gray.400" fontSize="xs" mb={1}>
-                Email: demo@company.com
+                Email: admin@retail.com
               </Text>
               <Text color="gray.400" fontSize="xs">
                 Password: password123

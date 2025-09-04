@@ -139,7 +139,7 @@ const initialInventory: InventoryItem[] = [
 ];
 
 export default function Inventory() {
-  const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [search, setSearch] = useState("");
   const [storeFilter, setStoreFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -151,6 +151,11 @@ export default function Inventory() {
   const toast = useToast();
   const location = useLocation();
   const cancelRef = useRef<HTMLButtonElement>(null);
+
+  // Load inventory data from API
+  useEffect(() => {
+    loadInventoryData();
+  }, []);
 
   // Get filters from navigation state (when coming from dashboard)
   useEffect(() => {
@@ -165,6 +170,48 @@ export default function Inventory() {
       if (statusFilterState) setStatusFilter(statusFilterState);
     }
   }, [location.state]);
+
+  // Load inventory data from API
+  const loadInventoryData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await inventoryAPI.getAll();
+
+      // Transform API data to match our interface
+      const transformedData: InventoryItem[] = response.data.map(
+        (item: any) => ({
+          id: item.id,
+          sku: item.product_id || "N/A",
+          name: `Product ${item.product_id}`,
+          store: item.store_id || "Unknown Store",
+          quantity: item.quantity_on_hand || 0,
+          reorderPoint: item.reorder_point || 0,
+          daysUntilStockout: Math.max(
+            0,
+            Math.floor((item.quantity_on_hand || 0) / 3)
+          ), // Estimate
+          status:
+            (item.quantity_on_hand || 0) <= (item.reorder_point || 0)
+              ? (item.quantity_on_hand || 0) === 0
+                ? "Critical"
+                : "Low"
+              : "Healthy",
+          lastUpdated: item.last_updated || new Date().toISOString(),
+          forecastedDemand: 2.5, // Default estimate
+          leadTime: 14, // Default estimate
+        })
+      );
+
+      setInventory(transformedData);
+    } catch (error) {
+      console.error("Failed to load inventory data:", error);
+      // Fallback to demo data if API fails
+      setInventory(initialInventory);
+      showError("Failed to load inventory data. Showing demo data.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Debounced search function
   const debouncedSearch = debounce((searchTerm: string) => {
@@ -258,19 +305,8 @@ export default function Inventory() {
 
   // Handle refresh inventory data
   const handleRefreshData = async () => {
-    try {
-      setIsLoading(true);
-      showInfo("Refreshing inventory data...");
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      showSuccess("Inventory data refreshed successfully!");
-    } catch (error) {
-      showError("Failed to refresh inventory data");
-    } finally {
-      setIsLoading(false);
-    }
+    await loadInventoryData();
+    showSuccess("Inventory data refreshed successfully!");
   };
 
   return (
