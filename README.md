@@ -2,6 +2,7 @@
 
 A comprehensive retail inventory management system with intelligent demand forecasting, automated purchase order generation, and real-time analytics.
 
+
 ## Architecture
 
 The platform consists of three main components:
