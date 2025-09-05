@@ -29,7 +29,7 @@ export function useInventory(): UseInventoryReturn {
       setIsLoading(true);
       setError(null);
 
-      const response = await inventoryAPI.getAll();
+      const response = await inventoryAPI.list();
       const data = response.data;
 
       // Handle pagination response
@@ -98,7 +98,7 @@ export function useInventory(): UseInventoryReturn {
 
   const getLowStock = useCallback(async (): Promise<InventoryItem[]> => {
     try {
-      const response = await inventoryAPI.getLowStock();
+      const response = await inventoryAPI.lowStock();
       return response.data || [];
     } catch (err: any) {
       showError(err, "Failed to load low stock items");
@@ -108,7 +108,7 @@ export function useInventory(): UseInventoryReturn {
 
   const getCritical = useCallback(async (): Promise<InventoryItem[]> => {
     try {
-      const response = await inventoryAPI.getCritical();
+      const response = await inventoryAPI.critical();
       return response.data || [];
     } catch (err: any) {
       showError(err, "Failed to load critical stock items");

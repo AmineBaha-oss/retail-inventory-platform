@@ -23,80 +23,110 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
-          
+
           {/* Protected routes */}
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/stores" element={
-            <ProtectedRoute>
-              <Layout>
-                <Stores />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/forecasting" element={
-            <ProtectedRoute>
-              <Layout>
-                <Forecasting />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/inventory" element={
-            <ProtectedRoute>
-              <Layout>
-                <Inventory />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/purchase-orders" element={
-            <ProtectedRoute>
-              <Layout>
-                <PurchaseOrders />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/suppliers" element={
-            <ProtectedRoute>
-              <Layout>
-                <Suppliers />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/products" element={
-            <ProtectedRoute>
-              <Layout>
-                <Products />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Layout>
-                <Profile />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <Layout>
-                <Settings />
-              </Layout>
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stores"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Stores />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/forecasting"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Forecasting />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Inventory />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/purchase-orders"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PurchaseOrders />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suppliers"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Suppliers />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/products"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Products />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Settings />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
-        
+
         <Toaster
           position="top-right"
           toastOptions={{

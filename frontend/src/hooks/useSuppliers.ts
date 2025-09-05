@@ -29,7 +29,7 @@ export function useSuppliers(): UseSupplierReturn {
       setIsLoading(true);
       setError(null);
 
-      const response = await supplierAPI.getAll();
+      const response = await supplierAPI.list();
       const data = response.data;
 
       // Handle pagination response
@@ -116,7 +116,7 @@ export function useSuppliers(): UseSupplierReturn {
         setIsLoading(true);
 
         const supplier = suppliers.find((s) => s.id === id);
-        await supplierAPI.delete(id);
+        await supplierAPI.remove(id);
 
         // Update local state
         setSuppliers((prev) => prev.filter((supplier) => supplier.id !== id));
@@ -137,7 +137,7 @@ export function useSuppliers(): UseSupplierReturn {
   const getSupplierById = useCallback(
     async (id: string): Promise<Supplier | null> => {
       try {
-        const response = await supplierAPI.getById(id);
+        const response = await supplierAPI.get(id);
         return response.data;
       } catch (err: any) {
         showError(err, "Failed to load supplier details");

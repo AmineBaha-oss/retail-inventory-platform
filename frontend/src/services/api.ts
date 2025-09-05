@@ -142,6 +142,31 @@ export const ForecastingApi = {
   },
 };
 
+// Dashboard and Export APIs (placeholder - these endpoints don't exist yet)
+export const dashboardAPI = {
+  getKPIs: () => api.get(paths.root("/dashboard/kpis")),
+  getAtRiskItems: () => api.get(paths.root("/dashboard/at-risk")),
+  getOpenPOs: () => api.get(paths.root("/dashboard/open-pos")),
+  getRecentActivity: () => api.get(paths.root("/dashboard/recent-activity")),
+};
+
+export const exportAPI = {
+  exportInventory: (params?: any) =>
+    api.get(paths.root("/export/inventory"), {
+      params,
+      responseType: "blob",
+    }),
+  exportForecast: (storeId: string) =>
+    api.get(paths.root(`/export/forecast/${storeId}`), {
+      responseType: "blob",
+    }),
+  exportPurchaseOrders: (params?: any) =>
+    api.get(paths.root("/export/purchase-orders"), {
+      params,
+      responseType: "blob",
+    }),
+};
+
 // Legacy exports for backward compatibility during migration
 export const storeAPI = StoresApi;
 export const inventoryAPI = InventoryApi;

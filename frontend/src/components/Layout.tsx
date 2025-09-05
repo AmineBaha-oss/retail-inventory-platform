@@ -155,7 +155,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <HStack spacing={3} w="full">
               <Avatar
                 size="sm"
-                name={user?.full_name || user?.username || "User"}
+                name={user?.fullName || user?.username || "User"}
                 bg="brand.500"
                 color="white"
                 fontSize="sm"
@@ -163,7 +163,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               />
               <Box flex="1" textAlign="left">
                 <Text fontSize="sm" fontWeight="medium" color="gray.100">
-                  {user?.full_name || user?.username || "User"}
+                  {user?.fullName || user?.username || "User"}
                 </Text>
                 <Text fontSize="xs" color="gray.400">
                   {user?.email || "user@example.com"}

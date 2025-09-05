@@ -57,8 +57,11 @@ export const useAuthStore = create<AuthStore>()(
             id: "user_001", // TODO: get from JWT token or API response
             email: email,
             username: email.split("@")[0],
-            full_name: "User", // TODO: get from API response
+            fullName: "User", // TODO: get from API response
             role: "admin", // TODO: get from JWT token or API response
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           };
 
           set({
