@@ -1,125 +1,153 @@
-import axios from "axios";
+// frontend/src/services/api.ts
+import axios, { AxiosError } from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
-// Create axios instance with default config
-const api = axios.create({
+export const paths = {
+  // auth & realtime are versioned on the backend
+  auth: (p = "") => `/api/v1/auth${p}`,
+  realtime: (p = "") => `/api/v1/realtime${p}`,
+  // most domain resources are at root (inventory, products, suppliers, stores, purchase-orders)
+  root: (p = "") => `/api${p}`,
+};
+
+export const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
-// Request interceptor to add auth token
+// Attach JWT from Zustand/localStorage (key "auth-storage")
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("auth-storage")
-    ? JSON.parse(localStorage.getItem("auth-storage")!).token
-    : null;
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  try {
+    const raw = localStorage.getItem("auth-storage");
+    if (raw) {
+      const { state } = JSON.parse(raw);
+      const token: string | undefined = state?.token ?? state?.accessToken;
+      if (token) {
+        config.headers = config.headers ?? {};
+        (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+      }
+    }
+  } catch {
+    /* no-op */
   }
   return config;
 });
 
-// Response interceptor for error handling
+// Handle 401s and redirect to login
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized access
       localStorage.removeItem("auth-storage");
-      window.location.href = "/login";
+      if (!window.location.pathname.includes("/login")) {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
 );
 
-// Store API
-export const storeAPI = {
-  getAll: (params?: any) => api.get("/api/v1/stores", { params }),
-  getById: (id: string) => api.get(`/api/v1/stores/${id}`),
-  create: (data: any) => api.post("/api/v1/stores", data),
-  update: (id: string, data: any) => api.put(`/api/v1/stores/${id}`, data),
-  delete: (id: string) => api.delete(`/api/v1/stores/${id}`),
-  getAnalytics: (id: string) => api.get(`/api/v1/stores/${id}/analytics`),
+// Standardize error shapes
+export type ApiError = {
+  status: number;
+  message: string;
+  details?: unknown;
 };
 
-// Inventory API
-export const inventoryAPI = {
-  getAll: (params?: any) => api.get("/api/v1/inventory", { params }),
-  getByStore: (storeId: string) =>
-    api.get(`/api/v1/inventory/store/${storeId}`),
-  updateQuantity: (id: string, quantity: number) =>
-    api.put(`/api/v1/inventory/${id}/quantity`, { quantity }),
-  getLowStock: () => api.get("/api/v1/inventory/low-stock"),
-  getCritical: () => api.get("/api/v1/inventory/critical"),
+export function toApiError(err: unknown): ApiError {
+  const ax = err as AxiosError<any>;
+  if (ax?.isAxiosError) {
+    return {
+      status: ax.response?.status ?? 0,
+      message:
+        (ax.response?.data?.message as string) ||
+        (ax.response?.data?.error as string) ||
+        ax.message,
+      details: ax.response?.data,
+    };
+  }
+  return { status: 0, message: (err as Error)?.message ?? "Unknown error" };
+}
+
+// Example typed helpers (use as you migrate screens)
+export const InventoryApi = {
+  list: () => api.get(paths.root("/inventory")),
+  byStore: (storeId: string | number) =>
+    api.get(paths.root(`/inventory/store/${storeId}`)),
+  updateQuantity: (id: string | number, quantity: number) =>
+    api.put(paths.root(`/inventory/${id}/quantity`), { quantity }),
+  lowStock: () => api.get(paths.root("/inventory/low-stock")),
+  critical: () => api.get(paths.root("/inventory/critical")),
 };
 
-// Purchase Orders API
-export const purchaseOrderAPI = {
-  getAll: (params?: any) => api.get("/api/v1/purchase-orders", { params }),
-  getById: (id: string) => api.get(`/api/v1/purchase-orders/${id}`),
-  create: (data: any) => api.post("/api/v1/purchase-orders", data),
-  update: (id: string, data: any) =>
-    api.put(`/api/v1/purchase-orders/${id}`, data),
-  approve: (id: string) => api.post(`/api/v1/purchase-orders/${id}/approve`),
-  reject: (id: string, reason: string) =>
-    api.post(`/api/v1/purchase-orders/${id}/reject`, { reason }),
+export const SuppliersApi = {
+  list: () => api.get(paths.root("/suppliers")),
+  get: (id: string | number) => api.get(paths.root(`/suppliers/${id}`)),
+  create: (body: unknown) => api.post(paths.root("/suppliers"), body),
+  update: (id: string | number, body: unknown) =>
+    api.put(paths.root(`/suppliers/${id}`), body),
+  remove: (id: string | number) => api.delete(paths.root(`/suppliers/${id}`)),
 };
 
-// Suppliers API
-export const supplierAPI = {
-  getAll: (params?: any) => api.get("/api/v1/suppliers", { params }),
-  getById: (id: string) => api.get(`/api/v1/suppliers/${id}`),
-  create: (data: any) => api.post("/api/v1/suppliers", data),
-  update: (id: string, data: any) => api.put(`/api/v1/suppliers/${id}`, data),
-  delete: (id: string) => api.delete(`/api/v1/suppliers/${id}`),
+export const ProductsApi = {
+  list: () => api.get(paths.root("/products")),
+  create: (body: unknown) => api.post(paths.root("/products"), body),
+  // add other methods as needed
 };
 
-// Forecasting API
-export const forecastingAPI = {
-  getForecast: (storeId: string, productId: string) =>
-    api.get(`/api/v1/forecasting/${storeId}/${productId}`),
-  generateForecast: (storeId: string) =>
-    api.post(`/api/v1/forecasting/${storeId}/generate`),
-  getForecastHistory: (storeId: string) =>
-    api.get(`/api/v1/forecasting/${storeId}/history`),
-  getKPIs: () => api.get("/api/v1/forecasting/dashboard/kpis"),
-  createScenario: (data: any) =>
-    api.post("/api/v1/forecasting/scenarios", data),
-  runScenario: (scenarioId: string) =>
-    api.post(`/api/v1/forecasting/scenarios/${scenarioId}/run`),
-  trainModel: (data: any) => api.post("/api/v1/forecasting/train", data),
-  generateForecastModel: (data: any) =>
-    api.post("/api/v1/forecasting/generate", data),
-  listModels: () => api.get("/api/v1/forecasting/models"),
+export const StoresApi = {
+  list: () => api.get(paths.root("/stores")),
+  create: (body: unknown) => api.post(paths.root("/stores"), body),
 };
 
-// Dashboard API
-export const dashboardAPI = {
-  getKPIs: () => api.get("/api/v1/dashboard/kpis"),
-  getAtRiskItems: () => api.get("/api/v1/dashboard/at-risk"),
-  getOpenPOs: () => api.get("/api/v1/dashboard/open-pos"),
-  getRecentActivity: () => api.get("/api/v1/dashboard/recent-activity"),
+export const PurchaseOrdersApi = {
+  list: () => api.get(paths.root("/purchase-orders")),
+  get: (id: string | number) => api.get(paths.root(`/purchase-orders/${id}`)),
+  create: (body: unknown) => api.post(paths.root("/purchase-orders"), body),
+  update: (id: string | number, body: unknown) =>
+    api.put(paths.root(`/purchase-orders/${id}`), body),
+  remove: (id: string | number) =>
+    api.delete(paths.root(`/purchase-orders/${id}`)),
 };
 
-// Export functions
-export const exportAPI = {
-  exportInventory: (params?: any) =>
-    api.get("/api/v1/export/inventory", {
-      params,
-      responseType: "blob",
-    }),
-  exportForecast: (storeId: string) =>
-    api.get(`/api/v1/export/forecast/${storeId}`, {
-      responseType: "blob",
-    }),
-  exportPurchaseOrders: (params?: any) =>
-    api.get("/api/v1/export/purchase-orders", {
-      params,
-      responseType: "blob",
-    }),
+export const AuthApi = {
+  login: (body: { email: string; password: string }) =>
+    api.post(paths.auth("/login"), body),
+  register: (body: { email: string; password: string }) =>
+    api.post(paths.auth("/register"), body),
+  refresh: (body: { refreshToken: string }) =>
+    api.post(paths.auth("/refresh"), body),
 };
+
+// Forecasting API (ML API on port 8000) - separate instance
+const ML_API_BASE_URL = "http://localhost:8000";
+const mlApi = axios.create({
+  baseURL: ML_API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+export const ForecastingApi = {
+  trainModel: (data: any) => mlApi.post("/api/v1/forecasting/train", data),
+  generateForecast: (data: any) =>
+    mlApi.post("/api/v1/forecasting/generate", data),
+  listModels: () => mlApi.get("/api/v1/forecasting/models"),
+  getPerformance: (productId: string, storeId?: string) => {
+    const url = storeId
+      ? `/api/v1/forecasting/${productId}/performance?store_id=${storeId}`
+      : `/api/v1/forecasting/${productId}/performance`;
+    return mlApi.get(url);
+  },
+};
+
+// Legacy exports for backward compatibility during migration
+export const storeAPI = StoresApi;
+export const inventoryAPI = InventoryApi;
+export const purchaseOrderAPI = PurchaseOrdersApi;
+export const supplierAPI = SuppliersApi;
+export const productAPI = ProductsApi;
+export const forecastingAPI = ForecastingApi;
 
 export default api;
