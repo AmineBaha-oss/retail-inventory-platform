@@ -1,9 +1,15 @@
-import { toast } from 'react-hot-toast';
+// Re-export error handling functions for backward compatibility
+export {
+  showError,
+  showSuccess,
+  showInfo,
+  handleApiError,
+} from "./errorHandler";
 
 // Download file from blob
 export const downloadFile = (blob: Blob, filename: string) => {
   const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
@@ -12,46 +18,12 @@ export const downloadFile = (blob: Blob, filename: string) => {
   window.URL.revokeObjectURL(url);
 };
 
-// Show success notification
-export const showSuccess = (message: string) => {
-  toast.success(message, {
-    duration: 4000,
-    position: 'top-right',
-    style: {
-      background: '#48BB78',
-      color: 'white',
-    },
-  });
-};
-
-// Show error notification
-export const showError = (message: string) => {
-  toast.error(message, {
-    duration: 6000,
-    position: 'top-right',
-    style: {
-      background: '#F56565',
-      color: 'white',
-    },
-  });
-};
-
-// Show info notification
-export const showInfo = (message: string) => {
-  toast(message, {
-    duration: 4000,
-    position: 'top-right',
-    style: {
-      background: '#3182CE',
-      color: 'white',
-    },
-  });
-};
+// Note: showSuccess, showError, showInfo, and handleApiError are re-exported from errorHandler.ts
 
 // Format currency
-export const formatCurrency = (amount: number, currency = 'USD') => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
+export const formatCurrency = (amount: number, currency = "USD") => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
     currency,
   }).format(amount);
 };
@@ -63,21 +35,21 @@ export const formatPercentage = (value: number, decimals = 1) => {
 
 // Format date
 export const formatDate = (date: string | Date) => {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
   }).format(new Date(date));
 };
 
 // Format date and time
 export const formatDateTime = (date: string | Date) => {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(date));
 };
 
@@ -91,7 +63,7 @@ export const debounce = <T extends (...args: any[]) => any>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout;
+  let timeout: ReturnType<typeof setTimeout>;
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
@@ -122,7 +94,7 @@ export const isValidEmail = (email: string): boolean => {
 // Validate phone number
 export const isValidPhone = (phone: string): boolean => {
   const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-  return phoneRegex.test(phone.replace(/\s/g, ''));
+  return phoneRegex.test(phone.replace(/\s/g, ""));
 };
 
 // Capitalize first letter
@@ -133,5 +105,5 @@ export const capitalize = (str: string): string => {
 // Truncate text
 export const truncate = (text: string, maxLength: number): string => {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '...';
+  return text.slice(0, maxLength) + "...";
 };

@@ -46,6 +46,7 @@ public class AuthController {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
+                .emailVerified(true) // Auto-verify for development
                 .build();
 
         userRepository.save(user);
