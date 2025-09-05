@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { AuthApi, toApiError } from "../services/api";
 
 interface User {
   id: string;
@@ -30,7 +31,7 @@ type AuthStore = AuthState & AuthActions;
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set, get) => ({
+    (set): AuthStore => ({
       // State
       user: null,
       token: null,
@@ -53,48 +54,29 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error("Please enter a valid email address");
           }
 
-          // Call the real API
-          const response = await fetch(
-            "http://localhost:8000/api/v1/auth/login",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-              },
-              body: new URLSearchParams({
-                username: email,
-                password: password,
-              }),
-              // commit test
-            }
-          );
+          // Call the real API using AuthApi
+          const res = await AuthApi.login({ email, password });
+          const { accessToken, refreshToken } = res.data;
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || "Login failed");
-          }
-
-          const data = await response.json();
-
-          // Extract user info from the response
           const user: User = {
-            id: data.user?.id || "user_001",
-            email: data.user?.email || email,
-            username: data.user?.username || email.split("@")[0],
-            full_name: data.user?.full_name || "User",
-            role: data.user?.role || "buyer",
+            id: "user_001", // TODO: get from JWT token or API response
+            email: email,
+            username: email.split("@")[0],
+            full_name: "User", // TODO: get from API response
+            role: "admin", // TODO: get from JWT token or API response
           };
 
           set({
             user: user,
-            token: data.access_token,
+            token: accessToken,
             isAuthenticated: true,
             isLoading: false,
             error: null,
           });
         } catch (error) {
+          const apiError = toApiError(error);
           set({
-            error: error instanceof Error ? error.message : "Login failed",
+            error: apiError.message,
             isLoading: false,
           });
           throw error;
@@ -132,7 +114,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: "auth-storage",
-      partialize: (state) => ({
+      partialize: (state: AuthStore) => ({
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
