@@ -44,9 +44,14 @@ import PageHeader from "../components/ui/PageHeader";
 import { FiShoppingCart } from "react-icons/fi";
 import SectionCard from "../components/ui/SectionCard";
 import { purchaseOrderAPI, supplierAPI, storeAPI } from "../services/api";
-import { PurchaseOrder as APIPurchaseOrder, PurchaseOrderCreateRequest, Supplier, Store } from "../types/api";
+import {
+  PurchaseOrder as APIPurchaseOrder,
+  PurchaseOrderCreateRequest,
+  Supplier,
+  Store,
+} from "../types/api";
 
-// UI PurchaseOrder type extends API PurchaseOrder 
+// UI PurchaseOrder type extends API PurchaseOrder
 type UIPurchaseOrder = APIPurchaseOrder;
 type NewPurchaseOrder = PurchaseOrderCreateRequest;
 
@@ -71,9 +76,9 @@ const initialPurchaseOrders: UIPurchaseOrder[] = [
     storeId: "store-1",
     storeName: "Demo Store",
     status: "PENDING_APPROVAL",
-    totalAmount: 1250.00,
-    taxAmount: 125.00,
-    shippingAmount: 25.00,
+    totalAmount: 1250.0,
+    taxAmount: 125.0,
+    shippingAmount: 25.0,
     orderDate: "2024-01-15",
     priority: "HIGH",
     notes: "Demo purchase order",
@@ -94,7 +99,9 @@ const PurchaseOrders: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [supplierFilter, setSupplierFilter] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newPurchaseOrder, setNewPurchaseOrder] = useState<NewPurchaseOrder>(emptyNewPurchaseOrder);
+  const [newPurchaseOrder, setNewPurchaseOrder] = useState<NewPurchaseOrder>(
+    emptyNewPurchaseOrder
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
 
@@ -109,9 +116,9 @@ const PurchaseOrders: React.FC = () => {
       let purchaseOrdersData: APIPurchaseOrder[];
       if (Array.isArray(response.data)) {
         purchaseOrdersData = response.data;
-      } else if (response.data && 'content' in response.data) {
+      } else if (response.data && "content" in response.data) {
         purchaseOrdersData = (response.data as any).content;
-      } else if (response.data && 'value' in response.data) {
+      } else if (response.data && "value" in response.data) {
         // Special case for purchase orders API
         purchaseOrdersData = (response.data as any).value;
       } else {
@@ -121,20 +128,23 @@ const PurchaseOrders: React.FC = () => {
       setPurchaseOrders(purchaseOrdersData);
 
       toast({
-        title: 'Purchase orders loaded successfully',
+        title: "Purchase orders loaded successfully",
         description: `Loaded ${purchaseOrdersData.length} purchase orders`,
-        status: 'success',
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch purchase orders';
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to fetch purchase orders";
       setError(errorMessage);
       setPurchaseOrders(initialPurchaseOrders); // Fallback to demo data
       toast({
-        title: 'Error loading purchase orders',
-        description: errorMessage + '. Showing demo data.',
-        status: 'warning',
+        title: "Error loading purchase orders",
+        description: errorMessage + ". Showing demo data.",
+        status: "warning",
         duration: 5000,
         isClosable: true,
       });
@@ -148,14 +158,16 @@ const PurchaseOrders: React.FC = () => {
     try {
       const response = await supplierAPI.getAll();
       let suppliersData: Supplier[];
-      if ('content' in response.data) {
+      if ("content" in response.data) {
         suppliersData = response.data.content;
       } else {
-        suppliersData = Array.isArray(response.data) ? response.data : [response.data];
+        suppliersData = Array.isArray(response.data)
+          ? response.data
+          : [response.data];
       }
       setSuppliers(suppliersData);
     } catch (err) {
-      console.error('Failed to load suppliers:', err);
+      console.error("Failed to load suppliers:", err);
     }
   };
 
@@ -163,14 +175,16 @@ const PurchaseOrders: React.FC = () => {
     try {
       const response = await storeAPI.getAll();
       let storesData: Store[];
-      if ('content' in response.data) {
+      if ("content" in response.data) {
         storesData = response.data.content;
       } else {
-        storesData = Array.isArray(response.data) ? response.data : [response.data];
+        storesData = Array.isArray(response.data)
+          ? response.data
+          : [response.data];
       }
       setStores(storesData);
     } catch (err) {
-      console.error('Failed to load stores:', err);
+      console.error("Failed to load stores:", err);
     }
   };
 
@@ -183,26 +197,44 @@ const PurchaseOrders: React.FC = () => {
 
   // Computed values
   const totalPOs = purchaseOrders.length;
-  const pendingPOs = purchaseOrders.filter((po: UIPurchaseOrder) => po.status === "PENDING_APPROVAL").length;
-  const approvedPOs = purchaseOrders.filter((po: UIPurchaseOrder) => po.status === "APPROVED").length;
-  const totalValue = purchaseOrders.reduce((sum: number, po: UIPurchaseOrder) => sum + (po.totalAmount || 0), 0);
+  const pendingPOs = purchaseOrders.filter(
+    (po: UIPurchaseOrder) => po.status === "PENDING_APPROVAL"
+  ).length;
+  const approvedPOs = purchaseOrders.filter(
+    (po: UIPurchaseOrder) => po.status === "APPROVED"
+  ).length;
+  const totalValue = purchaseOrders.reduce(
+    (sum: number, po: UIPurchaseOrder) => sum + (po.totalAmount || 0),
+    0
+  );
 
   // Filtering
-  const filteredPurchaseOrders = purchaseOrders.filter((po: UIPurchaseOrder) => {
-    const matchesSearch = po.poNumber.toLowerCase().includes(search.toLowerCase()) ||
-                         (po.supplierName?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-                         (po.storeName?.toLowerCase().includes(search.toLowerCase()) ?? false);
-    const matchesStatus = statusFilter === "" || po.status === statusFilter;
-    const matchesSupplier = supplierFilter === "" || po.supplierName === supplierFilter;
-    return matchesSearch && matchesStatus && matchesSupplier;
-  });
+  const filteredPurchaseOrders = purchaseOrders.filter(
+    (po: UIPurchaseOrder) => {
+      const matchesSearch =
+        po.poNumber.toLowerCase().includes(search.toLowerCase()) ||
+        (po.supplierName?.toLowerCase().includes(search.toLowerCase()) ??
+          false) ||
+        (po.storeName?.toLowerCase().includes(search.toLowerCase()) ?? false);
+      const matchesStatus = statusFilter === "" || po.status === statusFilter;
+      const matchesSupplier =
+        supplierFilter === "" || po.supplierName === supplierFilter;
+      return matchesSearch && matchesStatus && matchesSupplier;
+    }
+  );
 
   // Event handlers
-  const handleInputChange = (field: keyof NewPurchaseOrder, value: string | number) => {
-    setNewPurchaseOrder((prev: NewPurchaseOrder) => ({ 
-      ...prev, 
-      [field]: typeof value === 'string' && (field === 'taxAmount' || field === 'shippingAmount') ? 
-        parseFloat(value) || 0 : value 
+  const handleInputChange = (
+    field: keyof NewPurchaseOrder,
+    value: string | number
+  ) => {
+    setNewPurchaseOrder((prev: NewPurchaseOrder) => ({
+      ...prev,
+      [field]:
+        typeof value === "string" &&
+        (field === "taxAmount" || field === "shippingAmount")
+          ? parseFloat(value) || 0
+          : value,
     }));
   };
 
@@ -217,18 +249,21 @@ const PurchaseOrders: React.FC = () => {
       setIsModalOpen(false);
 
       toast({
-        title: 'Purchase order created successfully',
+        title: "Purchase order created successfully",
         description: `PO ${created.poNumber} has been created`,
-        status: 'success',
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to create purchase order';
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to create purchase order";
       toast({
-        title: 'Error creating purchase order',
+        title: "Error creating purchase order",
         description: errorMessage,
-        status: 'error',
+        status: "error",
         duration: 5000,
         isClosable: true,
       });
@@ -238,11 +273,22 @@ const PurchaseOrders: React.FC = () => {
   };
 
   // Unique suppliers for filter
-  const uniqueSuppliers = [...new Set(purchaseOrders.map((po: UIPurchaseOrder) => po.supplierName).filter(Boolean))];
+  const uniqueSuppliers = [
+    ...new Set(
+      purchaseOrders
+        .map((po: UIPurchaseOrder) => po.supplierName)
+        .filter(Boolean)
+    ),
+  ];
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minH="400px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minH="400px"
+      >
         <VStack spacing={4}>
           <Spinner size="xl" color="blue.500" />
           <Text>Loading purchase orders...</Text>
@@ -303,9 +349,7 @@ const PurchaseOrders: React.FC = () => {
             <Stat>
               <StatLabel>Pending Approval</StatLabel>
               <StatNumber>{pendingPOs}</StatNumber>
-              <StatHelpText color="orange.500">
-                Awaiting approval
-              </StatHelpText>
+              <StatHelpText color="orange.500">Awaiting approval</StatHelpText>
             </Stat>
           </CardBody>
         </Card>
@@ -327,9 +371,7 @@ const PurchaseOrders: React.FC = () => {
             <Stat>
               <StatLabel>Total Value</StatLabel>
               <StatNumber>${totalValue.toLocaleString()}</StatNumber>
-              <StatHelpText>
-                Order value
-              </StatHelpText>
+              <StatHelpText>Order value</StatHelpText>
             </Stat>
           </CardBody>
         </Card>
@@ -343,7 +385,9 @@ const PurchaseOrders: React.FC = () => {
               <Input
                 placeholder="Search purchase orders..."
                 value={search}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setSearch(e.target.value)
+                }
               />
               <InputRightElement>
                 <IconButton
@@ -359,7 +403,9 @@ const PurchaseOrders: React.FC = () => {
               placeholder="All Statuses"
               maxW="180px"
               value={statusFilter}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setStatusFilter(e.target.value)
+              }
             >
               <option value="DRAFT">Draft</option>
               <option value="PENDING_APPROVAL">Pending Approval</option>
@@ -375,7 +421,9 @@ const PurchaseOrders: React.FC = () => {
               placeholder="All Suppliers"
               maxW="150px"
               value={supplierFilter}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSupplierFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setSupplierFilter(e.target.value)
+              }
             >
               {uniqueSuppliers.map((supplier) => (
                 <option key={supplier} value={supplier}>
@@ -407,7 +455,9 @@ const PurchaseOrders: React.FC = () => {
               {filteredPurchaseOrders.length === 0 ? (
                 <Tr>
                   <Td colSpan={8} textAlign="center" py={8}>
-                    {purchaseOrders.length === 0 ? 'No purchase orders found. Create your first PO!' : 'No purchase orders match your filters.'}
+                    {purchaseOrders.length === 0
+                      ? "No purchase orders found. Create your first PO!"
+                      : "No purchase orders match your filters."}
                   </Td>
                 </Tr>
               ) : (
@@ -442,10 +492,16 @@ const PurchaseOrders: React.FC = () => {
                     <Td>
                       <Badge
                         colorScheme={
-                          po.status === "APPROVED" ? "green" :
-                          po.status === "PENDING_APPROVAL" ? "orange" :
-                          po.status === "DELIVERED" ? "blue" :
-                          po.status === "CANCELLED" || po.status === "REJECTED" ? "red" : "gray"
+                          po.status === "APPROVED"
+                            ? "green"
+                            : po.status === "PENDING_APPROVAL"
+                            ? "orange"
+                            : po.status === "DELIVERED"
+                            ? "blue"
+                            : po.status === "CANCELLED" ||
+                              po.status === "REJECTED"
+                            ? "red"
+                            : "gray"
                         }
                         variant="subtle"
                       >
@@ -455,9 +511,13 @@ const PurchaseOrders: React.FC = () => {
                     <Td>
                       <Badge
                         colorScheme={
-                          po.priority === "CRITICAL" ? "red" :
-                          po.priority === "HIGH" ? "orange" :
-                          po.priority === "MEDIUM" ? "blue" : "gray"
+                          po.priority === "CRITICAL"
+                            ? "red"
+                            : po.priority === "HIGH"
+                            ? "orange"
+                            : po.priority === "MEDIUM"
+                            ? "blue"
+                            : "gray"
                         }
                         size="sm"
                       >
@@ -466,7 +526,9 @@ const PurchaseOrders: React.FC = () => {
                     </Td>
                     <Td>
                       <Text fontSize="sm">
-                        {po.orderDate ? new Date(po.orderDate).toLocaleDateString() : "—"}
+                        {po.orderDate
+                          ? new Date(po.orderDate).toLocaleDateString()
+                          : "—"}
                       </Text>
                     </Td>
                     <Td>
@@ -488,7 +550,11 @@ const PurchaseOrders: React.FC = () => {
       </SectionCard>
 
       {/* Create Purchase Order Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="xl">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        size="xl"
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Create New Purchase Order</ModalHeader>
@@ -499,7 +565,9 @@ const PurchaseOrders: React.FC = () => {
                 <FormLabel>PO Number</FormLabel>
                 <Input
                   value={newPurchaseOrder.poNumber}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("poNumber", e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleInputChange("poNumber", e.target.value)
+                  }
                   placeholder="PO-2025-001"
                 />
               </FormControl>
@@ -510,7 +578,9 @@ const PurchaseOrders: React.FC = () => {
                   {suppliers.length > 0 ? (
                     <Select
                       value={newPurchaseOrder.supplierId}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("supplierId", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        handleInputChange("supplierId", e.target.value)
+                      }
                       placeholder="Select supplier"
                     >
                       {suppliers.map((supplier) => (
@@ -522,7 +592,9 @@ const PurchaseOrders: React.FC = () => {
                   ) : (
                     <Input
                       value={newPurchaseOrder.supplierId}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("supplierId", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        handleInputChange("supplierId", e.target.value)
+                      }
                       placeholder="Supplier ID"
                     />
                   )}
@@ -532,7 +604,9 @@ const PurchaseOrders: React.FC = () => {
                   {stores.length > 0 ? (
                     <Select
                       value={newPurchaseOrder.storeId}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("storeId", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        handleInputChange("storeId", e.target.value)
+                      }
                       placeholder="Select store"
                     >
                       {stores.map((store) => (
@@ -544,7 +618,9 @@ const PurchaseOrders: React.FC = () => {
                   ) : (
                     <Input
                       value={newPurchaseOrder.storeId}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("storeId", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        handleInputChange("storeId", e.target.value)
+                      }
                       placeholder="Store ID"
                     />
                   )}
@@ -558,7 +634,9 @@ const PurchaseOrders: React.FC = () => {
                     type="number"
                     step="0.01"
                     value={newPurchaseOrder.taxAmount}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("taxAmount", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("taxAmount", e.target.value)
+                    }
                     placeholder="0.00"
                   />
                 </FormControl>
@@ -568,7 +646,9 @@ const PurchaseOrders: React.FC = () => {
                     type="number"
                     step="0.01"
                     value={newPurchaseOrder.shippingAmount}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("shippingAmount", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("shippingAmount", e.target.value)
+                    }
                     placeholder="0.00"
                   />
                 </FormControl>
@@ -579,7 +659,9 @@ const PurchaseOrders: React.FC = () => {
                   <FormLabel>Priority</FormLabel>
                   <Select
                     value={newPurchaseOrder.priority}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("priority", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                      handleInputChange("priority", e.target.value)
+                    }
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
@@ -591,7 +673,9 @@ const PurchaseOrders: React.FC = () => {
                   <FormLabel>Status</FormLabel>
                   <Select
                     value={newPurchaseOrder.status}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("status", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                      handleInputChange("status", e.target.value)
+                    }
                   >
                     <option value="DRAFT">Draft</option>
                     <option value="PENDING_APPROVAL">Pending Approval</option>
@@ -604,14 +688,20 @@ const PurchaseOrders: React.FC = () => {
                 <FormLabel>Notes</FormLabel>
                 <Input
                   value={newPurchaseOrder.notes}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("notes", e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleInputChange("notes", e.target.value)
+                  }
                   placeholder="Additional notes..."
                 />
               </FormControl>
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={() => setIsModalOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -619,7 +709,11 @@ const PurchaseOrders: React.FC = () => {
               onClick={handleCreatePurchaseOrder}
               isLoading={isSubmitting}
               loadingText="Creating..."
-              disabled={!newPurchaseOrder.poNumber || !newPurchaseOrder.supplierId || !newPurchaseOrder.storeId}
+              disabled={
+                !newPurchaseOrder.poNumber ||
+                !newPurchaseOrder.supplierId ||
+                !newPurchaseOrder.storeId
+              }
             >
               Create PO
             </Button>

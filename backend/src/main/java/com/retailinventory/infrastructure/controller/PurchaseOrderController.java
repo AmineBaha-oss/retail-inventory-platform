@@ -103,11 +103,6 @@ public class PurchaseOrderController {
     @Transactional
     public ResponseEntity<PurchaseOrderResponse> createPurchaseOrder(@Valid @RequestBody PurchaseOrderCreateRequest request) {
         try {
-            // Check if PO number already exists
-            if (purchaseOrderRepository.existsByPoNumber(request.getPoNumber())) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).build();
-            }
-
             // Verify supplier and store exist
             Optional<Supplier> supplier = supplierRepository.findById(request.getSupplierId());
             if (supplier.isEmpty()) {
@@ -119,8 +114,20 @@ public class PurchaseOrderController {
                 return ResponseEntity.badRequest().build();
             }
 
+            // Auto-generate PO number if not provided
+            String poNumber = request.getPoNumber();
+            if (poNumber == null || poNumber.trim().isEmpty()) {
+                poNumber = generatePoNumber(store.get().getCode());
+            }
+            
+            // Check if PO number already exists
+            if (purchaseOrderRepository.existsByPoNumber(poNumber)) {
+                // Try alternative PO number
+                poNumber = generatePoNumber(store.get().getCode());
+            }
+
             PurchaseOrder purchaseOrder = PurchaseOrder.builder()
-                    .poNumber(request.getPoNumber())
+                    .poNumber(poNumber)
                     .supplier(supplier.get())
                     .store(store.get())
                     .status(request.getStatus())
@@ -266,5 +273,13 @@ public class PurchaseOrderController {
             log.error("Error deleting purchase order with id: {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    /**
+     * Generate a unique PO number based on store code and timestamp
+     */
+    private String generatePoNumber(String storeCode) {
+        String timestamp = String.valueOf(System.currentTimeMillis() % 100000); // Last 5 digits
+        return String.format("PO-%s-%s", storeCode, timestamp);
     }
 }

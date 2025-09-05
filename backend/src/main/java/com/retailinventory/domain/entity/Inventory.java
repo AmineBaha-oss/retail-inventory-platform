@@ -48,9 +48,6 @@ public class Inventory extends BaseEntity {
     @Builder.Default
     private BigDecimal quantityReserved = BigDecimal.ZERO;
 
-    @Column(name = "quantity_available", insertable = false, updatable = false)
-    private BigDecimal quantityAvailable;
-
     @Column(name = "reorder_point")
     @Builder.Default
     private Integer reorderPoint = 10;

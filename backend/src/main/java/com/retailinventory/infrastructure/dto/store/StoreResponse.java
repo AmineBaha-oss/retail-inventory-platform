@@ -30,6 +30,8 @@ public class StoreResponse {
     private String country;
     private String timezone;
     private StoreStatus status;
+    private int productCount; // Number of distinct products in this store
+    private boolean isActive; // Active status for frontend
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;

@@ -3,7 +3,6 @@ package com.retailinventory.dto;
 import com.retailinventory.domain.entity.PurchaseOrder;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
@@ -13,7 +12,7 @@ import java.util.UUID;
 @Data
 public class PurchaseOrderCreateRequest {
     
-    @NotBlank(message = "PO number is required")
+    // PO number is now optional - will be auto-generated if not provided
     private String poNumber;
     
     @NotNull(message = "Supplier ID is required")

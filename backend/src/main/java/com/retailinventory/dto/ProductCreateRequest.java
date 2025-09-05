@@ -13,7 +13,7 @@ import java.util.UUID;
 @Data
 public class ProductCreateRequest {
     
-    @NotBlank(message = "SKU is required")
+    // SKU is now optional - will be auto-generated if not provided
     private String sku;
     
     @NotBlank(message = "Product name is required")

@@ -44,7 +44,11 @@ import PageHeader from "../components/ui/PageHeader";
 import { FiPackage } from "react-icons/fi";
 import SectionCard from "../components/ui/SectionCard";
 import { productAPI, supplierAPI } from "../services/api";
-import { Product as APIProduct, ProductCreateRequest, Supplier } from "../types/api";
+import {
+  Product as APIProduct,
+  ProductCreateRequest,
+  Supplier,
+} from "../types/api";
 
 type ProductStatus = "In Stock" | "Low Stock" | "Out of Stock";
 
@@ -61,10 +65,10 @@ const formatProductForUI = (apiProduct: APIProduct): UIProduct => {
   // TODO: Get stock from inventory API
   const stock = Math.floor(Math.random() * 100); // Mock stock for now
   let stockStatus: ProductStatus = "Out of Stock";
-  
+
   if (stock > 50) stockStatus = "In Stock";
   else if (stock > 0) stockStatus = "Low Stock";
-  
+
   return {
     ...apiProduct,
     stock,
@@ -131,7 +135,7 @@ const Products: React.FC = () => {
       let productsData: APIProduct[];
       if (Array.isArray(response.data)) {
         productsData = response.data;
-      } else if (response.data && 'content' in response.data) {
+      } else if (response.data && "content" in response.data) {
         productsData = (response.data as any).content;
       } else {
         productsData = [response.data];
@@ -141,20 +145,23 @@ const Products: React.FC = () => {
       setProducts(formattedProducts);
 
       toast({
-        title: 'Products loaded successfully',
+        title: "Products loaded successfully",
         description: `Loaded ${formattedProducts.length} products`,
-        status: 'success',
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch products';
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to fetch products";
       setError(errorMessage);
       setProducts(initialProducts); // Fallback to demo data
       toast({
-        title: 'Error loading products',
-        description: errorMessage + '. Showing demo data.',
-        status: 'warning',
+        title: "Error loading products",
+        description: errorMessage + ". Showing demo data.",
+        status: "warning",
         duration: 5000,
         isClosable: true,
       });
@@ -168,14 +175,16 @@ const Products: React.FC = () => {
     try {
       const response = await supplierAPI.getAll();
       let suppliersData: Supplier[];
-      if ('content' in response.data) {
+      if ("content" in response.data) {
         suppliersData = response.data.content;
       } else {
-        suppliersData = Array.isArray(response.data) ? response.data : [response.data];
+        suppliersData = Array.isArray(response.data)
+          ? response.data
+          : [response.data];
       }
       setSuppliers(suppliersData);
     } catch (err) {
-      console.error('Failed to load suppliers:', err);
+      console.error("Failed to load suppliers:", err);
       // Continue without suppliers - user can enter supplier ID manually
     }
   };
@@ -188,26 +197,43 @@ const Products: React.FC = () => {
 
   // Computed values
   const totalProducts = products.length;
-  const inStockCount = products.filter((p: UIProduct) => p.stockStatus === "In Stock").length;
-  const lowStockCount = products.filter((p: UIProduct) => p.stockStatus === "Low Stock").length;
-  const outOfStockCount = products.filter((p: UIProduct) => p.stockStatus === "Out of Stock").length;
+  const inStockCount = products.filter(
+    (p: UIProduct) => p.stockStatus === "In Stock"
+  ).length;
+  const lowStockCount = products.filter(
+    (p: UIProduct) => p.stockStatus === "Low Stock"
+  ).length;
+  const outOfStockCount = products.filter(
+    (p: UIProduct) => p.stockStatus === "Out of Stock"
+  ).length;
 
   // Filtering
   const filteredProducts = products.filter((product: UIProduct) => {
-    const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase()) ||
-                         product.sku.toLowerCase().includes(search.toLowerCase()) ||
-                         (product.category?.toLowerCase().includes(search.toLowerCase()) ?? false);
-    const matchesCategory = categoryFilter === "" || product.category === categoryFilter;
-    const matchesStatus = statusFilter === "" || product.status === statusFilter;
+    const matchesSearch =
+      product.name.toLowerCase().includes(search.toLowerCase()) ||
+      product.sku.toLowerCase().includes(search.toLowerCase()) ||
+      (product.category?.toLowerCase().includes(search.toLowerCase()) ?? false);
+    const matchesCategory =
+      categoryFilter === "" || product.category === categoryFilter;
+    const matchesStatus =
+      statusFilter === "" || product.status === statusFilter;
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
   // Event handlers
-  const handleInputChange = (field: keyof NewProduct, value: string | number) => {
-    setNewProduct((prev: NewProduct) => ({ 
-      ...prev, 
-      [field]: typeof value === 'string' && (field === 'unitCost' || field === 'unitPrice' || field === 'casePackSize') ? 
-        parseFloat(value) || 0 : value 
+  const handleInputChange = (
+    field: keyof NewProduct,
+    value: string | number
+  ) => {
+    setNewProduct((prev: NewProduct) => ({
+      ...prev,
+      [field]:
+        typeof value === "string" &&
+        (field === "unitCost" ||
+          field === "unitPrice" ||
+          field === "casePackSize")
+          ? parseFloat(value) || 0
+          : value,
     }));
   };
 
@@ -222,18 +248,21 @@ const Products: React.FC = () => {
       setIsModalOpen(false);
 
       toast({
-        title: 'Product created successfully',
+        title: "Product created successfully",
         description: `${created.name} has been added`,
-        status: 'success',
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to create product';
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to create product";
       toast({
-        title: 'Error creating product',
+        title: "Error creating product",
         description: errorMessage,
-        status: 'error',
+        status: "error",
         duration: 5000,
         isClosable: true,
       });
@@ -243,11 +272,18 @@ const Products: React.FC = () => {
   };
 
   // Unique categories for filter
-  const uniqueCategories = [...new Set(products.map((p: UIProduct) => p.category).filter(Boolean))];
+  const uniqueCategories = [
+    ...new Set(products.map((p: UIProduct) => p.category).filter(Boolean)),
+  ];
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minH="400px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minH="400px"
+      >
         <VStack spacing={4}>
           <Spinner size="xl" color="blue.500" />
           <Text>Loading products...</Text>
@@ -308,9 +344,7 @@ const Products: React.FC = () => {
             <Stat>
               <StatLabel>In Stock</StatLabel>
               <StatNumber>{inStockCount}</StatNumber>
-              <StatHelpText color="green.500">
-                Available items
-              </StatHelpText>
+              <StatHelpText color="green.500">Available items</StatHelpText>
             </Stat>
           </CardBody>
         </Card>
@@ -320,9 +354,7 @@ const Products: React.FC = () => {
             <Stat>
               <StatLabel>Low Stock</StatLabel>
               <StatNumber>{lowStockCount}</StatNumber>
-              <StatHelpText color="orange.500">
-                Need restocking
-              </StatHelpText>
+              <StatHelpText color="orange.500">Need restocking</StatHelpText>
             </Stat>
           </CardBody>
         </Card>
@@ -332,9 +364,7 @@ const Products: React.FC = () => {
             <Stat>
               <StatLabel>Out of Stock</StatLabel>
               <StatNumber>{outOfStockCount}</StatNumber>
-              <StatHelpText color="red.500">
-                Unavailable items
-              </StatHelpText>
+              <StatHelpText color="red.500">Unavailable items</StatHelpText>
             </Stat>
           </CardBody>
         </Card>
@@ -348,7 +378,9 @@ const Products: React.FC = () => {
               <Input
                 placeholder="Search products..."
                 value={search}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setSearch(e.target.value)
+                }
               />
               <InputRightElement>
                 <IconButton
@@ -364,7 +396,9 @@ const Products: React.FC = () => {
               placeholder="All Categories"
               maxW="150px"
               value={categoryFilter}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategoryFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setCategoryFilter(e.target.value)
+              }
             >
               {uniqueCategories.map((category) => (
                 <option key={category} value={category}>
@@ -377,7 +411,9 @@ const Products: React.FC = () => {
               placeholder="All Status"
               maxW="150px"
               value={statusFilter}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setStatusFilter(e.target.value)
+              }
             >
               <option value="ACTIVE">Active</option>
               <option value="INACTIVE">Inactive</option>
@@ -406,7 +442,9 @@ const Products: React.FC = () => {
               {filteredProducts.length === 0 ? (
                 <Tr>
                   <Td colSpan={7} textAlign="center" py={8}>
-                    {products.length === 0 ? 'No products found. Add your first product!' : 'No products match your filters.'}
+                    {products.length === 0
+                      ? "No products found. Add your first product!"
+                      : "No products match your filters."}
                   </Td>
                 </Tr>
               ) : (
@@ -437,7 +475,9 @@ const Products: React.FC = () => {
                     </Td>
                     <Td>
                       <VStack align="start" spacing={1}>
-                        <Text fontSize="sm">Sale: ${product.unitPrice?.toFixed(2)}</Text>
+                        <Text fontSize="sm">
+                          Sale: ${product.unitPrice?.toFixed(2)}
+                        </Text>
                         <Text fontSize="sm" color="gray.600">
                           Cost: ${product.unitCost?.toFixed(2)}
                         </Text>
@@ -456,8 +496,11 @@ const Products: React.FC = () => {
                         <Text fontSize="sm">{product.stock} units</Text>
                         <Badge
                           colorScheme={
-                            product.stockStatus === "In Stock" ? "green" :
-                            product.stockStatus === "Low Stock" ? "orange" : "red"
+                            product.stockStatus === "In Stock"
+                              ? "green"
+                              : product.stockStatus === "Low Stock"
+                              ? "orange"
+                              : "red"
                           }
                           size="sm"
                         >
@@ -467,7 +510,9 @@ const Products: React.FC = () => {
                     </Td>
                     <Td>
                       <Badge
-                        colorScheme={product.status === "ACTIVE" ? "green" : "red"}
+                        colorScheme={
+                          product.status === "ACTIVE" ? "green" : "red"
+                        }
                         variant="subtle"
                       >
                         {product.status}
@@ -492,7 +537,11 @@ const Products: React.FC = () => {
       </SectionCard>
 
       {/* Create Product Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="xl">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        size="xl"
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Add New Product</ModalHeader>
@@ -504,7 +553,9 @@ const Products: React.FC = () => {
                   <FormLabel>SKU</FormLabel>
                   <Input
                     value={newProduct.sku}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("sku", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("sku", e.target.value)
+                    }
                     placeholder="PROD-001"
                   />
                 </FormControl>
@@ -512,7 +563,9 @@ const Products: React.FC = () => {
                   <FormLabel>Product Name</FormLabel>
                   <Input
                     value={newProduct.name}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("name", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("name", e.target.value)
+                    }
                     placeholder="Black T-Shirt"
                   />
                 </FormControl>
@@ -523,7 +576,9 @@ const Products: React.FC = () => {
                   <FormLabel>Category</FormLabel>
                   <Input
                     value={newProduct.category}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("category", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("category", e.target.value)
+                    }
                     placeholder="Apparel"
                   />
                 </FormControl>
@@ -531,7 +586,9 @@ const Products: React.FC = () => {
                   <FormLabel>Brand</FormLabel>
                   <Input
                     value={newProduct.brand}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("brand", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("brand", e.target.value)
+                    }
                     placeholder="Brand Name"
                   />
                 </FormControl>
@@ -541,7 +598,9 @@ const Products: React.FC = () => {
                 <FormLabel>Description</FormLabel>
                 <Input
                   value={newProduct.description}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("description", e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleInputChange("description", e.target.value)
+                  }
                   placeholder="Product description"
                 />
               </FormControl>
@@ -553,7 +612,9 @@ const Products: React.FC = () => {
                     type="number"
                     step="0.01"
                     value={newProduct.unitCost}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("unitCost", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("unitCost", e.target.value)
+                    }
                     placeholder="25.50"
                   />
                 </FormControl>
@@ -563,7 +624,9 @@ const Products: React.FC = () => {
                     type="number"
                     step="0.01"
                     value={newProduct.unitPrice}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("unitPrice", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("unitPrice", e.target.value)
+                    }
                     placeholder="39.99"
                   />
                 </FormControl>
@@ -575,7 +638,9 @@ const Products: React.FC = () => {
                   {suppliers.length > 0 ? (
                     <Select
                       value={newProduct.supplierId}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("supplierId", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        handleInputChange("supplierId", e.target.value)
+                      }
                       placeholder="Select supplier"
                     >
                       {suppliers.map((supplier) => (
@@ -587,7 +652,9 @@ const Products: React.FC = () => {
                   ) : (
                     <Input
                       value={newProduct.supplierId}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("supplierId", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        handleInputChange("supplierId", e.target.value)
+                      }
                       placeholder="Supplier ID"
                     />
                   )}
@@ -597,7 +664,9 @@ const Products: React.FC = () => {
                   <Input
                     type="number"
                     value={newProduct.casePackSize}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("casePackSize", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("casePackSize", e.target.value)
+                    }
                     placeholder="1"
                   />
                 </FormControl>
@@ -605,7 +674,11 @@ const Products: React.FC = () => {
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={() => setIsModalOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -613,7 +686,9 @@ const Products: React.FC = () => {
               onClick={handleCreateProduct}
               isLoading={isSubmitting}
               loadingText="Creating..."
-              disabled={!newProduct.sku || !newProduct.name || !newProduct.supplierId}
+              disabled={
+                !newProduct.sku || !newProduct.name || !newProduct.supplierId
+              }
             >
               Create Product
             </Button>

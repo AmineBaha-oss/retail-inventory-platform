@@ -69,9 +69,11 @@ const formatStoreForUI = (apiStore: APIStore): UIStore => ({
   ...apiStore,
   manager: apiStore.manager || "—",
   totalProducts: 0, // TODO: Get from inventory API
-  totalValue: 0,    // TODO: Get from inventory API  
-  lastSync: apiStore.updatedAt ? new Date(apiStore.updatedAt).toLocaleString() : "—",
-  status: apiStore.isActive ? "Active" : "Inactive" as StoreStatus,
+  totalValue: 0, // TODO: Get from inventory API
+  lastSync: apiStore.updatedAt
+    ? new Date(apiStore.updatedAt).toLocaleString()
+    : "—",
+  status: apiStore.isActive ? "Active" : ("Inactive" as StoreStatus),
 });
 
 const emptyNewStore: NewStore = {
@@ -112,34 +114,37 @@ const Stores: React.FC = () => {
       setLoading(true);
       setError(null);
       const response = await storeAPI.getAll();
-      
+
       // The response is always paginated from Spring Boot
       let storesData: APIStore[];
-      if ('content' in response.data) {
+      if ("content" in response.data) {
         // Paginated response
         storesData = response.data.content;
       } else {
         // Non-paginated response (fallback)
-        storesData = Array.isArray(response.data) ? response.data : [response.data];
+        storesData = Array.isArray(response.data)
+          ? response.data
+          : [response.data];
       }
-      
+
       const formattedStores = storesData.map(formatStoreForUI);
       setStores(formattedStores);
-      
+
       toast({
-        title: 'Stores loaded successfully',
+        title: "Stores loaded successfully",
         description: `Loaded ${formattedStores.length} stores`,
-        status: 'success',
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch stores';
+      const errorMessage =
+        err.response?.data?.message || err.message || "Failed to fetch stores";
       setError(errorMessage);
       toast({
-        title: 'Error loading stores',
+        title: "Error loading stores",
         description: errorMessage,
-        status: 'error',
+        status: "error",
         duration: 5000,
         isClosable: true,
       });
@@ -155,26 +160,38 @@ const Stores: React.FC = () => {
 
   // Computed values
   const totalStores = stores.length;
-  const activeStores = stores.filter((s: UIStore) => s.status === "Active").length;
-  const avgProducts = stores.length > 0 
-    ? Math.round(stores.reduce((sum: number, s: UIStore) => sum + s.totalProducts, 0) / stores.length)
-    : 0;
-  const avgValue = stores.length > 0
-    ? stores.reduce((sum: number, s: UIStore) => sum + s.totalValue, 0) / stores.length
-    : 0;
+  const activeStores = stores.filter(
+    (s: UIStore) => s.status === "Active"
+  ).length;
+  const avgProducts =
+    stores.length > 0
+      ? Math.round(
+          stores.reduce((sum: number, s: UIStore) => sum + s.totalProducts, 0) /
+            stores.length
+        )
+      : 0;
+  const avgValue =
+    stores.length > 0
+      ? stores.reduce((sum: number, s: UIStore) => sum + s.totalValue, 0) /
+        stores.length
+      : 0;
 
   // Filtering
   const filteredStores = stores.filter((s: UIStore) => {
-    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) ||
-                         s.code.toLowerCase().includes(search.toLowerCase()) ||
-                         s.city.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch =
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.code.toLowerCase().includes(search.toLowerCase()) ||
+      s.city.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "" || s.status === statusFilter;
     const matchesCountry = countryFilter === "" || s.country === countryFilter;
     return matchesSearch && matchesStatus && matchesCountry;
   });
 
   // Event handlers
-  const handleInputChange = (field: keyof NewStore, value: string | boolean) => {
+  const handleInputChange = (
+    field: keyof NewStore,
+    value: string | boolean
+  ) => {
     setNewStore((prev: NewStore) => ({ ...prev, [field]: value }));
   };
 
@@ -187,20 +204,21 @@ const Stores: React.FC = () => {
       setStores((prev: UIStore[]) => [created, ...prev]);
       setNewStore(emptyNewStore);
       setIsModalOpen(false);
-      
+
       toast({
-        title: 'Store created successfully',
+        title: "Store created successfully",
         description: `${created.name} has been added`,
-        status: 'success',
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to create store';
+      const errorMessage =
+        err.response?.data?.message || err.message || "Failed to create store";
       toast({
-        title: 'Error creating store',
+        title: "Error creating store",
         description: errorMessage,
-        status: 'error',
+        status: "error",
         duration: 5000,
         isClosable: true,
       });
@@ -235,25 +253,26 @@ const Stores: React.FC = () => {
       const response = await storeAPI.update(editingStore.id, updateRequest);
       const updated: UIStore = formatStoreForUI(response.data);
 
-      setStores((prev: UIStore[]) => 
-        prev.map(store => store.id === updated.id ? updated : store)
+      setStores((prev: UIStore[]) =>
+        prev.map((store) => (store.id === updated.id ? updated : store))
       );
       setEditingStore(null);
       setIsEditModalOpen(false);
 
       toast({
-        title: 'Store updated successfully',
+        title: "Store updated successfully",
         description: `${updated.name} has been updated`,
-        status: 'success',
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to update store';
+      const errorMessage =
+        err.response?.data?.message || err.message || "Failed to update store";
       toast({
-        title: 'Error updating store',
+        title: "Error updating store",
         description: errorMessage,
-        status: 'error',
+        status: "error",
         duration: 5000,
         isClosable: true,
       });
@@ -274,25 +293,26 @@ const Stores: React.FC = () => {
       setIsSubmitting(true);
       await storeAPI.delete(deletingStore.id);
 
-      setStores((prev: UIStore[]) => 
-        prev.filter(store => store.id !== deletingStore.id)
+      setStores((prev: UIStore[]) =>
+        prev.filter((store) => store.id !== deletingStore.id)
       );
       setDeletingStore(null);
       setIsDeleteAlertOpen(false);
 
       toast({
-        title: 'Store deleted successfully',
+        title: "Store deleted successfully",
         description: `${deletingStore.name} has been deleted`,
-        status: 'success',
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to delete store';
+      const errorMessage =
+        err.response?.data?.message || err.message || "Failed to delete store";
       toast({
-        title: 'Error deleting store',
+        title: "Error deleting store",
         description: errorMessage,
-        status: 'error',
+        status: "error",
         duration: 5000,
         isClosable: true,
       });
@@ -306,7 +326,12 @@ const Stores: React.FC = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minH="400px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minH="400px"
+      >
         <VStack spacing={4}>
           <Spinner size="xl" color="blue.500" />
           <Text>Loading stores...</Text>
@@ -380,9 +405,7 @@ const Stores: React.FC = () => {
             <Stat>
               <StatLabel>Avg Products</StatLabel>
               <StatNumber>{avgProducts}</StatNumber>
-              <StatHelpText>
-                Per store
-              </StatHelpText>
+              <StatHelpText>Per store</StatHelpText>
             </Stat>
           </CardBody>
         </Card>
@@ -392,9 +415,7 @@ const Stores: React.FC = () => {
             <Stat>
               <StatLabel>Avg Store Value</StatLabel>
               <StatNumber>${avgValue.toLocaleString()}</StatNumber>
-              <StatHelpText>
-                Inventory value
-              </StatHelpText>
+              <StatHelpText>Inventory value</StatHelpText>
             </Stat>
           </CardBody>
         </Card>
@@ -408,7 +429,9 @@ const Stores: React.FC = () => {
               <Input
                 placeholder="Search stores..."
                 value={search}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setSearch(e.target.value)
+                }
               />
               <InputRightElement>
                 <IconButton
@@ -424,7 +447,9 @@ const Stores: React.FC = () => {
               placeholder="All Statuses"
               maxW="150px"
               value={statusFilter}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value as "" | StoreStatus)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setStatusFilter(e.target.value as "" | StoreStatus)
+              }
             >
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
@@ -434,7 +459,9 @@ const Stores: React.FC = () => {
               placeholder="All Countries"
               maxW="150px"
               value={countryFilter}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCountryFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setCountryFilter(e.target.value)
+              }
             >
               {uniqueCountries.map((country) => (
                 <option key={country} value={country}>
@@ -464,7 +491,9 @@ const Stores: React.FC = () => {
               {filteredStores.length === 0 ? (
                 <Tr>
                   <Td colSpan={6} textAlign="center" py={8}>
-                    {stores.length === 0 ? 'No stores found. Create your first store!' : 'No stores match your filters.'}
+                    {stores.length === 0
+                      ? "No stores found. Create your first store!"
+                      : "No stores match your filters."}
                   </Td>
                 </Tr>
               ) : (
@@ -483,7 +512,9 @@ const Stores: React.FC = () => {
                     </Td>
                     <Td>
                       <VStack align="start" spacing={1}>
-                        <Text fontSize="sm">{store.city}, {store.state}</Text>
+                        <Text fontSize="sm">
+                          {store.city}, {store.state}
+                        </Text>
                         <Text fontSize="sm" color="gray.600">
                           {store.country}
                         </Text>
@@ -510,7 +541,9 @@ const Stores: React.FC = () => {
                     </Td>
                     <Td>
                       <VStack align="start" spacing={1}>
-                        <Text fontSize="sm">{store.totalProducts} products</Text>
+                        <Text fontSize="sm">
+                          {store.totalProducts} products
+                        </Text>
                         <Text fontSize="sm" color="gray.600">
                           ${store.totalValue.toLocaleString()}
                         </Text>
@@ -521,12 +554,16 @@ const Stores: React.FC = () => {
                     </Td>
                     <Td>
                       <HStack spacing={2}>
-                        <Button size="sm" variant="ghost" onClick={() => handleEditStore(store)}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditStore(store)}
+                        >
                           Edit
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           colorScheme="red"
                           onClick={() => handleDeleteStore(store)}
                         >
@@ -543,7 +580,11 @@ const Stores: React.FC = () => {
       </SectionCard>
 
       {/* Create Store Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="xl">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        size="xl"
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Add New Store</ModalHeader>
@@ -555,7 +596,9 @@ const Stores: React.FC = () => {
                   <FormLabel>Store Code</FormLabel>
                   <Input
                     value={newStore.code}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("code", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("code", e.target.value)
+                    }
                     placeholder="ST001"
                   />
                 </FormControl>
@@ -563,7 +606,9 @@ const Stores: React.FC = () => {
                   <FormLabel>Store Name</FormLabel>
                   <Input
                     value={newStore.name}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("name", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("name", e.target.value)
+                    }
                     placeholder="Downtown Location"
                   />
                 </FormControl>
@@ -573,7 +618,9 @@ const Stores: React.FC = () => {
                 <FormLabel>Manager</FormLabel>
                 <Input
                   value={newStore.manager || ""}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("manager", e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleInputChange("manager", e.target.value)
+                  }
                   placeholder="John Doe"
                 />
               </FormControl>
@@ -583,7 +630,9 @@ const Stores: React.FC = () => {
                   <FormLabel>Email</FormLabel>
                   <Input
                     value={newStore.email}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("email", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("email", e.target.value)
+                    }
                     placeholder="store@example.com"
                     type="email"
                   />
@@ -592,7 +641,9 @@ const Stores: React.FC = () => {
                   <FormLabel>Phone</FormLabel>
                   <Input
                     value={newStore.phone}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("phone", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("phone", e.target.value)
+                    }
                     placeholder="+1 (555) 123-4567"
                   />
                 </FormControl>
@@ -602,7 +653,9 @@ const Stores: React.FC = () => {
                 <FormLabel>Address</FormLabel>
                 <Input
                   value={newStore.address}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("address", e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleInputChange("address", e.target.value)
+                  }
                   placeholder="123 Main Street"
                 />
               </FormControl>
@@ -612,7 +665,9 @@ const Stores: React.FC = () => {
                   <FormLabel>City</FormLabel>
                   <Input
                     value={newStore.city}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("city", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("city", e.target.value)
+                    }
                     placeholder="New York"
                   />
                 </FormControl>
@@ -620,7 +675,9 @@ const Stores: React.FC = () => {
                   <FormLabel>State</FormLabel>
                   <Input
                     value={newStore.state}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("state", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("state", e.target.value)
+                    }
                     placeholder="NY"
                   />
                 </FormControl>
@@ -628,7 +685,9 @@ const Stores: React.FC = () => {
                   <FormLabel>Zip Code</FormLabel>
                   <Input
                     value={newStore.zipCode}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("zipCode", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange("zipCode", e.target.value)
+                    }
                     placeholder="10001"
                   />
                 </FormControl>
@@ -638,14 +697,20 @@ const Stores: React.FC = () => {
                 <FormLabel>Country</FormLabel>
                 <Input
                   value={newStore.country}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("country", e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleInputChange("country", e.target.value)
+                  }
                   placeholder="United States"
                 />
               </FormControl>
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={() => setIsModalOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -653,7 +718,13 @@ const Stores: React.FC = () => {
               onClick={handleCreateStore}
               isLoading={isSubmitting}
               loadingText="Creating..."
-              disabled={!newStore.code || !newStore.name || !newStore.email || !newStore.city || !newStore.country}
+              disabled={
+                !newStore.code ||
+                !newStore.name ||
+                !newStore.email ||
+                !newStore.city ||
+                !newStore.country
+              }
             >
               Create Store
             </Button>
@@ -662,7 +733,11 @@ const Stores: React.FC = () => {
       </Modal>
 
       {/* Edit Store Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} size="xl">
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        size="xl"
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Edit Store</ModalHeader>
@@ -673,18 +748,17 @@ const Stores: React.FC = () => {
                 <HStack spacing={4}>
                   <FormControl isRequired>
                     <FormLabel>Store Code</FormLabel>
-                    <Input
-                      value={editingStore.code}
-                      isReadOnly
-                      bg="gray.100"
-                    />
+                    <Input value={editingStore.code} isReadOnly bg="gray.100" />
                   </FormControl>
                   <FormControl isRequired>
                     <FormLabel>Store Name</FormLabel>
                     <Input
                       value={editingStore.name}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingStore({...editingStore, name: e.target.value})
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setEditingStore({
+                          ...editingStore,
+                          name: e.target.value,
+                        })
                       }
                     />
                   </FormControl>
@@ -694,8 +768,11 @@ const Stores: React.FC = () => {
                   <FormLabel>Manager</FormLabel>
                   <Input
                     value={editingStore.manager || ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                      setEditingStore({...editingStore, manager: e.target.value})
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setEditingStore({
+                        ...editingStore,
+                        manager: e.target.value,
+                      })
                     }
                   />
                 </FormControl>
@@ -705,8 +782,11 @@ const Stores: React.FC = () => {
                     <FormLabel>Email</FormLabel>
                     <Input
                       value={editingStore.email}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingStore({...editingStore, email: e.target.value})
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setEditingStore({
+                          ...editingStore,
+                          email: e.target.value,
+                        })
                       }
                       type="email"
                     />
@@ -715,8 +795,11 @@ const Stores: React.FC = () => {
                     <FormLabel>Phone</FormLabel>
                     <Input
                       value={editingStore.phone}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingStore({...editingStore, phone: e.target.value})
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setEditingStore({
+                          ...editingStore,
+                          phone: e.target.value,
+                        })
                       }
                     />
                   </FormControl>
@@ -726,8 +809,11 @@ const Stores: React.FC = () => {
                   <FormLabel>Address</FormLabel>
                   <Input
                     value={editingStore.address}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                      setEditingStore({...editingStore, address: e.target.value})
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setEditingStore({
+                        ...editingStore,
+                        address: e.target.value,
+                      })
                     }
                   />
                 </FormControl>
@@ -737,8 +823,11 @@ const Stores: React.FC = () => {
                     <FormLabel>City</FormLabel>
                     <Input
                       value={editingStore.city}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingStore({...editingStore, city: e.target.value})
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setEditingStore({
+                          ...editingStore,
+                          city: e.target.value,
+                        })
                       }
                     />
                   </FormControl>
@@ -746,8 +835,11 @@ const Stores: React.FC = () => {
                     <FormLabel>State</FormLabel>
                     <Input
                       value={editingStore.state}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingStore({...editingStore, state: e.target.value})
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setEditingStore({
+                          ...editingStore,
+                          state: e.target.value,
+                        })
                       }
                     />
                   </FormControl>
@@ -755,8 +847,11 @@ const Stores: React.FC = () => {
                     <FormLabel>Zip Code</FormLabel>
                     <Input
                       value={editingStore.zipCode}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingStore({...editingStore, zipCode: e.target.value})
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setEditingStore({
+                          ...editingStore,
+                          zipCode: e.target.value,
+                        })
                       }
                     />
                   </FormControl>
@@ -766,8 +861,11 @@ const Stores: React.FC = () => {
                   <FormLabel>Country</FormLabel>
                   <Input
                     value={editingStore.country}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                      setEditingStore({...editingStore, country: e.target.value})
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setEditingStore({
+                        ...editingStore,
+                        country: e.target.value,
+                      })
                     }
                   />
                 </FormControl>
@@ -775,7 +873,11 @@ const Stores: React.FC = () => {
             )}
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={() => setIsEditModalOpen(false)}>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={() => setIsEditModalOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -783,7 +885,12 @@ const Stores: React.FC = () => {
               onClick={handleUpdateStore}
               isLoading={isSubmitting}
               loadingText="Updating..."
-              disabled={!editingStore?.name || !editingStore?.email || !editingStore?.city || !editingStore?.country}
+              disabled={
+                !editingStore?.name ||
+                !editingStore?.email ||
+                !editingStore?.city ||
+                !editingStore?.country
+              }
             >
               Update Store
             </Button>
@@ -804,15 +911,19 @@ const Stores: React.FC = () => {
             </AlertDialogHeader>
 
             <AlertDialogBody>
-              Are you sure you want to delete "{deletingStore?.name}"? This action cannot be undone.
+              Are you sure you want to delete "{deletingStore?.name}"? This
+              action cannot be undone.
             </AlertDialogBody>
 
             <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsDeleteAlertOpen(false)}>
+              <Button
+                ref={cancelRef}
+                onClick={() => setIsDeleteAlertOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button 
-                colorScheme="red" 
+              <Button
+                colorScheme="red"
                 onClick={confirmDeleteStore}
                 isLoading={isSubmitting}
                 loadingText="Deleting..."

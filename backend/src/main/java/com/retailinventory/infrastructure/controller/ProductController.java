@@ -143,23 +143,37 @@ public class ProductController {
     @Transactional
     public ResponseEntity<ProductResponse> createProduct(@Valid @RequestBody ProductCreateRequest request) {
         try {
-            // Check if SKU already exists
-            if (productRepository.existsBySku(request.getSku())) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).build();
-            }
-
             // Verify supplier exists
             Optional<Supplier> supplier = supplierRepository.findById(request.getSupplierId());
             if (supplier.isEmpty()) {
                 return ResponseEntity.badRequest().build();
             }
 
+            // Auto-generate SKU if not provided
+            String sku = request.getSku();
+            if (sku == null || sku.trim().isEmpty()) {
+                sku = generateSku(request.getCategory(), supplier.get().getCode());
+            }
+            
+            // Check if SKU already exists
+            if (productRepository.existsBySku(sku)) {
+                // Try alternative SKU
+                sku = generateSku(request.getCategory(), supplier.get().getCode());
+            }
+
+            // Use supplier's brand if brand not provided
+            String brand = request.getBrand();
+            if (brand == null || brand.trim().isEmpty()) {
+                // Extract brand from supplier name (first word)
+                brand = supplier.get().getName().split(" ")[0];
+            }
+
             Product product = Product.builder()
-                    .sku(request.getSku())
+                    .sku(sku)
                     .name(request.getName())
                     .category(request.getCategory())
                     .subcategory(request.getSubcategory())
-                    .brand(request.getBrand())
+                    .brand(brand)
                     .description(request.getDescription())
                     .unitCost(request.getUnitCost())
                     .unitPrice(request.getUnitPrice())
@@ -279,5 +293,16 @@ public class ProductController {
             log.error("Error updating product status with id: {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    /**
+     * Generate a unique SKU based on category and supplier code
+     */
+    private String generateSku(String category, String supplierCode) {
+        String categoryCode = (category != null && !category.isEmpty()) 
+            ? category.substring(0, Math.min(3, category.length())).toUpperCase()
+            : "PRD";
+        String timestamp = String.valueOf(System.currentTimeMillis() % 10000); // Last 4 digits
+        return String.format("%s-%s-%s", supplierCode, categoryCode, timestamp);
     }
 }

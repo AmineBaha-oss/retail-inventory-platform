@@ -2,6 +2,7 @@ package com.retailinventory.infrastructure.controller;
 
 import com.retailinventory.domain.entity.Store;
 import com.retailinventory.domain.repository.StoreRepository;
+import com.retailinventory.domain.repository.InventoryRepository;
 import com.retailinventory.infrastructure.dto.store.StoreCreateRequest;
 import com.retailinventory.infrastructure.dto.store.StoreResponse;
 import com.retailinventory.infrastructure.dto.store.StoreUpdateRequest;
@@ -30,6 +31,7 @@ import java.util.UUID;
 public class StoreController {
 
     private final StoreRepository storeRepository;
+    private final InventoryRepository inventoryRepository;
 
     /**
      * Get all stores with optional pagination and filtering.
@@ -208,6 +210,9 @@ public class StoreController {
      * Convert Store entity to StoreResponse DTO.
      */
     private StoreResponse convertToResponse(Store store) {
+        // Calculate product count for this store
+        int productCount = inventoryRepository.countDistinctProductsByStore(store.getId());
+        
         return StoreResponse.builder()
                 .id(store.getId())
                 .code(store.getCode())
@@ -220,6 +225,8 @@ public class StoreController {
                 .country(store.getCountry())
                 .timezone(store.getTimezone())
                 .status(store.getStatus())
+                .productCount(productCount)
+                .isActive(store.getStatus() == Store.StoreStatus.ACTIVE)
                 .createdAt(store.getCreatedAt())
                 .updatedAt(store.getUpdatedAt())
                 .build();
