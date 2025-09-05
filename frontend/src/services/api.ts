@@ -140,6 +140,13 @@ export const ForecastingApi = {
       : `/api/v1/forecasting/${productId}/performance`;
     return mlApi.get(url);
   },
+  // Placeholder methods for missing API endpoints
+  getForecastHistory: (productId: string) => 
+    mlApi.get(`/api/v1/forecasting/${productId}/history`),
+  createScenario: (data: any) => 
+    mlApi.post("/api/v1/forecasting/scenarios", data),
+  runScenario: (scenarioId: string) => 
+    mlApi.post(`/api/v1/forecasting/scenarios/${scenarioId}/run`),
 };
 
 // Dashboard and Export APIs (placeholder - these endpoints don't exist yet)

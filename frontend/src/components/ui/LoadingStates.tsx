@@ -1,4 +1,4 @@
-import React from "react";
+// React import no longer needed with new JSX transform
 import {
   Box,
   Skeleton,

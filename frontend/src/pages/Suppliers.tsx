@@ -122,7 +122,7 @@ export default function Suppliers() {
   const loadSuppliersData = async () => {
     try {
       setIsLoading(true);
-      const response = await supplierAPI.getAll();
+      const response = await supplierAPI.list();
 
       // Transform API data to match our interface
       const transformedData: Supplier[] = response.data.map(

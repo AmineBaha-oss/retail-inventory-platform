@@ -2,7 +2,6 @@ import React, { Component, ErrorInfo, ReactNode } from "react";
 import {
   Box,
   VStack,
-  Heading,
   Text,
   Button,
   Alert,

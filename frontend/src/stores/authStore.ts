@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AuthApi, toApiError } from "../services/api";
-import { User, AuthResponse } from "../types/api";
+import { User } from "../types/api";
 
 // User type now imported from ../types/api
 
@@ -51,7 +51,7 @@ export const useAuthStore = create<AuthStore>()(
 
           // Call the real API using AuthApi
           const res = await AuthApi.login({ email, password });
-          const { accessToken, refreshToken } = res.data;
+          const { accessToken } = res.data;
 
           const user: User = {
             id: "user_001", // TODO: get from JWT token or API response

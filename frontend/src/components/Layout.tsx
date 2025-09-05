@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Box,
   Flex,
@@ -6,7 +5,6 @@ import {
   HStack,
   Text,
   IconButton,
-  useColorModeValue,
   useDisclosure,
   Drawer,
   DrawerBody,
@@ -21,8 +19,6 @@ import {
   MenuList,
   MenuItem,
   MenuDivider,
-  Divider,
-  useToken,
 } from "@chakra-ui/react";
 import {
   FiMenu,

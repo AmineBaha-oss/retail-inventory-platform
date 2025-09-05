@@ -206,8 +206,13 @@ export class ErrorHandler {
 }
 
 // Helper functions for common use cases
-export const showError = (error: AxiosError | Error, customMessage?: string) =>
-  ErrorHandler.showErrorToast(error, customMessage);
+export const showError = (error: AxiosError | Error | string, customMessage?: string) => {
+  if (typeof error === 'string') {
+    ErrorHandler.showErrorToast(new Error(error), customMessage);
+  } else {
+    ErrorHandler.showErrorToast(error, customMessage);
+  }
+};
 
 export const showSuccess = (message: string) =>
   ErrorHandler.showSuccessToast(message);

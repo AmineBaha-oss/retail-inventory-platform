@@ -70,7 +70,7 @@ export default function Profile() {
 
   // Profile state
   const [profile, setProfile] = useState({
-    full_name: user?.full_name || "John Doe",
+    full_name: user?.fullName || "John Doe",
     username: user?.username || "johndoe",
     email: user?.email || "john.doe@company.com",
     phone: "+1 (514) 555-0123",
@@ -112,7 +112,7 @@ export default function Profile() {
       if (setUser) {
         setUser({
           ...user!,
-          full_name: profile.full_name,
+          fullName: profile.full_name,
           username: profile.username,
           email: profile.email,
         });

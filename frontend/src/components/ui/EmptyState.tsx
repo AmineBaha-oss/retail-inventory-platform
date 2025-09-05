@@ -1,4 +1,4 @@
-import { Center, VStack, Heading, Text, Button, Box, Icon } from "@chakra-ui/react";
+import { Center, VStack, Heading, Text, Box, Icon } from "@chakra-ui/react";
 import { IconType } from "react-icons";
 
 export default function EmptyState({

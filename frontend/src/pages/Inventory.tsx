@@ -175,7 +175,7 @@ export default function Inventory() {
   const loadInventoryData = async () => {
     try {
       setIsLoading(true);
-      const response = await inventoryAPI.getAll();
+      const response = await inventoryAPI.list();
 
       // Transform API data to match our interface
       const transformedData: InventoryItem[] = response.data.map(

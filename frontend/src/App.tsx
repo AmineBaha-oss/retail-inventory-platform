@@ -1,4 +1,4 @@
-import React from "react";
+// React import no longer needed with new JSX transform
 import { Routes, Route } from "react-router-dom";
 import { Box } from "@chakra-ui/react";
 import { Toaster } from "react-hot-toast";

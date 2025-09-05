@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supplierAPI } from "../services/api";
 import { showError, showSuccess, handleApiError } from "../utils/errorHandler";
-import { Supplier, CreateSupplierRequest, UpdateSupplierRequest } from "../types/api";
+import { Supplier, CreateSupplierRequest } from "../types/api";
 
 // Types now imported from ../types/api
 
