@@ -223,11 +223,11 @@ export default function Settings() {
         mb={6}
       >
         <TabList>
-          <Tab leftIcon={<FiUser />}>General</Tab>
-          <Tab leftIcon={<FiBell />}>Notifications</Tab>
-          <Tab leftIcon={<FiMonitor />}>System</Tab>
-          <Tab leftIcon={<FiShield />}>Security</Tab>
-          <Tab leftIcon={<FiGlobe />}>Integrations</Tab>
+          <Tab><HStack spacing={2}><FiUser /><Text>General</Text></HStack></Tab>
+          <Tab><HStack spacing={2}><FiBell /><Text>Notifications</Text></HStack></Tab>
+          <Tab><HStack spacing={2}><FiMonitor /><Text>System</Text></HStack></Tab>
+          <Tab><HStack spacing={2}><FiShield /><Text>Security</Text></HStack></Tab>
+          <Tab><HStack spacing={2}><FiGlobe /><Text>Integrations</Text></HStack></Tab>
         </TabList>
 
         <TabPanels>

@@ -11,7 +11,8 @@ spring:
 
   flyway:
     enabled: false
-    baseline-on-migrate: true
+    baseline-on-migrate:
+      true
 
       # Redis and Kafka are disabled via DevConfig.java
 

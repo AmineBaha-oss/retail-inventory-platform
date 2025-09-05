@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   SimpleGrid,
@@ -37,12 +37,6 @@ import {
   Spinner,
   Alert,
   AlertIcon,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
   HStack,
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
@@ -100,13 +94,8 @@ const PurchaseOrders: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [supplierFilter, setSupplierFilter] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [newPurchaseOrder, setNewPurchaseOrder] = useState<NewPurchaseOrder>(emptyNewPurchaseOrder);
-  const [editingPurchaseOrder, setEditingPurchaseOrder] = useState<UIPurchaseOrder | null>(null);
-  const [deletingPurchaseOrder, setDeletingPurchaseOrder] = useState<UIPurchaseOrder | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const cancelRef = useRef(null);
   const toast = useToast();
 
   // Load purchase orders from API
@@ -117,27 +106,23 @@ const PurchaseOrders: React.FC = () => {
       const response = await purchaseOrderAPI.getAll();
 
       // Handle different response formats
-      let purchaseOrdersData: APIPurchaseOrder[] = [];
+      let purchaseOrdersData: APIPurchaseOrder[];
       if (Array.isArray(response.data)) {
         purchaseOrdersData = response.data;
       } else if (response.data && 'content' in response.data) {
-        purchaseOrdersData = (response.data as any).content || [];
+        purchaseOrdersData = (response.data as any).content;
+      } else if (response.data && 'value' in response.data) {
+        // Special case for purchase orders API
+        purchaseOrdersData = (response.data as any).value;
+      } else {
+        purchaseOrdersData = [];
       }
 
-      // Convert API data to UI format
-      const formattedOrders = purchaseOrdersData.map(order => ({
-        ...order,
-        supplierName: order.supplierName || "Unknown Supplier",
-        storeName: order.storeName || "Unknown Store",
-        orderDate: order.orderDate || new Date().toISOString().split('T')[0],
-        expectedDeliveryDate: order.expectedDeliveryDate || undefined
-      }));
-
-      setPurchaseOrders(formattedOrders);
+      setPurchaseOrders(purchaseOrdersData);
 
       toast({
         title: 'Purchase orders loaded successfully',
-        description: `Loaded ${formattedOrders.length} purchase orders`,
+        description: `Loaded ${purchaseOrdersData.length} purchase orders`,
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -242,96 +227,6 @@ const PurchaseOrders: React.FC = () => {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to create purchase order';
       toast({
         title: 'Error creating purchase order',
-        description: errorMessage,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleEditPurchaseOrder = (order: UIPurchaseOrder) => {
-    setEditingPurchaseOrder(order);
-    setIsEditModalOpen(true);
-  };
-
-  const handleUpdatePurchaseOrder = async () => {
-    if (!editingPurchaseOrder) return;
-
-    try {
-      setIsSubmitting(true);
-      const updateRequest = {
-        supplierId: editingPurchaseOrder.supplierId,
-        storeId: editingPurchaseOrder.storeId,
-        status: editingPurchaseOrder.status,
-        totalAmount: editingPurchaseOrder.totalAmount,
-        taxAmount: editingPurchaseOrder.taxAmount,
-        shippingAmount: editingPurchaseOrder.shippingAmount,
-        priority: editingPurchaseOrder.priority,
-        notes: editingPurchaseOrder.notes,
-      };
-
-      const response = await purchaseOrderAPI.update(editingPurchaseOrder.id, updateRequest);
-      const updated: UIPurchaseOrder = response.data;
-
-      setPurchaseOrders((prev: UIPurchaseOrder[]) => 
-        prev.map(order => order.id === updated.id ? updated : order)
-      );
-      setEditingPurchaseOrder(null);
-      setIsEditModalOpen(false);
-
-      toast({
-        title: 'Purchase order updated successfully',
-        description: `PO ${updated.poNumber} has been updated`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to update purchase order';
-      toast({
-        title: 'Error updating purchase order',
-        description: errorMessage,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeletePurchaseOrder = (order: UIPurchaseOrder) => {
-    setDeletingPurchaseOrder(order);
-    setIsDeleteAlertOpen(true);
-  };
-
-  const confirmDeletePurchaseOrder = async () => {
-    if (!deletingPurchaseOrder) return;
-
-    try {
-      setIsSubmitting(true);
-      await purchaseOrderAPI.delete(deletingPurchaseOrder.id);
-
-      setPurchaseOrders((prev: UIPurchaseOrder[]) => 
-        prev.filter(order => order.id !== deletingPurchaseOrder.id)
-      );
-      setDeletingPurchaseOrder(null);
-      setIsDeleteAlertOpen(false);
-
-      toast({
-        title: 'Purchase order deleted successfully',
-        description: `PO ${deletingPurchaseOrder.poNumber} has been deleted`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to delete purchase order';
-      toast({
-        title: 'Error deleting purchase order',
         description: errorMessage,
         status: 'error',
         duration: 5000,
@@ -576,21 +471,11 @@ const PurchaseOrders: React.FC = () => {
                     </Td>
                     <Td>
                       <HStack spacing={2}>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          colorScheme="blue"
-                          onClick={() => handleEditPurchaseOrder(po)}
-                        >
-                          Edit
+                        <Button size="sm" variant="ghost">
+                          View
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          colorScheme="red"
-                          onClick={() => handleDeletePurchaseOrder(po)}
-                        >
-                          Delete
+                        <Button size="sm" variant="ghost">
+                          Edit
                         </Button>
                       </HStack>
                     </Td>
@@ -741,180 +626,6 @@ const PurchaseOrders: React.FC = () => {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
-      {/* Edit Purchase Order Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Edit Purchase Order</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {editingPurchaseOrder && (
-              <VStack spacing={4} align="stretch">
-                <HStack spacing={4}>
-                  <FormControl isRequired>
-                    <FormLabel>PO Number</FormLabel>
-                    <Input
-                      value={editingPurchaseOrder.poNumber}
-                      isReadOnly
-                      bg="gray.50"
-                    />
-                  </FormControl>
-                  <FormControl isRequired>
-                    <FormLabel>Status</FormLabel>
-                    <Select
-                      value={editingPurchaseOrder.status}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => 
-                        setEditingPurchaseOrder({...editingPurchaseOrder, status: e.target.value as any})
-                      }
-                    >
-                      <option value="PENDING_APPROVAL">Pending Approval</option>
-                      <option value="APPROVED">Approved</option>
-                      <option value="REJECTED">Rejected</option>
-                      <option value="SENT_TO_SUPPLIER">Sent to Supplier</option>
-                      <option value="PARTIALLY_RECEIVED">Partially Received</option>
-                      <option value="COMPLETED">Completed</option>
-                      <option value="CANCELLED">Cancelled</option>
-                    </Select>
-                  </FormControl>
-                </HStack>
-
-                <HStack spacing={4}>
-                  <FormControl>
-                    <FormLabel>Supplier</FormLabel>
-                    <Input
-                      value={editingPurchaseOrder.supplierName}
-                      isReadOnly
-                      bg="gray.50"
-                    />
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel>Store</FormLabel>
-                    <Input
-                      value={editingPurchaseOrder.storeName}
-                      isReadOnly
-                      bg="gray.50"
-                    />
-                  </FormControl>
-                </HStack>
-
-                <HStack spacing={4}>
-                  <FormControl isRequired>
-                    <FormLabel>Total Amount</FormLabel>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editingPurchaseOrder.totalAmount}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingPurchaseOrder({...editingPurchaseOrder, totalAmount: parseFloat(e.target.value) || 0})
-                      }
-                    />
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel>Tax Amount</FormLabel>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editingPurchaseOrder.taxAmount}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingPurchaseOrder({...editingPurchaseOrder, taxAmount: parseFloat(e.target.value) || 0})
-                      }
-                    />
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel>Shipping</FormLabel>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editingPurchaseOrder.shippingAmount}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingPurchaseOrder({...editingPurchaseOrder, shippingAmount: parseFloat(e.target.value) || 0})
-                      }
-                    />
-                  </FormControl>
-                </HStack>
-
-                <HStack spacing={4}>
-                  <FormControl>
-                    <FormLabel>Priority</FormLabel>
-                    <Select
-                      value={editingPurchaseOrder.priority}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => 
-                        setEditingPurchaseOrder({...editingPurchaseOrder, priority: e.target.value as any})
-                      }
-                    >
-                      <option value="LOW">Low</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HIGH">High</option>
-                      <option value="URGENT">Urgent</option>
-                    </Select>
-                  </FormControl>
-                </HStack>
-
-                <FormControl>
-                  <FormLabel>Notes</FormLabel>
-                  <Input
-                    value={editingPurchaseOrder.notes || ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                      setEditingPurchaseOrder({...editingPurchaseOrder, notes: e.target.value})
-                    }
-                    placeholder="Additional notes"
-                  />
-                </FormControl>
-              </VStack>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={() => setIsEditModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              colorScheme="blue"
-              onClick={handleUpdatePurchaseOrder}
-              isLoading={isSubmitting}
-              loadingText="Updating..."
-              disabled={!editingPurchaseOrder?.totalAmount}
-            >
-              Update PO
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Delete Purchase Order Alert */}
-      <AlertDialog
-        isOpen={isDeleteAlertOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={() => setIsDeleteAlertOpen(false)}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Delete Purchase Order
-            </AlertDialogHeader>
-            <AlertDialogBody>
-              Are you sure you want to delete PO "{deletingPurchaseOrder?.poNumber}"? This action cannot be undone.
-            </AlertDialogBody>
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsDeleteAlertOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                colorScheme="red"
-                onClick={confirmDeletePurchaseOrder}
-                ml={3}
-                isLoading={isSubmitting}
-                loadingText="Deleting..."
-              >
-                Delete
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
     </Box>
   );
 };

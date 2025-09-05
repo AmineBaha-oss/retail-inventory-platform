@@ -32,7 +32,6 @@ public class MailConfig {
     @Bean
     @Profile("!dev")
     public JavaMailSender prodMailSender() {
-        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
         // Production mail configuration would go here
         // For now, use same as dev
         return devMailSender();

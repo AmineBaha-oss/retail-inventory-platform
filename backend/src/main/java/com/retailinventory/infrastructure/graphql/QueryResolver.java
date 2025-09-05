@@ -12,6 +12,7 @@ import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -111,6 +112,19 @@ public class QueryResolver {
     public DashboardKPIs dashboardKPIs(@Argument UUID storeId) {
         log.debug("Fetching dashboard KPIs for store: {}", storeId);
         return calculateDashboardKPIs(storeId);
+    }
+
+    @QueryMapping
+    public Map<String, Object> mlPredictions(@Argument UUID productId, @Argument UUID storeId) {
+        log.debug("Fetching ML predictions for product: {} at store: {}", productId, storeId);
+        try {
+            // Convert UUID to String for ML service
+            var forecasts = mlApiService.generateForecast(storeId.toString(), productId.toString(), 30);
+            return Map.of("forecasts", forecasts.block(), "status", "success");
+        } catch (Exception e) {
+            log.error("Error fetching ML predictions", e);
+            return Map.of("error", "Unable to fetch predictions", "status", "error");
+        }
     }
 
     private DashboardKPIs calculateDashboardKPIs(UUID storeId) {

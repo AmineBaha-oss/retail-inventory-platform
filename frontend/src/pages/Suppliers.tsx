@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   SimpleGrid,
@@ -35,6 +35,13 @@ import {
   ModalFooter,
   FormControl,
   FormLabel,
+  AlertDialog,
+  AlertDialogOverlay,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogBody,
+  AlertDialogFooter,
+  useToast,
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
 import PageHeader from "../components/ui/PageHeader";
@@ -42,27 +49,53 @@ import { FiUsers } from "react-icons/fi";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
 import { supplierAPI } from "../services/api";
+import { Supplier as APISupplier, SupplierCreateRequest } from "../types/api";
 import { showSuccess, showError } from "../utils/helpers";
 
-type Supplier = {
-  id: string;
-  name: string;
-  category: string;
-  contactPerson: string;
-  email: string;
-  phone: string;
-  country: string;
-  city: string;
-  status: "Active" | "Inactive" | "Pending";
+type SupplierStatus = "Active" | "Inactive" | "Pending";
+
+// UI Supplier type extends API Supplier with computed fields
+type UISupplier = APISupplier & {
   totalOrders: number;
   totalValue: number;
   lastOrder: string;
+  status: SupplierStatus;
 };
 
-// Demo data
-const initialSuppliers: Supplier[] = [
+type NewSupplier = SupplierCreateRequest;
+
+// Convert API Supplier to UI Supplier format
+const formatSupplierForUI = (apiSupplier: APISupplier): UISupplier => ({
+  ...apiSupplier,
+  category: apiSupplier.category || "General",
+  contactPerson: apiSupplier.contactPerson || "—",
+  city: apiSupplier.city || "—",
+  country: apiSupplier.country || "—",
+  totalOrders: 0, // TODO: Get from purchase orders API
+  totalValue: 0,  // TODO: Get from purchase orders API
+  lastOrder: apiSupplier.updatedAt ? new Date(apiSupplier.updatedAt).toLocaleDateString() : "—",
+  status: apiSupplier.isActive ? "Active" : "Inactive" as SupplierStatus,
+});
+
+const emptyNewSupplier: NewSupplier = {
+  code: "",
+  name: "",
+  category: "",
+  contactPerson: "",
+  email: "",
+  phone: "",
+  address: "",
+  city: "",
+  state: "",
+  country: "",
+  isActive: true,
+};
+
+// Demo data for fallback
+const initialSuppliers: UISupplier[] = [
   {
     id: "supplier_001",
+    code: "DEMO001",
     name: "TechCorp",
     category: "Electronics",
     contactPerson: "John Smith",
@@ -70,13 +103,18 @@ const initialSuppliers: Supplier[] = [
     phone: "+1 (514) 555-1000",
     country: "Canada",
     city: "Montreal",
+    address: "123 Tech St",
+    isActive: true,
     status: "Active",
     totalOrders: 45,
     totalValue: 125000,
     lastOrder: "2024-01-15",
+    createdAt: "2024-01-01T00:00:00",
+    updatedAt: "2024-01-15T00:00:00",
   },
   {
     id: "supplier_002",
+    code: "DEMO002",
     name: "SupplyCo",
     category: "Apparel",
     contactPerson: "Sarah Johnson",
@@ -84,13 +122,18 @@ const initialSuppliers: Supplier[] = [
     phone: "+1 (514) 555-2000",
     country: "Canada",
     city: "Toronto",
+    address: "456 Supply Ave",
+    isActive: true,
     status: "Active",
     totalOrders: 32,
     totalValue: 89000,
     lastOrder: "2024-01-20",
+    createdAt: "2024-01-01T00:00:00",
+    updatedAt: "2024-01-20T00:00:00",
   },
   {
     id: "supplier_003",
+    code: "DEMO003",
     name: "FashionHub",
     category: "Fashion",
     contactPerson: "Mike Chen",
@@ -98,21 +141,31 @@ const initialSuppliers: Supplier[] = [
     phone: "+1 (514) 555-3000",
     country: "Canada",
     city: "Vancouver",
+    address: "789 Fashion Blvd",
+    isActive: false,
     status: "Pending",
     totalOrders: 0,
     totalValue: 0,
     lastOrder: "—",
+    createdAt: "2024-01-01T00:00:00",
+    updatedAt: "2024-01-08T00:00:00",
   },
 ];
 
 export default function Suppliers() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [suppliers, setSuppliers] = useState<UISupplier[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newSupplier, setNewSupplier] = useState<Partial<Supplier>>({});
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [newSupplier, setNewSupplier] = useState<Partial<NewSupplier>>({});
+  const [editingSupplier, setEditingSupplier] = useState<UISupplier | null>(null);
+  const [deletingSupplier, setDeletingSupplier] = useState<UISupplier | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const cancelRef = useRef(null);
+  const toast = useToast();
 
   // Load suppliers data from API
   useEffect(() => {
@@ -124,25 +177,20 @@ export default function Suppliers() {
       setIsLoading(true);
       const response = await supplierAPI.getAll();
 
-      // Transform API data to match our interface
-      const transformedData: Supplier[] = response.data.map(
-        (supplier: any) => ({
-          id: supplier.id,
-          name: supplier.name,
-          category: "General", // Default category
-          contactPerson: "Contact Person", // Default
-          email: supplier.contact_email || "N/A",
-          phone: supplier.contact_phone || "N/A",
-          country: "Canada", // Default
-          city: "Montreal", // Default
-          status: supplier.is_active ? "Active" : "Inactive",
-          totalOrders: 0, // Default
-          totalValue: 0, // Default
-          lastOrder: "—", // Default
-        })
-      );
+      // Handle paginated response
+      let suppliersData: APISupplier[];
+      if ('content' in response.data) {
+        // Paginated response
+        suppliersData = response.data.content;
+      } else {
+        // Non-paginated response (fallback)
+        suppliersData = Array.isArray(response.data) ? response.data : [response.data];
+      }
 
+      const transformedData = suppliersData.map(formatSupplierForUI);
       setSuppliers(transformedData);
+
+      showSuccess(`Loaded ${transformedData.length} suppliers successfully`);
     } catch (error) {
       console.error("Failed to load suppliers data:", error);
       // Fallback to demo data if API fails
@@ -167,27 +215,128 @@ export default function Suppliers() {
   const totalOrders = suppliers.reduce((sum, s) => sum + s.totalOrders, 0);
   const totalValue = suppliers.reduce((sum, s) => sum + s.totalValue, 0);
 
-  const handleAddSupplier = () => {
-    if (!newSupplier.name || !newSupplier.category) return;
+  const handleAddSupplier = async () => {
+    if (!newSupplier.name || !newSupplier.code || !newSupplier.email) return;
 
-    const created: Supplier = {
-      id: `supplier_${Date.now()}`,
-      name: newSupplier.name || "",
-      category: newSupplier.category || "",
-      contactPerson: newSupplier.contactPerson || "",
-      email: newSupplier.email || "",
-      phone: newSupplier.phone || "",
-      country: newSupplier.country || "Canada",
-      city: newSupplier.city || "",
-      status: "Pending",
-      totalOrders: 0,
-      totalValue: 0,
-      lastOrder: "—",
-    };
+    try {
+      const createRequest: NewSupplier = {
+        code: newSupplier.code || "",
+        name: newSupplier.name || "",
+        category: newSupplier.category,
+        contactPerson: newSupplier.contactPerson,
+        email: newSupplier.email || "",
+        phone: newSupplier.phone || "",
+        address: newSupplier.address,
+        city: newSupplier.city,
+        state: newSupplier.state,
+        country: newSupplier.country || "Canada",
+        isActive: newSupplier.isActive ?? true,
+      };
 
-    setSuppliers((prev) => [created, ...prev]);
-    setNewSupplier({});
-    setIsModalOpen(false);
+      const response = await supplierAPI.create(createRequest);
+      const created = formatSupplierForUI(response.data);
+
+      setSuppliers((prev) => [created, ...prev]);
+      setNewSupplier({});
+      setIsModalOpen(false);
+      
+      showSuccess(`Supplier "${created.name}" created successfully`);
+    } catch (error) {
+      console.error("Failed to create supplier:", error);
+      showError("Failed to create supplier. Please try again.");
+    }
+  };
+
+  const handleEditSupplier = (supplier: UISupplier) => {
+    setEditingSupplier(supplier);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateSupplier = async () => {
+    if (!editingSupplier) return;
+    
+    try {
+      setIsLoading(true);
+      const updateRequest = {
+        name: editingSupplier.name,
+        category: editingSupplier.category,
+        contactPerson: editingSupplier.contactPerson,
+        email: editingSupplier.email,
+        phone: editingSupplier.phone,
+        address: editingSupplier.address,
+        city: editingSupplier.city,
+        state: editingSupplier.state,
+        country: editingSupplier.country,
+        isActive: editingSupplier.status === "Active",
+      };
+
+      const response = await supplierAPI.update(editingSupplier.id, updateRequest);
+      const updated = formatSupplierForUI(response.data);
+
+      setSuppliers((prev) => 
+        prev.map(supplier => supplier.id === updated.id ? updated : supplier)
+      );
+      setEditingSupplier(null);
+      setIsEditModalOpen(false);
+
+      toast({
+        title: 'Supplier updated successfully',
+        description: `${updated.name} has been updated`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Failed to update supplier:", error);
+      toast({
+        title: 'Error updating supplier',
+        description: 'Failed to update supplier. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteSupplier = (supplier: UISupplier) => {
+    setDeletingSupplier(supplier);
+    setIsDeleteAlertOpen(true);
+  };
+
+  const confirmDeleteSupplier = async () => {
+    if (!deletingSupplier) return;
+    
+    try {
+      setIsLoading(true);
+      await supplierAPI.delete(deletingSupplier.id);
+
+      setSuppliers((prev) => 
+        prev.filter(supplier => supplier.id !== deletingSupplier.id)
+      );
+      setDeletingSupplier(null);
+      setIsDeleteAlertOpen(false);
+
+      toast({
+        title: 'Supplier deleted successfully',
+        description: `${deletingSupplier.name} has been removed`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Failed to delete supplier:", error);
+      toast({
+        title: 'Error deleting supplier',
+        description: 'Failed to delete supplier. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -355,6 +504,7 @@ export default function Suppliers() {
               <Th isNumeric>Orders</Th>
               <Th isNumeric>Total Value</Th>
               <Th>Last Order</Th>
+              <Th>Actions</Th>
             </Tr>
           }
         >
@@ -387,6 +537,26 @@ export default function Suppliers() {
                 ${supplier.totalValue.toLocaleString()}
               </Td>
               <Td>{supplier.lastOrder}</Td>
+              <Td>
+                <HStack spacing={2}>
+                  <Button
+                    size="sm"
+                    colorScheme="blue"
+                    variant="outline"
+                    onClick={() => handleEditSupplier(supplier)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    colorScheme="red"
+                    variant="outline"
+                    onClick={() => handleDeleteSupplier(supplier)}
+                  >
+                    Delete
+                  </Button>
+                </HStack>
+              </Td>
             </Tr>
           ))}
         </DataTable>
@@ -531,6 +701,183 @@ export default function Suppliers() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Edit Supplier Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Edit Supplier</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {editingSupplier && (
+              <VStack spacing={4} align="stretch">
+                <SimpleGrid columns={2} spacing={4}>
+                  <FormControl isRequired>
+                    <FormLabel>Supplier Code</FormLabel>
+                    <Input
+                      value={editingSupplier.code}
+                      isReadOnly
+                      bg="gray.100"
+                    />
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>Supplier Name</FormLabel>
+                    <Input
+                      value={editingSupplier.name}
+                      onChange={(e) => 
+                        setEditingSupplier({...editingSupplier, name: e.target.value})
+                      }
+                    />
+                  </FormControl>
+                </SimpleGrid>
+
+                <SimpleGrid columns={2} spacing={4}>
+                  <FormControl>
+                    <FormLabel>Category</FormLabel>
+                    <Select
+                      value={editingSupplier.category}
+                      onChange={(e) => 
+                        setEditingSupplier({...editingSupplier, category: e.target.value})
+                      }
+                    >
+                      <option value="">Select Category</option>
+                      <option value="Food & Beverage">Food & Beverage</option>
+                      <option value="Electronics">Electronics</option>
+                      <option value="Apparel">Apparel</option>
+                      <option value="Home & Garden">Home & Garden</option>
+                      <option value="Sports & Recreation">Sports & Recreation</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Contact Person</FormLabel>
+                    <Input
+                      value={editingSupplier.contactPerson}
+                      onChange={(e) => 
+                        setEditingSupplier({...editingSupplier, contactPerson: e.target.value})
+                      }
+                    />
+                  </FormControl>
+                </SimpleGrid>
+
+                <SimpleGrid columns={2} spacing={4}>
+                  <FormControl isRequired>
+                    <FormLabel>Email</FormLabel>
+                    <Input
+                      value={editingSupplier.email}
+                      onChange={(e) => 
+                        setEditingSupplier({...editingSupplier, email: e.target.value})
+                      }
+                      type="email"
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Phone</FormLabel>
+                    <Input
+                      value={editingSupplier.phone}
+                      onChange={(e) => 
+                        setEditingSupplier({...editingSupplier, phone: e.target.value})
+                      }
+                    />
+                  </FormControl>
+                </SimpleGrid>
+
+                <FormControl>
+                  <FormLabel>Address</FormLabel>
+                  <Input
+                    value={editingSupplier.address}
+                    onChange={(e) => 
+                      setEditingSupplier({...editingSupplier, address: e.target.value})
+                    }
+                  />
+                </FormControl>
+
+                <SimpleGrid columns={3} spacing={4}>
+                  <FormControl>
+                    <FormLabel>City</FormLabel>
+                    <Input
+                      value={editingSupplier.city}
+                      onChange={(e) => 
+                        setEditingSupplier({...editingSupplier, city: e.target.value})
+                      }
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>State</FormLabel>
+                    <Input
+                      value={editingSupplier.state}
+                      onChange={(e) => 
+                        setEditingSupplier({...editingSupplier, state: e.target.value})
+                      }
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Country</FormLabel>
+                    <Select
+                      value={editingSupplier.country}
+                      onChange={(e) => 
+                        setEditingSupplier({...editingSupplier, country: e.target.value})
+                      }
+                    >
+                      <option value="Canada">Canada</option>
+                      <option value="USA">USA</option>
+                      <option value="UK">UK</option>
+                      <option value="Germany">Germany</option>
+                    </Select>
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setIsEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="blue"
+              onClick={handleUpdateSupplier}
+              isLoading={isLoading}
+              loadingText="Updating..."
+              disabled={!editingSupplier?.name || !editingSupplier?.email}
+            >
+              Update Supplier
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        isOpen={isDeleteAlertOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={() => setIsDeleteAlertOpen(false)}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Delete Supplier
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to delete "{deletingSupplier?.name}"? This action cannot be undone.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={() => setIsDeleteAlertOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                colorScheme="red" 
+                onClick={confirmDeleteSupplier}
+                isLoading={isLoading}
+                loadingText="Deleting..."
+                ml={3}
+              >
+                Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </>
   );
 }

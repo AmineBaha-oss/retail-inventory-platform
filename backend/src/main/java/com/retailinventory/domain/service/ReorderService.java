@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -86,7 +85,7 @@ public class ReorderService {
                         .product(product)
                         .currentStock(inventory.getQuantityOnHand().intValue())
                         .onOrder(inventory.getQuantityOnOrder().intValue())
-                        .allocated(0) // TODO: Calculate allocated quantity
+                        .allocated(calculateAllocatedQuantity(inventory))
                         .p90DailyDemand(p90DailyDemand.doubleValue())
                         .leadTimeDays(leadTimeDays)
                         .suggestedQuantity(suggestedQty)
@@ -210,6 +209,17 @@ public class ReorderService {
         }
         
         return poNumber;
+    }
+
+    /**
+     * Calculate allocated quantity for inventory.
+     * This would typically come from pending orders, reservations, etc.
+     */
+    private int calculateAllocatedQuantity(Inventory inventory) {
+        // Basic implementation - in real system this would query pending orders,
+        // reservations, transfers, etc.
+        BigDecimal reserved = inventory.getQuantityReserved();
+        return reserved != null ? reserved.intValue() : 0;
     }
 
 }

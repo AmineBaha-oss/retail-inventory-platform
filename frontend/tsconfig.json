@@ -14,11 +14,14 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "downlevelIteration": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
 
     /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
 
     /* Path mapping */

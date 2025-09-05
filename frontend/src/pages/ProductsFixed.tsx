@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   SimpleGrid,
@@ -38,12 +38,6 @@ import {
   Alert,
   AlertIcon,
   HStack,
-  AlertDialog,
-  AlertDialogOverlay,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogBody,
-  AlertDialogFooter,
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
 import PageHeader from "../components/ui/PageHeader";
@@ -122,13 +116,8 @@ const Products: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [newProduct, setNewProduct] = useState<NewProduct>(emptyNewProduct);
-  const [editingProduct, setEditingProduct] = useState<UIProduct | null>(null);
-  const [deletingProduct, setDeletingProduct] = useState<UIProduct | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const cancelRef = useRef(null);
   const toast = useToast();
 
   // Load products from API
@@ -243,99 +232,6 @@ const Products: React.FC = () => {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to create product';
       toast({
         title: 'Error creating product',
-        description: errorMessage,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleEditProduct = (product: UIProduct) => {
-    setEditingProduct(product);
-    setIsEditModalOpen(true);
-  };
-
-  const handleUpdateProduct = async () => {
-    if (!editingProduct) return;
-
-    try {
-      setIsSubmitting(true);
-      const updateRequest = {
-        sku: editingProduct.sku,
-        name: editingProduct.name,
-        category: editingProduct.category,
-        subcategory: editingProduct.subcategory,
-        brand: editingProduct.brand,
-        description: editingProduct.description,
-        unitCost: editingProduct.unitCost,
-        unitPrice: editingProduct.unitPrice,
-        casePackSize: editingProduct.casePackSize,
-        supplierId: editingProduct.supplierId,
-        status: editingProduct.status,
-      };
-
-      const response = await productAPI.update(editingProduct.id, updateRequest);
-      const updated: UIProduct = formatProductForUI(response.data);
-
-      setProducts((prev: UIProduct[]) => 
-        prev.map(product => product.id === updated.id ? updated : product)
-      );
-      setEditingProduct(null);
-      setIsEditModalOpen(false);
-
-      toast({
-        title: 'Product updated successfully',
-        description: `${updated.name} has been updated`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to update product';
-      toast({
-        title: 'Error updating product',
-        description: errorMessage,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteProduct = (product: UIProduct) => {
-    setDeletingProduct(product);
-    setIsDeleteAlertOpen(true);
-  };
-
-  const confirmDeleteProduct = async () => {
-    if (!deletingProduct) return;
-
-    try {
-      setIsSubmitting(true);
-      await productAPI.delete(deletingProduct.id);
-
-      setProducts((prev: UIProduct[]) => 
-        prev.filter(product => product.id !== deletingProduct.id)
-      );
-      setDeletingProduct(null);
-      setIsDeleteAlertOpen(false);
-
-      toast({
-        title: 'Product deleted successfully',
-        description: `${deletingProduct.name} has been deleted`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to delete product';
-      toast({
-        title: 'Error deleting product',
         description: errorMessage,
         status: 'error',
         duration: 5000,
@@ -579,21 +475,11 @@ const Products: React.FC = () => {
                     </Td>
                     <Td>
                       <HStack spacing={2}>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          colorScheme="blue"
-                          onClick={() => handleEditProduct(product)}
-                        >
-                          Edit
+                        <Button size="sm" variant="ghost">
+                          View
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          colorScheme="red"
-                          onClick={() => handleDeleteProduct(product)}
-                        >
-                          Delete
+                        <Button size="sm" variant="ghost">
+                          Edit
                         </Button>
                       </HStack>
                     </Td>
@@ -734,203 +620,6 @@ const Products: React.FC = () => {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
-      {/* Edit Product Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Edit Product</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {editingProduct && (
-              <VStack spacing={4} align="stretch">
-                <HStack spacing={4}>
-                  <FormControl isRequired>
-                    <FormLabel>SKU</FormLabel>
-                    <Input
-                      value={editingProduct.sku}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingProduct({...editingProduct, sku: e.target.value})
-                      }
-                      placeholder="PROD-001"
-                    />
-                  </FormControl>
-                  <FormControl isRequired>
-                    <FormLabel>Product Name</FormLabel>
-                    <Input
-                      value={editingProduct.name}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingProduct({...editingProduct, name: e.target.value})
-                      }
-                      placeholder="Product name"
-                    />
-                  </FormControl>
-                </HStack>
-
-                <HStack spacing={4}>
-                  <FormControl>
-                    <FormLabel>Category</FormLabel>
-                    <Input
-                      value={editingProduct.category}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingProduct({...editingProduct, category: e.target.value})
-                      }
-                      placeholder="Category"
-                    />
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel>Subcategory</FormLabel>
-                    <Input
-                      value={editingProduct.subcategory || ""}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingProduct({...editingProduct, subcategory: e.target.value})
-                      }
-                      placeholder="Subcategory"
-                    />
-                  </FormControl>
-                </HStack>
-
-                <HStack spacing={4}>
-                  <FormControl>
-                    <FormLabel>Brand</FormLabel>
-                    <Input
-                      value={editingProduct.brand || ""}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingProduct({...editingProduct, brand: e.target.value})
-                      }
-                      placeholder="Brand"
-                    />
-                  </FormControl>
-                  <FormControl isRequired>
-                    <FormLabel>Supplier</FormLabel>
-                    <Select
-                      value={editingProduct.supplierId}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => 
-                        setEditingProduct({...editingProduct, supplierId: e.target.value})
-                      }
-                      placeholder="Select supplier"
-                    >
-                      {suppliers.map((supplier) => (
-                        <option key={supplier.id} value={supplier.id}>
-                          {supplier.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </HStack>
-
-                <FormControl>
-                  <FormLabel>Description</FormLabel>
-                  <Input
-                    value={editingProduct.description || ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                      setEditingProduct({...editingProduct, description: e.target.value})
-                    }
-                    placeholder="Product description"
-                  />
-                </FormControl>
-
-                <HStack spacing={4}>
-                  <FormControl isRequired>
-                    <FormLabel>Unit Cost ($)</FormLabel>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editingProduct.unitCost}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingProduct({...editingProduct, unitCost: parseFloat(e.target.value) || 0})
-                      }
-                    />
-                  </FormControl>
-                  <FormControl isRequired>
-                    <FormLabel>Unit Price ($)</FormLabel>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editingProduct.unitPrice}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingProduct({...editingProduct, unitPrice: parseFloat(e.target.value) || 0})
-                      }
-                    />
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel>Case Pack Size</FormLabel>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={editingProduct.casePackSize}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                        setEditingProduct({...editingProduct, casePackSize: parseInt(e.target.value) || 1})
-                      }
-                    />
-                  </FormControl>
-                </HStack>
-
-                <FormControl>
-                  <FormLabel>Status</FormLabel>
-                  <Select
-                    value={editingProduct.status}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => 
-                      setEditingProduct({...editingProduct, status: e.target.value as "ACTIVE" | "INACTIVE"})
-                    }
-                  >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                  </Select>
-                </FormControl>
-              </VStack>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={() => setIsEditModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              colorScheme="blue"
-              onClick={handleUpdateProduct}
-              isLoading={isSubmitting}
-              loadingText="Updating..."
-              disabled={!editingProduct?.sku || !editingProduct?.name || !editingProduct?.supplierId}
-            >
-              Update Product
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Delete Product Alert */}
-      <AlertDialog
-        isOpen={isDeleteAlertOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={() => setIsDeleteAlertOpen(false)}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Delete Product
-            </AlertDialogHeader>
-            <AlertDialogBody>
-              Are you sure you want to delete "{deletingProduct?.name}"? This action cannot be undone.
-            </AlertDialogBody>
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsDeleteAlertOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                colorScheme="red"
-                onClick={confirmDeleteProduct}
-                ml={3}
-                isLoading={isSubmitting}
-                loadingText="Deleting..."
-              >
-                Delete
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
     </Box>
   );
 };
