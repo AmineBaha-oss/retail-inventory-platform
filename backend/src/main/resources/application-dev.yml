@@ -1,7 +1,7 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: create
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -10,9 +10,8 @@ spring:
     show-sql: true
 
   flyway:
-    enabled: true
-    baseline-on-migrate:
-      true
+    enabled: false
+    baseline-on-migrate: true
 
       # Redis and Kafka are disabled via DevConfig.java
 
