@@ -1,28 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { inventoryAPI } from "../services/api";
 import { showError, showSuccess, handleApiError } from "../utils/errorHandler";
+import { InventoryItem } from "../types/api";
 
-export interface InventoryItem {
-  id: string;
-  storeId: string;
-  storeCode: string;
-  storeName: string;
-  productId: string;
-  productSku: string;
-  productName: string;
-  quantityOnHand: number;
-  quantityOnOrder: number;
-  quantityReserved: number;
-  quantityAvailable: number;
-  costPerUnit: number;
-  reorderPoint: number;
-  maxStockLevel: number;
-  lastCountDate?: string;
-  recordedAt: string;
-  createdAt: string;
-  adjustmentReason?: string;
-  version: number;
-}
+// InventoryItem type now imported from ../types/api
 
 export interface UseInventoryReturn {
   inventory: InventoryItem[];

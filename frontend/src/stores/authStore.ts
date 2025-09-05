@@ -1,14 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AuthApi, toApiError } from "../services/api";
+import { User, AuthResponse } from "../types/api";
 
-interface User {
-  id: string;
-  email: string;
-  username: string;
-  full_name?: string;
-  role: "buyer" | "planner" | "approver" | "admin";
-}
+// User type now imported from ../types/api
 
 interface AuthState {
   user: User | null;

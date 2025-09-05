@@ -1,43 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { supplierAPI } from "../services/api";
 import { showError, showSuccess, handleApiError } from "../utils/errorHandler";
+import { Supplier, CreateSupplierRequest, UpdateSupplierRequest } from "../types/api";
 
-export interface Supplier {
-  id: string;
-  name: string;
-  code: string;
-  category?: string;
-  contactPerson?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  country?: string;
-  city?: string;
-  leadTimeDays: number;
-  leadTimeVarianceDays?: number;
-  minOrderQuantity?: number;
-  minOrderValue?: number;
-  paymentTerms?: string;
-  status: "ACTIVE" | "INACTIVE" | "PENDING";
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateSupplierRequest {
-  name: string;
-  code: string;
-  category?: string;
-  contactPerson?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  country?: string;
-  city?: string;
-  leadTimeDays?: number;
-  minOrderQuantity?: number;
-  paymentTerms?: string;
-}
+// Types now imported from ../types/api
 
 export interface UseSupplierReturn {
   suppliers: Supplier[];
