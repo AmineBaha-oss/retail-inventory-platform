@@ -107,7 +107,7 @@ export interface SupplierUpdateRequest {
 export type ProductStatus = 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED';
 
 export interface Product extends BaseEntity {
-  sku: string;
+  sku?: string; // Optional - auto-generated if not provided
   name: string;
   category?: string;
   subcategory?: string;
@@ -122,7 +122,7 @@ export interface Product extends BaseEntity {
 }
 
 export interface ProductCreateRequest {
-  sku: string;
+  sku?: string; // Optional - auto-generated if not provided
   name: string;
   category?: string;
   subcategory?: string;
@@ -202,7 +202,7 @@ export type PurchaseOrderStatus =
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export interface PurchaseOrder extends BaseEntity {
-  poNumber: string;
+  poNumber?: string; // Optional - auto-generated if not provided
   supplierId?: string;
   supplierName?: string;
   storeId?: string;
@@ -225,7 +225,7 @@ export interface PurchaseOrder extends BaseEntity {
 }
 
 export interface PurchaseOrderCreateRequest {
-  poNumber: string;
+  poNumber?: string; // Optional - auto-generated if not provided
   supplierId: string;
   storeId: string;
   status?: PurchaseOrderStatus;

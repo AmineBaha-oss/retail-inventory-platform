@@ -44,6 +44,7 @@ import {
   AlertDialogContent,
   AlertDialogOverlay,
   HStack,
+  Switch,
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
 import PageHeader from "../components/ui/PageHeader";
@@ -868,6 +869,22 @@ const Stores: React.FC = () => {
                       })
                     }
                   />
+                </FormControl>
+
+                <FormControl>
+                  <HStack justify="space-between" align="center">
+                    <FormLabel mb={0}>Active Store</FormLabel>
+                    <Switch
+                      isChecked={editingStore.isActive}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setEditingStore({
+                          ...editingStore,
+                          isActive: e.target.checked,
+                        })
+                      }
+                      colorScheme="green"
+                    />
+                  </HStack>
                 </FormControl>
               </VStack>
             )}
