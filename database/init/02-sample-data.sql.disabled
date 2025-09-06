@@ -1,0 +1,136 @@
+-- Enhanced Realistic SaaS Test Data for Retail Inventory Platform
+-- Shopify-style boutique chain with business scenarios: low stock, pending orders, seasonal trends
+
+-- Clear existing data (for development reset) - only if tables exist
+TRUNCATE TABLE IF EXISTS purchase_order_items CASCADE;
+TRUNCATE TABLE IF EXISTS purchase_orders CASCADE;
+TRUNCATE TABLE IF EXISTS inventory CASCADE;
+TRUNCATE TABLE IF EXISTS products CASCADE;
+TRUNCATE TABLE IF EXISTS suppliers CASCADE;
+TRUNCATE TABLE IF EXISTS stores CASCADE;
+
+-- ============================================================================
+-- STORES: Multi-location boutique chain across major cities
+-- ============================================================================
+INSERT INTO stores (id, code, name, manager, email, phone, address, city, state, zip_code, country, status, created_at, updated_at) VALUES
+-- Flagship stores (ACTIVE)
+('10ee69e1-72ee-4092-b63d-38fd752ad060', 'NYC-FLAGSHIP', 'Manhattan Flagship Store', 'Sarah Johnson', 'manhattan@luxeboutique.com', '+1-212-555-0101', '123 Fifth Avenue', 'New York', 'NY', '10001', 'USA', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('7331da39-f361-4e06-8aa6-4b2c07891d7f', 'LA-BEVERLY', 'Beverly Hills Boutique', 'Michael Chen', 'beverlyhills@luxeboutique.com', '+1-310-555-0102', '456 Rodeo Drive', 'Beverly Hills', 'CA', '90210', 'USA', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('c18278f5-93cf-4890-9a71-89f46c08f668', 'CHI-MICHIGAN', 'Chicago Michigan Avenue', 'Emily Rodriguez', 'chicago@luxeboutique.com', '+1-312-555-0103', '789 N Michigan Ave', 'Chicago', 'IL', '60611', 'USA', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- Growing markets (ACTIVE)
+('bc612abb-30bb-4b0e-8593-d9a18b480900', 'MIA-BEACH', 'Miami South Beach Store', 'Carlos Martinez', 'miami@luxeboutique.com', '+1-305-555-0104', '321 Ocean Drive', 'Miami', 'FL', '33139', 'USA', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('62dec203-1ec6-4544-b8c5-87bfd5f5aa09', 'SEA-PIKE', 'Seattle Pike Place Store', 'Jessica Wang', 'seattle@luxeboutique.com', '+1-206-555-0105', '567 Pike Street', 'Seattle', 'WA', '98101', 'USA', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- New location (ACTIVE)
+('9a8b7c6d-5e4f-3210-9876-fedcba098765', 'DAL-KNOX', 'Dallas Knox Street Store', 'Amanda Foster', 'dallas@luxeboutique.com', '+1-214-555-0106', '890 Knox Street', 'Dallas', 'TX', '75205', 'USA', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- Underperforming location (INACTIVE - business scenario)
+('1a2b3c4d-5e6f-7890-abcd-ef1234567890', 'DEN-CHERRY', 'Denver Cherry Creek Store', 'David Thompson', 'denver@luxeboutique.com', '+1-303-555-0107', '234 Cherry Creek', 'Denver', 'CO', '80206', 'USA', 'INACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- ============================================================================
+-- SUPPLIERS: Premium fashion suppliers with different specialties and lead times
+-- ============================================================================
+INSERT INTO suppliers (id, code, name, category, contact_person, email, phone, address, city, country, lead_time_days, min_order_quantity, min_order_value, status, created_at, updated_at) VALUES
+-- Premium suppliers (fast fashion)
+('d534ff8d-171e-4967-aea9-9f4482d67439', 'MILAN-LUXURY', 'Milano Luxury Fashion House', 'Designer Clothing', 'Isabella Rossi', 'orders@milanoluxury.com', '+39-02-7234-5678', 'Via Montenapoleone 12', 'Milan', 'Italy', 14, 10, 500.00, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('48f1ac2b-d004-4cd2-aae3-4c58065cb7d4', 'PARIS-HAUTE', 'Parisian Haute Couture Co', 'Evening Wear', 'Marie Dubois', 'sales@parishaute.fr', '+33-1-4234-5678', '15 Avenue Montaigne', 'Paris', 'France', 21, 5, 800.00, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- Sustainable/Eco suppliers (trending)
+('87722a21-af29-472f-b21a-6f49bd27eb6d', 'SUSTAIN-STYLE', 'Sustainable Style Collective', 'Eco Fashion', 'Emma Green', 'info@sustainstyle.com', '+1-503-555-0203', '300 Green Street', 'Portland', 'OR', '97205', 'USA', 18, 8, 300.00, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- American designers
+('a1b2c3d4-e5f6-7890-1234-567890abcdef', 'NY-ARTISAN', 'New York Artisan Collective', 'Casual Wear', 'Brooklyn Smith', 'contact@nyartisan.com', '+1-718-555-0204', '456 Brooklyn Ave', 'Brooklyn', 'NY', '11201', 'USA', 7, 12, 250.00, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- Accessories specialist
+('b2c3d4e5-f6g7-8901-2345-6789abcdef01', 'ACCESSORY-WORLD', 'Global Accessories Inc', 'Accessories', 'Sophie Zhang', 'orders@accessoryworld.com', '+86-21-5678-9012', '88 Fashion Road', 'Shanghai', 'China', 30, 20, 150.00, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- Luxury handbags
+('c3d4e5f6-g7h8-9012-3456-789abcdef012', 'LEATHER-CRAFT', 'European Leather Craftsmen', 'Leather Goods', 'Antonio Silva', 'info@leathercraft.eu', '+34-91-234-5678', 'Calle Mayor 45', 'Madrid', 'Spain', 28, 3, 600.00, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- ============================================================================
+-- PRODUCTS: Comprehensive fashion catalog with seasonal trends
+-- ============================================================================
+INSERT INTO products (id, sku, name, category, subcategory, brand, description, unit_cost, unit_price, case_pack_size, supplier_id, status, created_at, updated_at) VALUES
+
+-- TOPS Collection (Milano Luxury)
+('3ec10fca-f783-4f4e-b3d7-c9d77e37c861', 'MLT-SLK-NVY-001', 'Milano Silk Blouse - Navy', 'TOPS', 'BLOUSES', 'Milano', 'Luxurious navy silk blouse with mother-of-pearl buttons, perfect for office or evening', 42.50, 128.00, 8, 'd534ff8d-171e-4967-aea9-9f4482d67439', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4fd21edb-0894-5f5f-c4e8-d0e88f48d972', 'MLT-SLK-WHT-002', 'Milano Silk Blouse - White', 'TOPS', 'BLOUSES', 'Milano', 'Classic white silk blouse with French cuffs, timeless elegance', 42.50, 128.00, 8, 'd534ff8d-171e-4967-aea9-9f4482d67439', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('5ge32fec-1905-6g6g-d5f9-e1f99g59e083', 'MLT-CTN-STR-003', 'Milano Cotton Stripe Top', 'TOPS', 'CASUAL', 'Milano', 'Breton stripe cotton top with three-quarter sleeves', 28.00, 78.00, 12, 'd534ff8d-171e-4967-aea9-9f4482d67439', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- DRESSES Collection (Parisian Haute)
+('8c430c6b-02e4-401c-bbfb-6efe185bf521', 'PHC-MDI-FLR-001', 'Parisian Midi Dress - Floral', 'DRESSES', 'MIDI', 'Parisian', 'Elegant midi dress in watercolor floral print, perfect for garden parties', 65.00, 185.00, 6, '48f1ac2b-d004-4cd2-aae3-4c58065cb7d4', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('9d541d7c-13f5-512d-ccgc-7f0f296c0632', 'PHC-EVE-BLK-002', 'Parisian Evening Gown - Black', 'DRESSES', 'EVENING', 'Parisian', 'Sophisticated black evening gown with subtle beadwork', 125.00, 350.00, 3, '48f1ac2b-d004-4cd2-aae3-4c58065cb7d4', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ae652e8d-24g6-623e-ddhd-8g1g3a7d1743', 'PHC-CKT-RED-003', 'Parisian Cocktail Dress - Red', 'DRESSES', 'COCKTAIL', 'Parisian', 'Bold red cocktail dress with architectural silhouette', 85.00, 245.00, 4, '48f1ac2b-d004-4cd2-aae3-4c58065cb7d4', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- SUSTAINABLE Collection (Sustainable Style)
+('5e9e2f6e-2e73-4a9f-a52c-b820b5cea3fb', 'SSC-BLZ-ORG-001', 'Eco Organic Cotton Blazer', 'OUTERWEAR', 'BLAZERS', 'Sustainable', 'Sustainable blazer made from 100% organic cotton, carbon-neutral production', 52.00, 145.00, 6, '87722a21-af29-472f-b21a-6f49bd27eb6d', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('bf763f9f-3f84-5b0g-b63d-c931c6dfb4gc', 'SSC-JMP-LIN-002', 'Eco Linen Jumpsuit - Natural', 'JUMPSUITS', 'CASUAL', 'Sustainable', 'Comfortable linen jumpsuit in natural color, ethically sourced', 48.00, 135.00, 5, '87722a21-af29-472f-b21a-6f49bd27eb6d', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- BOTTOMS Collection (NY Artisan)
+('c6e7f5fe-adb9-467c-8193-f88e79eb1936', 'NYA-JNS-HW-001', 'Brooklyn High-Waist Jeans', 'BOTTOMS', 'JEANS', 'New', 'Premium high-waisted jeans with vintage wash, made in Brooklyn', 38.00, 98.00, 10, 'a1b2c3d4-e5f6-7890-1234-567890abcdef', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d7f6g0gf-bec0-578d-9204-f99f8h9fc037', 'NYA-TRS-PLT-002', 'Brooklyn Pleated Trousers', 'BOTTOMS', 'TROUSERS', 'New', 'Wide-leg pleated trousers in charcoal, office-appropriate', 45.00, 115.00, 8, 'a1b2c3d4-e5f6-7890-1234-567890abcdef', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- ACCESSORIES Collection (Global Accessories)
+('72aeb7f3-b466-44df-8541-b177bb9c9419', 'GAI-HBG-LTH-001', 'Luxury Leather Tote - Black', 'ACCESSORIES', 'BAGS', 'Global', 'Premium leather tote bag with gold hardware, perfect for work', 75.00, 215.00, 4, 'b2c3d4e5-f6g7-8901-2345-6789abcdef01', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('83bfc804-c577-55e0-9652-c288c0d0c530', 'GAI-SCF-SLK-002', 'Silk Designer Scarf', 'ACCESSORIES', 'SCARVES', 'Global', '100% silk scarf with abstract print, versatile styling piece', 32.00, 85.00, 12, 'b2c3d4e5-f6g7-8901-2345-6789abcdef01', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- LUXURY HANDBAGS (European Leather)
+('94c0d915-d688-66f1-a763-d399d1e1d641', 'ELC-CBG-TAN-001', 'Madrid Crossbody Bag - Tan', 'ACCESSORIES', 'BAGS', 'European', 'Hand-crafted crossbody bag in cognac leather, artisan-made', 95.00, 285.00, 2, 'c3d4e5f6-g7h8-9012-3456-789abcdef012', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('a5d1ea26-e799-77g2-b874-e4aae2f2e752', 'ELC-WLT-BLK-002', 'Madrid Leather Wallet - Black', 'ACCESSORIES', 'WALLETS', 'European', 'Compact leather wallet with RFID protection', 42.00, 125.00, 6, 'c3d4e5f6-g7h8-9012-3456-789abcdef012', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- ============================================================================
+-- INVENTORY: Realistic stock levels with business scenarios
+-- ============================================================================
+INSERT INTO inventory (id, store_id, product_id, quantity_on_hand, quantity_on_order, quantity_reserved, cost_per_unit, reorder_point, max_stock_level, recorded_at, created_at) VALUES
+
+-- Manhattan Flagship (High volume, good stock)
+(gen_random_uuid(), '10ee69e1-72ee-4092-b63d-38fd752ad060', '3ec10fca-f783-4f4e-b3d7-c9d77e37c861', 35.00, 0.00, 5.00, 42.50, 20, 60, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), '10ee69e1-72ee-4092-b63d-38fd752ad060', '4fd21edb-0894-5f5f-c4e8-d0e88f48d972', 28.00, 0.00, 3.00, 42.50, 20, 60, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), '10ee69e1-72ee-4092-b63d-38fd752ad060', '8c430c6b-02e4-401c-bbfb-6efe185bf521', 22.00, 0.00, 2.00, 65.00, 15, 40, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), '10ee69e1-72ee-4092-b63d-38fd752ad060', 'c6e7f5fe-adb9-467c-8193-f88e79eb1936', 45.00, 0.00, 8.00, 38.00, 25, 80, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), '10ee69e1-72ee-4092-b63d-38fd752ad060', '72aeb7f3-b466-44df-8541-b177bb9c9419', 18.00, 0.00, 2.00, 75.00, 10, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Beverly Hills (Luxury focus, premium items)
+(gen_random_uuid(), '7331da39-f361-4e06-8aa6-4b2c07891d7f', '9d541d7c-13f5-512d-ccgc-7f0f296c0632', 8.00, 0.00, 1.00, 125.00, 5, 15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), '7331da39-f361-4e06-8aa6-4b2c07891d7f', 'ae652e8d-24g6-623e-ddhd-8g1g3a7d1743', 12.00, 0.00, 3.00, 85.00, 8, 25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), '7331da39-f361-4e06-8aa6-4b2c07891d7f', '94c0d915-d688-66f1-a763-d399d1e1d641', 6.00, 0.00, 1.00, 95.00, 3, 12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), '7331da39-f361-4e06-8aa6-4b2c07891d7f', '3ec10fca-f783-4f4e-b3d7-c9d77e37c861', 15.00, 0.00, 2.00, 42.50, 20, 60, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Chicago (Sustainable focus, LOW STOCK scenario)
+(gen_random_uuid(), 'c18278f5-93cf-4890-9a71-89f46c08f668', '5e9e2f6e-2e73-4a9f-a52c-b820b5cea3fb', 8.00, 12.00, 0.00, 52.00, 15, 35, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),  -- LOW STOCK
+(gen_random_uuid(), 'c18278f5-93cf-4890-9a71-89f46c08f668', 'bf763f9f-3f84-5b0g-b63d-c931c6dfb4gc', 5.00, 10.00, 1.00, 48.00, 12, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),   -- LOW STOCK
+(gen_random_uuid(), 'c18278f5-93cf-4890-9a71-89f46c08f668', 'd7f6g0gf-bec0-578d-9204-f99f8h9fc037', 22.00, 0.00, 3.00, 45.00, 18, 50, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Miami (Beach casual, seasonal trends)
+(gen_random_uuid(), 'bc612abb-30bb-4b0e-8593-d9a18b480900', '5ge32fec-1905-6g6g-d5f9-e1f99g59e083', 32.00, 0.00, 4.00, 28.00, 20, 60, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), 'bc612abb-30bb-4b0e-8593-d9a18b480900', 'bf763f9f-3f84-5b0g-b63d-c931c6dfb4gc', 18.00, 0.00, 2.00, 48.00, 12, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), 'bc612abb-30bb-4b0e-8593-d9a18b480900', '83bfc804-c577-55e0-9652-c288c0d0c530', 25.00, 0.00, 3.00, 32.00, 15, 45, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Seattle (Eco-conscious customers, STOCKOUT scenario)
+(gen_random_uuid(), '62dec203-1ec6-4544-b8c5-87bfd5f5aa09', '5e9e2f6e-2e73-4a9f-a52c-b820b5cea3fb', 0.00, 20.00, 0.00, 52.00, 15, 35, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),    -- STOCKOUT
+(gen_random_uuid(), '62dec203-1ec6-4544-b8c5-87bfd5f5aa09', 'c6e7f5fe-adb9-467c-8193-f88e79eb1936', 3.00, 15.00, 0.00, 38.00, 25, 80, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),     -- CRITICAL LOW
+(gen_random_uuid(), '62dec203-1ec6-4544-b8c5-87bfd5f5aa09', 'a5d1ea26-e799-77g2-b874-e4aae2f2e752', 12.00, 0.00, 1.00, 42.00, 8, 20, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Dallas (New store, building inventory)
+(gen_random_uuid(), '9a8b7c6d-5e4f-3210-9876-fedcba098765', '3ec10fca-f783-4f4e-b3d7-c9d77e37c861', 20.00, 0.00, 0.00, 42.50, 20, 60, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), '9a8b7c6d-5e4f-3210-9876-fedcba098765', 'c6e7f5fe-adb9-467c-8193-f88e79eb1936', 30.00, 0.00, 5.00, 38.00, 25, 80, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(gen_random_uuid(), '9a8b7c6d-5e4f-3210-9876-fedcba098765', '72aeb7f3-b466-44df-8541-b177bb9c9419', 10.00, 0.00, 1.00, 75.00, 10, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- ============================================================================
+-- PURCHASE ORDERS: Realistic business scenarios
+-- ============================================================================
+INSERT INTO purchase_orders (id, po_number, supplier_id, store_id, status, total_amount, tax_amount, shipping_amount, order_date, expected_delivery_date, priority, notes, created_at, updated_at) VALUES
+
+-- ACTIVE/PENDING Orders
+(gen_random_uuid(), 'PO-2025-0001', 'd534ff8d-171e-4967-aea9-9f4482d67439', '10ee69e1-72ee-4092-b63d-38fd752ad060', 'PENDING_APPROVAL', 3200.00, 256.00, 50.00, CURRENT_DATE, CURRENT_DATE + INTERVAL '14 days', 'HIGH', 'Spring collection restock - Milano luxury items for flagship store', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+(gen_random_uuid(), 'PO-2025-0002', '87722a21-af29-472f-b21a-6f49bd27eb6d', 'c18278f5-93cf-4890-9a71-89f46c08f668', 'APPROVED', 2400.00, 192.00, 35.00, CURRENT_DATE - INTERVAL '2 days', CURRENT_DATE + INTERVAL '16 days', 'HIGH', 'URGENT: Restock sustainable blazers - below reorder point', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+(gen_random_uuid(), 'PO-2025-0003', '48f1ac2b-d004-4cd2-aae3-4c58065cb7d4', '7331da39-f361-4e06-8aa6-4b2c07891d7f', 'SENT', 4500.00, 360.00, 75.00, CURRENT_DATE - INTERVAL '5 days', CURRENT_DATE + INTERVAL '16 days', 'MEDIUM', 'Evening wear collection for Beverly Hills store - high-end customers', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- RECEIVED Orders (completed)
+(gen_random_uuid(), 'PO-2024-0156', 'b2c3d4e5-f6g7-8901-2345-6789abcdef01', 'bc612abb-30bb-4b0e-8593-d9a18b480900', 'RECEIVED', 1800.00, 144.00, 25.00, CURRENT_DATE - INTERVAL '45 days', CURRENT_DATE - INTERVAL '15 days', 'MEDIUM', 'Accessories shipment - scarves and small leather goods', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- DRAFT Orders (planning stage)
+(gen_random_uuid(), 'PO-2025-0004', 'a1b2c3d4-e5f6-7890-1234-567890abcdef', '9a8b7c6d-5e4f-3210-9876-fedcba098765', 'DRAFT', 0.00, 0.00, 0.00, CURRENT_DATE, NULL, 'MEDIUM', 'Initial stock for new Dallas store - casual wear focus', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+(gen_random_uuid(), 'PO-2025-0005', '87722a21-af29-472f-b21a-6f49bd27eb6d', '62dec203-1ec6-4544-b8c5-87bfd5f5aa09', 'DRAFT', 0.00, 0.00, 0.00, CURRENT_DATE, NULL, 'HIGH', 'EMERGENCY: Seattle stockout recovery - eco blazers completely sold out', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- ============================================================================
+-- Add Purchase Order Items for realistic scenarios
+-- ============================================================================
+-- Note: PO items will be added through the application to test auto-calculation
