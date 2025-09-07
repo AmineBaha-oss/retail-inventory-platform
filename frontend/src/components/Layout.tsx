@@ -35,6 +35,11 @@ import {
   FiLogOut,
   FiUser,
   FiGrid,
+  FiBell,
+  FiMoon,
+  FiGlobe,
+  FiHelpCircle,
+  FiChevronRight,
 } from "react-icons/fi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
@@ -170,7 +175,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         borderTop="1px solid"
         borderColor="gray.800"
       >
-        <Menu>
+        <Menu placement="bottom-end">
           <MenuButton
             as={Button}
             variant="ghost"
@@ -199,48 +204,75 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Box>
             </HStack>
           </MenuButton>
+
           <MenuList
-            bg="blue.900"
+            bg="gray.800"
             border="1px solid"
-            borderColor="blue.800"
+            borderColor="gray.700"
             borderRadius="lg"
             boxShadow="xl"
-            py={1}
+            p={1} // use padding instead of MenuItem mx
+            w="280px"
+            overflow="hidden" // 🚫 clip hover/focus backgrounds
           >
             <MenuItem
               icon={<FiUser size={16} />}
-              color="blue.50"
-              _hover={{ bg: "blue.800", color: "white" }}
-              _focus={{ bg: "blue.800", color: "white" }}
+              w="full"
+              bg="gray.800"
+              color="gray.100"
               borderRadius="md"
-              mx={2}
-              my={1}
+              px={3}
+              py={2}
+              _hover={{ bg: "gray.700", color: "white" }}
+              _focus={{
+                bg: "gray.700",
+                color: "white",
+                boxShadow: "none",
+                outline: "none",
+              }}
               onClick={() => navigate("/profile")}
             >
               Profile
             </MenuItem>
+
             <MenuItem
               icon={<FiSettings size={16} />}
-              color="blue.50"
-              _hover={{ bg: "blue.800", color: "white" }}
-              _focus={{ bg: "blue.800", color: "white" }}
+              w="full"
+              bg="gray.800"
+              color="gray.100"
               borderRadius="md"
-              mx={2}
-              my={1}
+              px={3}
+              py={2}
+              _hover={{ bg: "gray.700", color: "white" }}
+              _focus={{
+                bg: "gray.700",
+                color: "white",
+                boxShadow: "none",
+                outline: "none",
+              }}
               onClick={() => navigate("/settings")}
             >
               Settings
             </MenuItem>
-            <MenuDivider borderColor="blue.700" />
+
+            <MenuDivider borderColor="gray.600" mx={0} />
+
             <MenuItem
               icon={<FiLogOut size={16} />}
-              onClick={handleLogout}
-              color="blue.50"
-              _hover={{ bg: "blue.800", color: "white" }}
-              _focus={{ bg: "blue.800", color: "white" }}
+              w="full"
+              bg="gray.800"
+              color="gray.100"
               borderRadius="md"
-              mx={2}
-              my={1}
+              px={3}
+              py={2}
+              _hover={{ bg: "gray.700", color: "white" }}
+              _focus={{
+                bg: "gray.700",
+                color: "white",
+                boxShadow: "none",
+                outline: "none",
+              }}
+              onClick={handleLogout}
             >
               Logout
             </MenuItem>
