@@ -25,7 +25,7 @@
         <graphql-java.version>21.3</graphql-java.version>
         <jwt.version>0.12.3</jwt.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
-        <lombok.version>1.18.30</lombok.version>
+        <lombok.version>1.18.34</lombok.version>
     </properties>
 
     <dependencies>

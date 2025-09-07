@@ -74,7 +74,7 @@ export default function Profile() {
     username: user?.username || "johndoe",
     email: user?.email || "john.doe@company.com",
     phone: "+1 (514) 555-0123",
-    role: user?.role || "buyer",
+    role: user?.roles?.[0] || "CUSTOMER_USER",
     department: "Procurement",
     location: "Montreal, QC",
     bio: "Experienced procurement specialist with expertise in retail inventory management and supplier relationships.",
@@ -295,9 +295,24 @@ export default function Profile() {
         mb={6}
       >
         <TabList>
-          <Tab><HStack spacing={2}><FiUser /><Text>Profile Information</Text></HStack></Tab>
-          <Tab><HStack spacing={2}><FiMail /><Text>Preferences</Text></HStack></Tab>
-          <Tab><HStack spacing={2}><FiShield /><Text>Security</Text></HStack></Tab>
+          <Tab>
+            <HStack spacing={2}>
+              <FiUser />
+              <Text>Profile Information</Text>
+            </HStack>
+          </Tab>
+          <Tab>
+            <HStack spacing={2}>
+              <FiMail />
+              <Text>Preferences</Text>
+            </HStack>
+          </Tab>
+          <Tab>
+            <HStack spacing={2}>
+              <FiShield />
+              <Text>Security</Text>
+            </HStack>
+          </Tab>
         </TabList>
 
         <TabPanels>

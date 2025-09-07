@@ -18,6 +18,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import com.retailinventory.infrastructure.security.JwtAuthenticationFilter;
 import com.retailinventory.infrastructure.security.JwtService;
+import com.retailinventory.domain.repository.UserRepository;
+import com.retailinventory.domain.entity.User;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -32,6 +34,12 @@ import java.util.Arrays;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private final UserRepository userRepository;
+
+    public SecurityConfig(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
         return new JwtAuthenticationFilter(jwtService, userDetailsService);
@@ -45,6 +53,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/v1/auth/**").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/**").permitAll() // Allow all API endpoints for dev
                 .requestMatchers("/health/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().permitAll() // Permissive for dev
@@ -112,16 +122,10 @@ public class SecurityConfig {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        return new org.springframework.security.core.userdetails.UserDetailsService() {
-            @Override
-            public org.springframework.security.core.userdetails.UserDetails loadUserByUsername(String username) throws org.springframework.security.core.userdetails.UsernameNotFoundException {
-                // For development, return a simple user
-                return org.springframework.security.core.userdetails.User.builder()
-                    .username("admin")
-                    .password(passwordEncoder().encode("admin"))
-                    .roles("ADMIN")
-                    .build();
-            }
+        return username -> {
+            User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + username));
+            return user;
         };
     }
 

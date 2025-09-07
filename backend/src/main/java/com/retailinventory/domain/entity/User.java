@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -20,6 +21,7 @@ import java.util.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(exclude = {"organization", "roles"})
 public class User implements UserDetails {
 
     @Id
@@ -82,6 +84,10 @@ public class User implements UserDetails {
     @Builder.Default
     private Set<Role> roles = new HashSet<>();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "user_stores",
@@ -112,6 +118,11 @@ public class User implements UserDetails {
             for (Permission permission : role.getPermissions()) {
                 authorities.add(new SimpleGrantedAuthority(permission.getName()));
             }
+        }
+        
+        // Add tenant authority if user belongs to an organization
+        if (organization != null) {
+            authorities.add(new SimpleGrantedAuthority("TENANT_" + organization.getId().toString()));
         }
         
         return authorities;
@@ -170,13 +181,31 @@ public class User implements UserDetails {
     }
 
     public boolean canAccessStore(UUID storeId) {
-        // Admins can access all stores
+        // System admins can access all stores
         if (hasRole("ADMIN")) {
             return true;
         }
         
         // Check if user has explicit access to store
         return accessibleStores.stream().anyMatch(store -> store.getId().equals(storeId));
+    }
+
+    public boolean belongsToOrganization(UUID organizationId) {
+        return organization != null && organization.getId().equals(organizationId);
+    }
+
+    public boolean canManageUser(User targetUser) {
+        // System admins can manage all users
+        if (hasRole("ADMIN")) {
+            return true;
+        }
+        
+        // Customer admins can manage users in their organization
+        if (hasRole("CUSTOMER_ADMIN") && organization != null) {
+            return targetUser.belongsToOrganization(organization.getId());
+        }
+        
+        return false;
     }
 
     public enum UserStatus {

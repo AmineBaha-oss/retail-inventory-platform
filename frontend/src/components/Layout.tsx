@@ -38,12 +38,14 @@ import {
 } from "react-icons/fi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
+import { useOrganization } from "../contexts/OrganizationContext";
 
 const SIDEBAR_W = 280;
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { user, logout } = useAuthStore();
+  const { currentOrganization, canManageUsers } = useOrganization();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -55,6 +57,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: "Suppliers", icon: FiUsers, path: "/suppliers" },
     { name: "Products", icon: FiGrid, path: "/products" },
     { name: "Stores", icon: FiHome, path: "/stores" },
+    ...(canManageUsers
+      ? [{ name: "Users", icon: FiUsers, path: "/organization/users" }]
+      : []),
   ];
 
   const handleLogout = () => {
@@ -99,6 +104,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Text>
           </Box>
         </HStack>
+
+        {/* Organization Info */}
+        {currentOrganization && (
+          <Box mt={4} p={3} bg="gray.800" borderRadius="lg">
+            <Text fontSize="sm" fontWeight="medium" color="gray.200">
+              {currentOrganization.name}
+            </Text>
+            <Text fontSize="xs" color="gray.400">
+              {currentOrganization.status}
+            </Text>
+          </Box>
+        )}
       </Box>
 
       {/* Navigation Menu */}

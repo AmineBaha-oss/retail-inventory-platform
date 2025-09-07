@@ -7,6 +7,80 @@ export interface BaseEntity {
   updatedAt: string;
 }
 
+// Organization Types
+export type OrganizationStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED" | "TRIAL";
+
+export interface OrganizationAddress {
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+export interface Organization extends BaseEntity {
+  name: string;
+  slug: string;
+  description?: string;
+  website?: string;
+  phone?: string;
+  email?: string;
+  address?: OrganizationAddress;
+  status: OrganizationStatus;
+  subscriptionPlan?: string;
+  maxUsers?: number;
+  trialEndsAt?: string;
+}
+
+// User Types
+export type UserStatus =
+  | "ACTIVE"
+  | "INACTIVE"
+  | "SUSPENDED"
+  | "PENDING_VERIFICATION";
+export type UserRole = "ADMIN" | "CUSTOMER_ADMIN" | "CUSTOMER_USER";
+
+export interface User extends BaseEntity {
+  email: string;
+  username: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  status: UserStatus;
+  emailVerified: boolean;
+  twoFactorEnabled: boolean;
+  lastLoginAt?: string;
+  lastLoginIp?: string;
+  roles: UserRole[];
+  organizationId?: string;
+  organizationName?: string;
+}
+
+export interface OrganizationUserCreateRequest {
+  email: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  roles: UserRole[];
+  sendWelcomeEmail?: boolean;
+}
+
+export interface OrganizationUserUpdateRequest {
+  email?: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  roles?: UserRole[];
+  status?: UserStatus;
+}
+
+export interface OrganizationUserResponse extends User {
+  // Additional fields specific to organization user responses
+}
+
 // Store Types
 export interface Store extends BaseEntity {
   code: string;
@@ -25,6 +99,8 @@ export interface Store extends BaseEntity {
   status?: string;
   productCount?: number;
   timezone?: string;
+  organizationId?: string;
+  organizationName?: string;
 }
 
 export interface StoreCreateRequest {

@@ -1,17 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { User, Organization, UserRole } from "../types/api";
 
-interface User {
-  id: string;
-  email: string;
-  username: string;
+interface AuthUser extends User {
   full_name?: string;
-  role: "buyer" | "planner" | "approver" | "admin";
 }
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
+  organization: Organization | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -20,10 +18,15 @@ interface AuthState {
 interface AuthActions {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  setUser: (user: User) => void;
+  setUser: (user: AuthUser) => void;
+  setOrganization: (organization: Organization | null) => void;
   setToken: (token: string) => void;
   clearError: () => void;
   setLoading: (loading: boolean) => void;
+  hasRole: (role: UserRole) => boolean;
+  isAdmin: () => boolean;
+  isCustomerAdmin: () => boolean;
+  isCustomerUser: () => boolean;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -34,6 +37,7 @@ export const useAuthStore = create<AuthStore>()(
       // State
       user: null,
       token: null,
+      organization: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -53,21 +57,17 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error("Please enter a valid email address");
           }
 
-          // Call the real API
-          const response = await fetch(
-            "http://localhost:8000/api/v1/auth/login",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-              },
-              body: new URLSearchParams({
-                username: email,
-                password: password,
-              }),
-              // commit test
-            }
-          );
+          // Call the Spring Boot API
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: email,
+              password: password,
+            }),
+          });
 
           if (!response.ok) {
             const errorData = await response.json();
@@ -77,17 +77,55 @@ export const useAuthStore = create<AuthStore>()(
           const data = await response.json();
 
           // Extract user info from the response
-          const user: User = {
+          const user: AuthUser = {
             id: data.user?.id || "user_001",
             email: data.user?.email || email,
             username: data.user?.username || email.split("@")[0],
-            full_name: data.user?.full_name || "User",
-            role: data.user?.role || "buyer",
+            firstName: data.user?.firstName,
+            lastName: data.user?.lastName,
+            full_name:
+              data.user?.fullName ||
+              `${data.user?.firstName || ""} ${
+                data.user?.lastName || ""
+              }`.trim() ||
+              "User",
+            phone: data.user?.phone,
+            status: data.user?.status || "ACTIVE",
+            emailVerified: data.user?.emailVerified || false,
+            twoFactorEnabled: data.user?.twoFactorEnabled || false,
+            lastLoginAt: data.user?.lastLoginAt,
+            lastLoginIp: data.user?.lastLoginIp,
+            roles: data.user?.roles || ["CUSTOMER_USER"],
+            organizationId: data.user?.organizationId,
+            organizationName: data.user?.organizationName,
+            createdAt: data.user?.createdAt || new Date().toISOString(),
+            updatedAt: data.user?.updatedAt || new Date().toISOString(),
           };
+
+          // Extract organization info if available
+          const organization: Organization | null = data.organization
+            ? {
+                id: data.organization.id,
+                name: data.organization.name,
+                slug: data.organization.slug,
+                description: data.organization.description,
+                website: data.organization.website,
+                phone: data.organization.phone,
+                email: data.organization.email,
+                address: data.organization.address,
+                status: data.organization.status,
+                subscriptionPlan: data.organization.subscriptionPlan,
+                maxUsers: data.organization.maxUsers,
+                trialEndsAt: data.organization.trialEndsAt,
+                createdAt: data.organization.createdAt,
+                updatedAt: data.organization.updatedAt,
+              }
+            : null;
 
           set({
             user: user,
-            token: data.access_token,
+            organization: organization,
+            token: data.accessToken || data.token,
             isAuthenticated: true,
             isLoading: false,
             error: null,
@@ -104,18 +142,26 @@ export const useAuthStore = create<AuthStore>()(
       logout: () => {
         set({
           user: null,
+          organization: null,
           token: null,
           isAuthenticated: false,
           error: null,
         });
         // Clear localStorage
         localStorage.removeItem("auth-storage");
+        localStorage.removeItem("currentOrganization");
+        localStorage.removeItem("currentUser");
+        localStorage.removeItem("organizations");
         // Redirect to login page
         window.location.href = "/login";
       },
 
-      setUser: (user: User) => {
+      setUser: (user: AuthUser) => {
         set({ user });
+      },
+
+      setOrganization: (organization: Organization | null) => {
+        set({ organization });
       },
 
       setToken: (token: string) => {
@@ -129,11 +175,32 @@ export const useAuthStore = create<AuthStore>()(
       setLoading: (loading: boolean) => {
         set({ isLoading: loading });
       },
+
+      hasRole: (role: UserRole) => {
+        const { user } = get();
+        return user?.roles.includes(role) ?? false;
+      },
+
+      isAdmin: () => {
+        const { user } = get();
+        return user?.roles.includes("ADMIN") ?? false;
+      },
+
+      isCustomerAdmin: () => {
+        const { user } = get();
+        return user?.roles.includes("CUSTOMER_ADMIN") ?? false;
+      },
+
+      isCustomerUser: () => {
+        const { user } = get();
+        return user?.roles.includes("CUSTOMER_USER") ?? false;
+      },
     }),
     {
       name: "auth-storage",
       partialize: (state) => ({
         user: state.user,
+        organization: state.organization,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),

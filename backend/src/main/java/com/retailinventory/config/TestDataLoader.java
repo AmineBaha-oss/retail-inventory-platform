@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,10 @@ public class TestDataLoader implements CommandLineRunner {
     private final InventoryRepository inventoryRepository;
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final PurchaseOrderItemRepository purchaseOrderItemRepository;
+    private final OrganizationRepository organizationRepository;
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -47,9 +52,11 @@ public class TestDataLoader implements CommandLineRunner {
         long start = System.currentTimeMillis();
         log.info("[TestDataLoader] Loading enhanced test data...");
 
-        Map<String, Store> stores = createStores();
+        Map<String, Organization> organizations = createOrganizations();
+        Map<String, Store> stores = createStores(organizations);
         Map<String, Supplier> suppliers = createSuppliers();
         Map<String, Product> products = createProducts(suppliers);
+        createUsers(organizations);
         createInventory(stores, products);
         createPurchaseOrders(stores, suppliers, products);
 
@@ -57,16 +64,116 @@ public class TestDataLoader implements CommandLineRunner {
                 (System.currentTimeMillis()-start), storeRepository.count(), supplierRepository.count(), productRepository.count(), inventoryRepository.count(), purchaseOrderRepository.count());
     }
 
+    /* ----------------------- ORGANIZATIONS ----------------------- */
+    private Map<String, Organization> createOrganizations() {
+        List<Organization> list = List.of(
+            organization("Modern Boutique Corp", "modern-boutique", "Premium fashion retail chain", "https://modernboutique.com", "+1-555-0100", "info@modernboutique.com", "123 Fashion Ave", "New York", "NY", "10001", "USA", Organization.OrganizationStatus.ACTIVE, "premium", 50),
+            organization("EcoStyle Collective", "ecostyle-collective", "Sustainable fashion retailer", "https://ecostyle.com", "+1-555-0200", "hello@ecostyle.com", "456 Green St", "Portland", "OR", "97201", "USA", Organization.OrganizationStatus.ACTIVE, "standard", 25),
+            organization("Urban Threads Co", "urban-threads", "Casual wear retailer", "https://urbanthreads.com", "+1-555-0300", "contact@urbanthreads.com", "789 Urban Blvd", "Los Angeles", "CA", "90210", "USA", Organization.OrganizationStatus.TRIAL, "trial", 10)
+        );
+        organizationRepository.saveAll(list);
+        Map<String, Organization> map = new HashMap<>();
+        list.forEach(o -> map.put(o.getSlug(), o));
+        return map;
+    }
+
+    private Organization organization(String name, String slug, String description, String website, String phone, String email, String address1, String city, String state, String postal, String country, Organization.OrganizationStatus status, String plan, int maxUsers) {
+        Organization.Address address = Organization.Address.builder()
+            .addressLine1(address1)
+            .city(city)
+            .state(state)
+            .postalCode(postal)
+            .country(country)
+            .build();
+
+        return Organization.builder()
+            .name(name)
+            .slug(slug)
+            .description(description)
+            .website(website)
+            .phone(phone)
+            .email(email)
+            .address(address)
+            .status(status)
+            .subscriptionPlan(plan)
+            .maxUsers(maxUsers)
+            .trialEndsAt(status == Organization.OrganizationStatus.TRIAL ? LocalDateTime.now().plusDays(30) : null)
+            .build();
+    }
+
+    /* ----------------------- USERS ----------------------- */
+    private void createUsers(Map<String, Organization> organizations) {
+        // Ensure roles exist first
+        Role adminRole = roleRepository.findByName("ADMIN")
+            .orElseGet(() -> roleRepository.save(Role.builder()
+                .name("ADMIN")
+                .displayName("System Administrator")
+                .description("Full system access")
+                .isSystemRole(true)
+                .build()));
+        
+        Role customerAdminRole = roleRepository.findByName("CUSTOMER_ADMIN")
+            .orElseGet(() -> roleRepository.save(Role.builder()
+                .name("CUSTOMER_ADMIN")
+                .displayName("Customer Administrator")
+                .description("Organization administrator")
+                .isSystemRole(false)
+                .build()));
+        
+        Role customerUserRole = roleRepository.findByName("CUSTOMER_USER")
+            .orElseGet(() -> roleRepository.save(Role.builder()
+                .name("CUSTOMER_USER")
+                .displayName("Customer User")
+                .description("Regular organization user")
+                .isSystemRole(false)
+                .build()));
+
+        List<User> users = List.of(
+            // System admin
+            user("admin@system.com", "admin", "System", "Administrator", "+1-555-0000", "admin123", Set.of(adminRole), null, User.UserStatus.ACTIVE, true),
+            
+            // Modern Boutique Corp users
+            user("ceo@modernboutique.com", "ceo", "Emma", "Rodriguez", "+1-555-0101", "password123", Set.of(customerAdminRole), organizations.get("modern-boutique"), User.UserStatus.ACTIVE, true),
+            user("manager@modernboutique.com", "manager", "James", "Chen", "+1-555-0102", "password123", Set.of(customerUserRole), organizations.get("modern-boutique"), User.UserStatus.ACTIVE, true),
+            user("staff@modernboutique.com", "staff", "Sophia", "Williams", "+1-555-0103", "password123", Set.of(customerUserRole), organizations.get("modern-boutique"), User.UserStatus.ACTIVE, true),
+            
+            // EcoStyle Collective users
+            user("admin@ecostyle.com", "ecoadmin", "Maya", "Patel", "+1-555-0201", "password123", Set.of(customerAdminRole), organizations.get("ecostyle-collective"), User.UserStatus.ACTIVE, true),
+            user("user@ecostyle.com", "ecouser", "Riley", "Park", "+1-555-0202", "password123", Set.of(customerUserRole), organizations.get("ecostyle-collective"), User.UserStatus.ACTIVE, true),
+            
+            // Urban Threads Co users (trial)
+            user("admin@urbanthreads.com", "urbanadmin", "Carlos", "Mendez", "+1-555-0301", "password123", Set.of(customerAdminRole), organizations.get("urban-threads"), User.UserStatus.ACTIVE, true),
+            user("user@urbanthreads.com", "urbanuser", "Maya", "Johnson", "+1-555-0302", "password123", Set.of(customerUserRole), organizations.get("urban-threads"), User.UserStatus.PENDING_VERIFICATION, false)
+        );
+        
+        userRepository.saveAll(users);
+    }
+
+    private User user(String email, String username, String firstName, String lastName, String phone, String password, Set<Role> roles, Organization organization, User.UserStatus status, Boolean emailVerified) {
+        return User.builder()
+            .email(email)
+            .username(username)
+            .firstName(firstName)
+            .lastName(lastName)
+            .phone(phone)
+            .passwordHash(passwordEncoder.encode(password)) // Properly hash the password
+            .roles(roles)
+            .organization(organization)
+            .status(status)
+            .emailVerified(emailVerified)
+            .build();
+    }
+
     /* ----------------------- STORES ----------------------- */
-    private Map<String, Store> createStores() {
+    private Map<String, Store> createStores(Map<String, Organization> organizations) {
         List<Store> list = List.of(
-                store("NYC001","SoHo Flagship","Emma Rodriguez","soho@modernboutique.com","+1-212-555-0100","125 Spring Street","New York","USA","America/New_York", Store.StoreStatus.ACTIVE),
-                store("LA001","Beverly Hills Premium","James Chen","beverlyhills@modernboutique.com","+1-310-555-0101","9600 Wilshire Blvd","Beverly Hills","USA","America/Los_Angeles", Store.StoreStatus.ACTIVE),
-                store("CHI001","Magnificent Mile","Sophia Williams","chicago@modernboutique.com","+1-312-555-0102","663 N Michigan Ave","Chicago","USA","America/Chicago", Store.StoreStatus.ACTIVE),
-                store("MIA001","Design District","Carlos Mendez","miami@modernboutique.com","+1-305-555-0103","140 NE 39th Street","Miami","USA","America/New_York", Store.StoreStatus.ACTIVE),
-                store("SEA001","Capitol Hill","Riley Park","seattle@modernboutique.com","+1-206-555-0104","1520 12th Avenue","Seattle","USA","America/Los_Angeles", Store.StoreStatus.ACTIVE),
-                store("DAL001","Deep Ellum","Maya Johnson","dallas@modernboutique.com","+1-214-555-0105","2700 Main Street","Dallas","USA","America/Chicago", Store.StoreStatus.ACTIVE),
-                store("OUT001","Factory Outlet","David Kim","outlet@modernboutique.com","+1-555-555-0106","100 Outlet Drive","Newark","USA","America/New_York", Store.StoreStatus.INACTIVE)
+                store("NYC001","SoHo Flagship","Emma Rodriguez","soho@modernboutique.com","+1-212-555-0100","125 Spring Street","New York","USA","America/New_York", Store.StoreStatus.ACTIVE, organizations.get("modern-boutique")),
+                store("LA001","Beverly Hills Premium","James Chen","beverlyhills@modernboutique.com","+1-310-555-0101","9600 Wilshire Blvd","Beverly Hills","USA","America/Los_Angeles", Store.StoreStatus.ACTIVE, organizations.get("modern-boutique")),
+                store("CHI001","Magnificent Mile","Sophia Williams","chicago@modernboutique.com","+1-312-555-0102","663 N Michigan Ave","Chicago","USA","America/Chicago", Store.StoreStatus.ACTIVE, organizations.get("modern-boutique")),
+                store("MIA001","Design District","Carlos Mendez","miami@modernboutique.com","+1-305-555-0103","140 NE 39th Street","Miami","USA","America/New_York", Store.StoreStatus.ACTIVE, organizations.get("modern-boutique")),
+                store("SEA001","Capitol Hill","Riley Park","seattle@modernboutique.com","+1-206-555-0104","1520 12th Avenue","Seattle","USA","America/Los_Angeles", Store.StoreStatus.ACTIVE, organizations.get("ecostyle-collective")),
+                store("DAL001","Deep Ellum","Maya Johnson","dallas@modernboutique.com","+1-214-555-0105","2700 Main Street","Dallas","USA","America/Chicago", Store.StoreStatus.ACTIVE, organizations.get("ecostyle-collective")),
+                store("OUT001","Factory Outlet","David Kim","outlet@modernboutique.com","+1-555-555-0106","100 Outlet Drive","Newark","USA","America/New_York", Store.StoreStatus.INACTIVE, organizations.get("urban-threads"))
         );
         storeRepository.saveAll(list);
         Map<String, Store> map = new HashMap<>();
@@ -74,10 +181,11 @@ public class TestDataLoader implements CommandLineRunner {
         return map;
     }
 
-    private Store store(String code, String name, String manager, String email, String phone, String address, String city, String country, String tz, Store.StoreStatus status) {
+    private Store store(String code, String name, String manager, String email, String phone, String address, String city, String country, String tz, Store.StoreStatus status, Organization organization) {
         return Store.builder()
                 .code(code).name(name).manager(manager).email(email).phone(phone)
                 .address(address).city(city).country(country).timezone(tz).status(status)
+                .organization(organization)
                 .build();
     }
 

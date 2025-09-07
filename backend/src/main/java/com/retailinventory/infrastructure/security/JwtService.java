@@ -38,6 +38,28 @@ public class JwtService {
     }
 
     /**
+     * Extract organization ID from JWT token
+     */
+    public String extractOrgId(String token) {
+        return extractClaim(token, claims -> claims.get("orgId", String.class));
+    }
+
+    /**
+     * Extract organization name from JWT token
+     */
+    public String extractOrgName(String token) {
+        return extractClaim(token, claims -> claims.get("orgName", String.class));
+    }
+
+    /**
+     * Extract roles from JWT token
+     */
+    @SuppressWarnings("unchecked")
+    public java.util.List<String> extractRoles(String token) {
+        return extractClaim(token, claims -> claims.get("roles", java.util.List.class));
+    }
+
+    /**
      * Extract claim from JWT token
      */
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -57,6 +79,28 @@ public class JwtService {
      */
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
         return buildToken(extraClaims, userDetails, jwtExpiration);
+    }
+
+    /**
+     * Generate JWT token with organization information
+     */
+    public String generateTokenWithOrganization(UserDetails userDetails) {
+        Map<String, Object> claims = new HashMap<>();
+        
+        if (userDetails instanceof com.retailinventory.domain.entity.User user) {
+            // Add organization ID if user belongs to one
+            if (user.getOrganization() != null) {
+                claims.put("orgId", user.getOrganization().getId().toString());
+                claims.put("orgName", user.getOrganization().getName());
+            }
+            
+            // Add role names
+            claims.put("roles", user.getRoles().stream()
+                .map(role -> role.getName())
+                .toList());
+        }
+        
+        return buildToken(claims, userDetails, jwtExpiration);
     }
 
     /**

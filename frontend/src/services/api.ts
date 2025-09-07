@@ -21,6 +21,11 @@ import {
   PurchaseOrderCreateRequest,
   PurchaseOrderUpdateRequest,
   PaginatedResponse,
+  Organization,
+  OrganizationUserResponse,
+  OrganizationUserCreateRequest,
+  OrganizationUserUpdateRequest,
+  User,
 } from "../types/api";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
@@ -37,7 +42,7 @@ const api = axios.create({
   timeout: 10000, // 10 second timeout
 });
 
-// Request interceptor to add auth token and cache busting
+// Request interceptor to add auth token, organization header, and cache busting
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem("auth-storage")
     ? JSON.parse(localStorage.getItem("auth-storage")!).token
@@ -45,6 +50,17 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // Add organization header if available
+  const organization = localStorage.getItem("currentOrganization");
+  if (organization && config.headers) {
+    try {
+      const orgData = JSON.parse(organization);
+      config.headers["X-Organization-Id"] = orgData.id;
+    } catch (error) {
+      console.warn("Failed to parse organization data:", error);
+    }
   }
 
   // Add cache busting timestamp to all requests
@@ -224,6 +240,84 @@ export const dashboardAPI = {
   getAtRiskItems: () => api.get("/api/v1/dashboard/at-risk"),
   getOpenPOs: () => api.get("/api/v1/dashboard/open-pos"),
   getRecentActivity: () => api.get("/api/v1/dashboard/recent-activity"),
+};
+
+// Organization Admin API
+export const organizationAPI = {
+  // Organization management
+  getCurrentOrganization: (): Promise<AxiosResponse<Organization>> =>
+    api.get("/organizations/current"),
+  updateOrganization: (
+    id: string,
+    data: Partial<Organization>
+  ): Promise<AxiosResponse<Organization>> =>
+    api.put(`/organizations/${id}`, data),
+
+  // User management within organization
+  getOrganizationUsers: (
+    orgId: string,
+    params?: any
+  ): Promise<AxiosResponse<PaginatedResponse<OrganizationUserResponse>>> =>
+    api.get(`/orgs/${orgId}/users`, { params }),
+  getOrganizationUser: (
+    orgId: string,
+    userId: string
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.get(`/orgs/${orgId}/users/${userId}`),
+  createOrganizationUser: (
+    orgId: string,
+    data: OrganizationUserCreateRequest
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.post(`/orgs/${orgId}/users`, data),
+  updateOrganizationUser: (
+    orgId: string,
+    userId: string,
+    data: OrganizationUserUpdateRequest
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.put(`/orgs/${orgId}/users/${userId}`, data),
+  activateUser: (
+    orgId: string,
+    userId: string
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.patch(`/orgs/${orgId}/users/${userId}/activate`),
+  deactivateUser: (
+    orgId: string,
+    userId: string
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.patch(`/orgs/${orgId}/users/${userId}/deactivate`),
+  suspendUser: (
+    orgId: string,
+    userId: string
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.patch(`/orgs/${orgId}/users/${userId}/suspend`),
+  deleteOrganizationUser: (
+    orgId: string,
+    userId: string
+  ): Promise<AxiosResponse<void>> =>
+    api.delete(`/orgs/${orgId}/users/${userId}`),
+};
+
+// Auth API
+export const authAPI = {
+  login: (
+    email: string,
+    password: string
+  ): Promise<
+    AxiosResponse<{
+      accessToken: string;
+      user: User;
+      organization?: Organization;
+    }>
+  > => api.post("/auth/login", { email, password }),
+  logout: (): Promise<AxiosResponse<void>> => api.post("/auth/logout"),
+  refreshToken: (): Promise<AxiosResponse<{ accessToken: string }>> =>
+    api.post("/auth/refresh"),
+  getCurrentUser: (): Promise<AxiosResponse<User>> => api.get("/auth/me"),
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ): Promise<AxiosResponse<void>> =>
+    api.post("/auth/change-password", { currentPassword, newPassword }),
 };
 
 // Export functions
