@@ -20,6 +20,11 @@ export interface Store extends BaseEntity {
   zipCode: string;
   country: string;
   isActive: boolean;
+  // API response fields
+  active?: boolean;
+  status?: string;
+  productCount?: number;
+  timezone?: string;
 }
 
 export interface StoreCreateRequest {
@@ -66,6 +71,10 @@ export interface Supplier extends BaseEntity {
   leadTimeDays?: number;
   minimumOrderValue?: number;
   paymentTerms?: string;
+  // API response fields
+  status?: string;
+  minOrderQuantity?: number;
+  minOrderValue?: number;
 }
 
 export interface SupplierCreateRequest {
@@ -104,7 +113,7 @@ export interface SupplierUpdateRequest {
 }
 
 // Product Types
-export type ProductStatus = 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED';
+export type ProductStatus = "ACTIVE" | "INACTIVE" | "DISCONTINUED";
 
 export interface Product extends BaseEntity {
   sku?: string; // Optional - auto-generated if not provided
@@ -189,17 +198,17 @@ export interface InventoryQuantityUpdateRequest {
 }
 
 // Purchase Order Types
-export type PurchaseOrderStatus = 
-  | 'DRAFT' 
-  | 'PENDING_APPROVAL' 
-  | 'APPROVED' 
-  | 'PROCESSING' 
-  | 'IN_TRANSIT' 
-  | 'DELIVERED' 
-  | 'CANCELLED' 
-  | 'REJECTED';
+export type PurchaseOrderStatus =
+  | "DRAFT"
+  | "PENDING_APPROVAL"
+  | "APPROVED"
+  | "PROCESSING"
+  | "IN_TRANSIT"
+  | "DELIVERED"
+  | "CANCELLED"
+  | "REJECTED";
 
-export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type Priority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export interface PurchaseOrder extends BaseEntity {
   poNumber?: string; // Optional - auto-generated if not provided

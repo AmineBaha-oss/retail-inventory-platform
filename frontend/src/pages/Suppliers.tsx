@@ -72,9 +72,17 @@ const formatSupplierForUI = (apiSupplier: APISupplier): UISupplier => ({
   city: apiSupplier.city || "—",
   country: apiSupplier.country || "—",
   totalOrders: 0, // TODO: Get from purchase orders API
-  totalValue: 0,  // TODO: Get from purchase orders API
-  lastOrder: apiSupplier.updatedAt ? new Date(apiSupplier.updatedAt).toLocaleDateString() : "—",
-  status: apiSupplier.isActive ? "Active" : "Inactive" as SupplierStatus,
+  totalValue: 0, // TODO: Get from purchase orders API
+  lastOrder: apiSupplier.updatedAt
+    ? new Date(apiSupplier.updatedAt).toLocaleDateString()
+    : "—",
+  status:
+    apiSupplier.status === "ACTIVE"
+      ? "Active"
+      : apiSupplier.status === "SUSPENDED"
+      ? "Inactive"
+      : ("Inactive" as SupplierStatus),
+  isActive: apiSupplier.status === "ACTIVE",
 });
 
 const emptyNewSupplier: NewSupplier = {
@@ -161,8 +169,12 @@ export default function Suppliers() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [newSupplier, setNewSupplier] = useState<Partial<NewSupplier>>({});
-  const [editingSupplier, setEditingSupplier] = useState<UISupplier | null>(null);
-  const [deletingSupplier, setDeletingSupplier] = useState<UISupplier | null>(null);
+  const [editingSupplier, setEditingSupplier] = useState<UISupplier | null>(
+    null
+  );
+  const [deletingSupplier, setDeletingSupplier] = useState<UISupplier | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const cancelRef = useRef(null);
   const toast = useToast();
@@ -179,12 +191,14 @@ export default function Suppliers() {
 
       // Handle paginated response
       let suppliersData: APISupplier[];
-      if ('content' in response.data) {
+      if ("content" in response.data) {
         // Paginated response
         suppliersData = response.data.content;
       } else {
         // Non-paginated response (fallback)
-        suppliersData = Array.isArray(response.data) ? response.data : [response.data];
+        suppliersData = Array.isArray(response.data)
+          ? response.data
+          : [response.data];
       }
 
       const transformedData = suppliersData.map(formatSupplierForUI);
@@ -239,7 +253,7 @@ export default function Suppliers() {
       setSuppliers((prev) => [created, ...prev]);
       setNewSupplier({});
       setIsModalOpen(false);
-      
+
       showSuccess(`Supplier "${created.name}" created successfully`);
     } catch (error) {
       console.error("Failed to create supplier:", error);
@@ -254,7 +268,7 @@ export default function Suppliers() {
 
   const handleUpdateSupplier = async () => {
     if (!editingSupplier) return;
-    
+
     try {
       setIsLoading(true);
       const updateRequest = {
@@ -270,28 +284,33 @@ export default function Suppliers() {
         isActive: editingSupplier.status === "Active",
       };
 
-      const response = await supplierAPI.update(editingSupplier.id, updateRequest);
+      const response = await supplierAPI.update(
+        editingSupplier.id,
+        updateRequest
+      );
       const updated = formatSupplierForUI(response.data);
 
-      setSuppliers((prev) => 
-        prev.map(supplier => supplier.id === updated.id ? updated : supplier)
+      setSuppliers((prev) =>
+        prev.map((supplier) =>
+          supplier.id === updated.id ? updated : supplier
+        )
       );
       setEditingSupplier(null);
       setIsEditModalOpen(false);
 
       toast({
-        title: 'Supplier updated successfully',
+        title: "Supplier updated successfully",
         description: `${updated.name} has been updated`,
-        status: 'success',
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (error) {
       console.error("Failed to update supplier:", error);
       toast({
-        title: 'Error updating supplier',
-        description: 'Failed to update supplier. Please try again.',
-        status: 'error',
+        title: "Error updating supplier",
+        description: "Failed to update supplier. Please try again.",
+        status: "error",
         duration: 5000,
         isClosable: true,
       });
@@ -307,30 +326,30 @@ export default function Suppliers() {
 
   const confirmDeleteSupplier = async () => {
     if (!deletingSupplier) return;
-    
+
     try {
       setIsLoading(true);
       await supplierAPI.delete(deletingSupplier.id);
 
-      setSuppliers((prev) => 
-        prev.filter(supplier => supplier.id !== deletingSupplier.id)
+      setSuppliers((prev) =>
+        prev.filter((supplier) => supplier.id !== deletingSupplier.id)
       );
       setDeletingSupplier(null);
       setIsDeleteAlertOpen(false);
 
       toast({
-        title: 'Supplier deleted successfully',
+        title: "Supplier deleted successfully",
         description: `${deletingSupplier.name} has been removed`,
-        status: 'success',
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (error) {
       console.error("Failed to delete supplier:", error);
       toast({
-        title: 'Error deleting supplier',
-        description: 'Failed to delete supplier. Please try again.',
-        status: 'error',
+        title: "Error deleting supplier",
+        description: "Failed to delete supplier. Please try again.",
+        status: "error",
         duration: 5000,
         isClosable: true,
       });
@@ -703,7 +722,11 @@ export default function Suppliers() {
       </Modal>
 
       {/* Edit Supplier Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} size="xl">
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        size="xl"
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Edit Supplier</ModalHeader>
@@ -724,8 +747,11 @@ export default function Suppliers() {
                     <FormLabel>Supplier Name</FormLabel>
                     <Input
                       value={editingSupplier.name}
-                      onChange={(e) => 
-                        setEditingSupplier({...editingSupplier, name: e.target.value})
+                      onChange={(e) =>
+                        setEditingSupplier({
+                          ...editingSupplier,
+                          name: e.target.value,
+                        })
                       }
                     />
                   </FormControl>
@@ -736,8 +762,11 @@ export default function Suppliers() {
                     <FormLabel>Category</FormLabel>
                     <Select
                       value={editingSupplier.category}
-                      onChange={(e) => 
-                        setEditingSupplier({...editingSupplier, category: e.target.value})
+                      onChange={(e) =>
+                        setEditingSupplier({
+                          ...editingSupplier,
+                          category: e.target.value,
+                        })
                       }
                     >
                       <option value="">Select Category</option>
@@ -745,15 +774,20 @@ export default function Suppliers() {
                       <option value="Electronics">Electronics</option>
                       <option value="Apparel">Apparel</option>
                       <option value="Home & Garden">Home & Garden</option>
-                      <option value="Sports & Recreation">Sports & Recreation</option>
+                      <option value="Sports & Recreation">
+                        Sports & Recreation
+                      </option>
                     </Select>
                   </FormControl>
                   <FormControl>
                     <FormLabel>Contact Person</FormLabel>
                     <Input
                       value={editingSupplier.contactPerson}
-                      onChange={(e) => 
-                        setEditingSupplier({...editingSupplier, contactPerson: e.target.value})
+                      onChange={(e) =>
+                        setEditingSupplier({
+                          ...editingSupplier,
+                          contactPerson: e.target.value,
+                        })
                       }
                     />
                   </FormControl>
@@ -764,8 +798,11 @@ export default function Suppliers() {
                     <FormLabel>Email</FormLabel>
                     <Input
                       value={editingSupplier.email}
-                      onChange={(e) => 
-                        setEditingSupplier({...editingSupplier, email: e.target.value})
+                      onChange={(e) =>
+                        setEditingSupplier({
+                          ...editingSupplier,
+                          email: e.target.value,
+                        })
                       }
                       type="email"
                     />
@@ -774,8 +811,11 @@ export default function Suppliers() {
                     <FormLabel>Phone</FormLabel>
                     <Input
                       value={editingSupplier.phone}
-                      onChange={(e) => 
-                        setEditingSupplier({...editingSupplier, phone: e.target.value})
+                      onChange={(e) =>
+                        setEditingSupplier({
+                          ...editingSupplier,
+                          phone: e.target.value,
+                        })
                       }
                     />
                   </FormControl>
@@ -785,8 +825,11 @@ export default function Suppliers() {
                   <FormLabel>Address</FormLabel>
                   <Input
                     value={editingSupplier.address}
-                    onChange={(e) => 
-                      setEditingSupplier({...editingSupplier, address: e.target.value})
+                    onChange={(e) =>
+                      setEditingSupplier({
+                        ...editingSupplier,
+                        address: e.target.value,
+                      })
                     }
                   />
                 </FormControl>
@@ -796,8 +839,11 @@ export default function Suppliers() {
                     <FormLabel>City</FormLabel>
                     <Input
                       value={editingSupplier.city}
-                      onChange={(e) => 
-                        setEditingSupplier({...editingSupplier, city: e.target.value})
+                      onChange={(e) =>
+                        setEditingSupplier({
+                          ...editingSupplier,
+                          city: e.target.value,
+                        })
                       }
                     />
                   </FormControl>
@@ -805,8 +851,11 @@ export default function Suppliers() {
                     <FormLabel>State</FormLabel>
                     <Input
                       value={editingSupplier.state}
-                      onChange={(e) => 
-                        setEditingSupplier({...editingSupplier, state: e.target.value})
+                      onChange={(e) =>
+                        setEditingSupplier({
+                          ...editingSupplier,
+                          state: e.target.value,
+                        })
                       }
                     />
                   </FormControl>
@@ -814,8 +863,11 @@ export default function Suppliers() {
                     <FormLabel>Country</FormLabel>
                     <Select
                       value={editingSupplier.country}
-                      onChange={(e) => 
-                        setEditingSupplier({...editingSupplier, country: e.target.value})
+                      onChange={(e) =>
+                        setEditingSupplier({
+                          ...editingSupplier,
+                          country: e.target.value,
+                        })
                       }
                     >
                       <option value="Canada">Canada</option>
@@ -829,7 +881,11 @@ export default function Suppliers() {
             )}
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={() => setIsEditModalOpen(false)}>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={() => setIsEditModalOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -858,15 +914,19 @@ export default function Suppliers() {
             </AlertDialogHeader>
 
             <AlertDialogBody>
-              Are you sure you want to delete "{deletingSupplier?.name}"? This action cannot be undone.
+              Are you sure you want to delete "{deletingSupplier?.name}"? This
+              action cannot be undone.
             </AlertDialogBody>
 
             <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsDeleteAlertOpen(false)}>
+              <Button
+                ref={cancelRef}
+                onClick={() => setIsDeleteAlertOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button 
-                colorScheme="red" 
+              <Button
+                colorScheme="red"
                 onClick={confirmDeleteSupplier}
                 isLoading={isLoading}
                 loadingText="Deleting..."

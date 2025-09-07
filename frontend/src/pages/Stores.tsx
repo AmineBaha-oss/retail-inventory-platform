@@ -69,12 +69,14 @@ type NewStore = StoreCreateRequest;
 const formatStoreForUI = (apiStore: APIStore): UIStore => ({
   ...apiStore,
   manager: apiStore.manager || "—",
-  totalProducts: 0, // TODO: Get from inventory API
+  totalProducts: (apiStore as any).productCount || 0,
   totalValue: 0, // TODO: Get from inventory API
   lastSync: apiStore.updatedAt
     ? new Date(apiStore.updatedAt).toLocaleString()
     : "—",
-  status: apiStore.isActive ? "Active" : ("Inactive" as StoreStatus),
+  status:
+    (apiStore as any).active === true ? "Active" : ("Inactive" as StoreStatus),
+  isActive: (apiStore as any).active === true,
 });
 
 const emptyNewStore: NewStore = {

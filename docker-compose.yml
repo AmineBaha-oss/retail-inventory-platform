@@ -52,20 +52,22 @@ services:
       - ML_SERVICE_URL=http://ml-api:8000
       - JWT_SECRET=your-secret-key-here-change-in-production-that-is-long-enough-for-jwt-hmac-sha256-algorithm
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
+      - postgres
+      - redis
     networks:
       - retail_network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/actuator/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/api/actuator/health || exit 1",
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
     volumes:
       - ./database/init:/docker-entrypoint-initdb.d
-
 
   # ML API (Python FastAPI)
   ml-api:
