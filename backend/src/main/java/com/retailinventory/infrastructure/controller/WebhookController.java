@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
-import java.util.Map;
 
 /**
  * Controller for handling webhooks from external systems (Shopify, Lightspeed, etc.).

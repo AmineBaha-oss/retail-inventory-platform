@@ -24,13 +24,13 @@ public interface InventoryRepository extends JpaRepository<Inventory, UUID> {
     @Query("SELECT i FROM Inventory i WHERE i.product.id = :productId ORDER BY i.recordedAt DESC")
     List<Inventory> findByProduct(@Param("productId") UUID productId);
     
-    @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId AND i.quantityAvailable <= i.reorderPoint")
+    @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId AND (i.quantityOnHand - i.quantityReserved) <= i.reorderPoint")
     List<Inventory> findLowStockByStore(@Param("storeId") UUID storeId);
     
-    @Query("SELECT i FROM Inventory i WHERE i.quantityAvailable <= 0")
+    @Query("SELECT i FROM Inventory i WHERE (i.quantityOnHand - i.quantityReserved) <= 0")
     List<Inventory> findStockOuts();
     
-    @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId AND i.quantityAvailable <= 0")
+    @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId AND (i.quantityOnHand - i.quantityReserved) <= 0")
     List<Inventory> findStockOutsByStore(@Param("storeId") UUID storeId);
     
     @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId AND " +
@@ -45,11 +45,14 @@ public interface InventoryRepository extends JpaRepository<Inventory, UUID> {
            "AND i.recordedAt = (SELECT MAX(i2.recordedAt) FROM Inventory i2 WHERE i2.store.id = i.store.id AND i2.product.id = i.product.id)")
     Double calculateTotalInventoryValueByStore(@Param("storeId") UUID storeId);
     
-    @Query("SELECT COUNT(DISTINCT i.product.id) FROM Inventory i WHERE i.store.id = :storeId AND i.quantityAvailable <= i.reorderPoint")
+    @Query("SELECT COUNT(DISTINCT i.product.id) FROM Inventory i WHERE i.store.id = :storeId AND (i.quantityOnHand - i.quantityReserved) <= i.reorderPoint")
     Long countLowStockItemsByStore(@Param("storeId") UUID storeId);
     
-    @Query("SELECT COUNT(DISTINCT i.product.id) FROM Inventory i WHERE i.store.id = :storeId AND i.quantityAvailable <= 0")
+    @Query("SELECT COUNT(DISTINCT i.product.id) FROM Inventory i WHERE i.store.id = :storeId AND (i.quantityOnHand - i.quantityReserved) <= 0")
     Long countStockOutsByStore(@Param("storeId") UUID storeId);
+    
+    @Query("SELECT COUNT(DISTINCT i.product.id) FROM Inventory i WHERE i.store.id = :storeId")
+    Integer countDistinctProductsByStore(@Param("storeId") UUID storeId);
     
     boolean existsByIdempotencyKey(String idempotencyKey);
     
@@ -60,9 +63,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, UUID> {
     @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId")
     List<Inventory> findByStoreId(@Param("storeId") UUID storeId);
     
-    @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId AND i.quantityAvailable <= i.reorderPoint")
+    @Query("SELECT i FROM Inventory i WHERE i.store.id = :storeId AND (i.quantityOnHand - i.quantityReserved) <= i.reorderPoint")
     List<Inventory> findLowStockByStoreId(@Param("storeId") UUID storeId);
     
-    @Query("SELECT i FROM Inventory i WHERE i.quantityAvailable <= i.reorderPoint")
+    @Query("SELECT i FROM Inventory i WHERE (i.quantityOnHand - i.quantityReserved) <= i.reorderPoint")
     List<Inventory> findLowStock();
 }

@@ -9,6 +9,7 @@ import com.retailinventory.domain.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -56,6 +57,7 @@ public class MlApiService {
             .bodyToMono(Map.class)
             .flatMap(response -> {
                 // Parse the response and create Forecast entities
+                @SuppressWarnings("unchecked")
                 List<Map<String, Object>> forecastData = (List<Map<String, Object>>) response.get("forecast_data");
                 
                 // Get store and product entities
@@ -92,7 +94,7 @@ public class MlApiService {
     /**
      * Train a new forecasting model.
      */
-    public Mono<Map> trainModel(String storeId, String productId, 
+    public Mono<Map<String, Object>> trainModel(String storeId, String productId, 
                                List<Map<String, Object>> salesData) {
         log.info("Training model for store: {}, product: {}", storeId, productId);
 
@@ -107,7 +109,7 @@ public class MlApiService {
             .uri("/api/v1/forecasting/train")
             .bodyValue(requestPayload)
             .retrieve()
-            .bodyToMono(Map.class)
+            .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
             .doOnSuccess(response -> log.info("Model trained successfully for store: {}, product: {}", 
                 storeId, productId))
             .doOnError(error -> log.error("Error training model for store: {}, product: {}", 
@@ -117,12 +119,12 @@ public class MlApiService {
     /**
      * Get model performance metrics.
      */
-    public Mono<Map> getModelPerformance(String storeId, String productId) {
+    public Mono<Map<String, Object>> getModelPerformance(String storeId, String productId) {
         return mlWebClient
             .get()
             .uri("/api/v1/forecasting/performance/{storeId}/{productId}", storeId, productId)
             .retrieve()
-            .bodyToMono(Map.class)
+            .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
             .doOnError(error -> log.error("Error getting model performance for store: {}, product: {}", 
                 storeId, productId, error));
     }

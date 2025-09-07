@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   SimpleGrid,
-  HStack,
   VStack,
-  Heading,
   Text,
   Card,
   CardBody,
@@ -36,358 +34,392 @@ import {
   FormControl,
   FormLabel,
   useToast,
-  useDisclosure,
+  Spinner,
+  Alert,
+  AlertIcon,
   AlertDialog,
   AlertDialogBody,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
+  HStack,
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
-import { FiPlus, FiEdit3, FiTrash2, FiAlertTriangle } from "react-icons/fi";
-import { useRef } from "react";
 import PageHeader from "../components/ui/PageHeader";
 import { FiPackage } from "react-icons/fi";
 import SectionCard from "../components/ui/SectionCard";
-import DataTable from "../components/ui/DataTable";
 import { inventoryAPI } from "../services/api";
-import { showSuccess, showError, showInfo, debounce } from "../utils/helpers";
-import { useLocation } from "react-router-dom";
+import { Inventory as APIInventory, InventoryCreateRequest } from "../types/api";
 
-type InventoryItem = {
-  id: string;
-  sku: string;
-  name: string;
-  store: string;
-  quantity: number;
-  reorderPoint: number;
+type InventoryStatus = "Healthy" | "Low" | "Critical";
+
+// UI Inventory type extends API Inventory with computed fields
+type UIInventory = APIInventory & {
+  status: InventoryStatus;
   daysUntilStockout: number;
-  status: "Healthy" | "Low" | "Critical";
-  lastUpdated: string;
   forecastedDemand?: number;
   leadTime?: number;
 };
 
-// Demo data with more realistic inventory items
-const initialInventory: InventoryItem[] = [
+type NewInventory = InventoryCreateRequest;
+
+// Convert API Inventory to UI Inventory format
+const formatInventoryForUI = (apiInventory: APIInventory): UIInventory => {
+  const quantity = apiInventory.quantityOnHand || 0;
+  const reorderLevel = apiInventory.reorderLevel || 10;
+  
+  let status: InventoryStatus = "Healthy";
+  if (quantity <= 0) status = "Critical";
+  else if (quantity <= reorderLevel) status = "Low";
+  
+  return {
+    ...apiInventory,
+    status,
+    daysUntilStockout: quantity > 0 ? Math.floor(quantity / 2) : 0, // Simple estimation
+    forecastedDemand: undefined, // TODO: Get from forecasting API
+    leadTime: undefined, // TODO: Get from supplier API
+  };
+};
+
+const emptyNewInventory: NewInventory = {
+  storeId: "",
+  productId: "",
+  quantityOnHand: 0,
+  reorderLevel: 10,
+  maxStockLevel: 100,
+  unitCost: 0,
+};
+
+// Demo data fallback
+const initialInventory: UIInventory[] = [
   {
-    id: "1",
-    sku: "TEE-Black-S",
-    name: "Black T-Shirt (Small)",
-    store: "Downtown",
-    quantity: 45,
-    reorderPoint: 20,
-    daysUntilStockout: 12,
+    id: "demo-1",
+    storeId: "store-1",
+    storeCode: "DT001",
+    storeName: "Downtown",
+    productId: "product-1", 
+    productSku: "TEE-Black-S",
+    productName: "Black T-Shirt (Small)",
+    quantityOnHand: 45,
+    reservedQuantity: 5,
+    reorderLevel: 20,
+    maxStockLevel: 100,
+    unitCost: 12.50,
+    totalValue: 562.50,
+    lastUpdated: "2024-01-20T10:30:00",
     status: "Healthy",
-    lastUpdated: "2024-01-15",
-    forecastedDemand: 3.2,
-    leadTime: 14,
-  },
-  {
-    id: "2",
-    sku: "JKT-Navy-M",
-    name: "Navy Jacket (Medium)",
-    store: "Longueuil",
-    quantity: 8,
-    reorderPoint: 15,
-    daysUntilStockout: 3,
-    status: "Critical",
-    lastUpdated: "2024-01-15",
-    forecastedDemand: 2.1,
-    leadTime: 21,
-  },
-  {
-    id: "3",
-    sku: "SHO-Brown-42",
-    name: "Brown Shoes (42)",
-    store: "Plateau",
-    quantity: 0,
-    reorderPoint: 10,
-    daysUntilStockout: 0,
-    status: "Critical",
-    lastUpdated: "2024-01-15",
-    forecastedDemand: 1.8,
-    leadTime: 28,
-  },
-  {
-    id: "4",
-    sku: "PANT-Khaki-32",
-    name: "Khaki Pants (32)",
-    store: "Downtown",
-    quantity: 22,
-    reorderPoint: 25,
-    daysUntilStockout: 8,
-    status: "Low",
-    lastUpdated: "2024-01-15",
-    forecastedDemand: 2.8,
-    leadTime: 18,
-  },
-  {
-    id: "5",
-    sku: "HAT-Red-L",
-    name: "Red Baseball Cap (Large)",
-    store: "Longueuil",
-    quantity: 35,
-    reorderPoint: 30,
-    daysUntilStockout: 15,
-    status: "Healthy",
-    lastUpdated: "2024-01-15",
-    forecastedDemand: 1.5,
-    leadTime: 12,
+    daysUntilStockout: 22,
+    forecastedDemand: 2,
+    leadTime: 7,
+    createdAt: "2024-01-01T00:00:00",
+    updatedAt: "2024-01-20T10:30:00",
   },
 ];
 
-export default function Inventory() {
-  const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
+const Inventory: React.FC = () => {
+  // State
+  const [inventory, setInventory] = useState<UIInventory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [storeFilter, setStoreFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"" | InventoryStatus>("");
+  const [storeFilter, setStoreFilter] = useState<string>("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Partial<InventoryItem>>({});
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [newInventory, setNewInventory] = useState<NewInventory>(emptyNewInventory);
+  const [editingInventory, setEditingInventory] = useState<UIInventory | null>(null);
+  const [deletingInventory, setDeletingInventory] = useState<UIInventory | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const cancelRef = useRef(null);
   const toast = useToast();
-  const location = useLocation();
-  const cancelRef = useRef<HTMLButtonElement>(null);
 
-  // Get filters from navigation state (when coming from dashboard)
-  useEffect(() => {
-    if (location.state) {
-      const {
-        search: searchFilter,
-        storeFilter: storeFilterState,
-        statusFilter: statusFilterState,
-      } = location.state;
-      if (searchFilter) setSearch(searchFilter);
-      if (storeFilterState) setStoreFilter(storeFilterState);
-      if (statusFilterState) setStatusFilter(statusFilterState);
+  // Load inventory from API
+  const fetchInventory = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await inventoryAPI.getAll();
+
+      // The response is always paginated from Spring Boot
+      let inventoryData: APIInventory[];
+      if ('content' in response.data) {
+        // Paginated response
+        inventoryData = response.data.content;
+      } else {
+        // Non-paginated response (fallback)
+        inventoryData = Array.isArray(response.data) ? response.data : [response.data];
+      }
+
+      const formattedInventory = inventoryData.map(formatInventoryForUI);
+      setInventory(formattedInventory);
+
+      toast({
+        title: 'Inventory loaded successfully',
+        description: `Loaded ${formattedInventory.length} inventory items`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch inventory';
+      setError(errorMessage);
+      setInventory(initialInventory); // Fallback to demo data
+      toast({
+        title: 'Error loading inventory',
+        description: errorMessage + '. Showing demo data.',
+        status: 'warning',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
     }
-  }, [location.state]);
+  };
 
-  // Debounced search function
-  const debouncedSearch = debounce((searchTerm: string) => {
-    setSearch(searchTerm);
-  }, 300);
+  // Load inventory on component mount
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
-  const filteredInventory = inventory.filter(
-    (item) =>
-      (item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.sku.toLowerCase().includes(search.toLowerCase())) &&
-      (storeFilter === "" || item.store === storeFilter) &&
-      (statusFilter === "" || item.status === statusFilter)
-  );
-
+  // Computed values
   const totalItems = inventory.length;
-  const healthyCount = inventory.filter(
-    (item) => item.status === "Healthy"
-  ).length;
-  const lowCount = inventory.filter((item) => item.status === "Low").length;
-  const criticalCount = inventory.filter(
-    (item) => item.status === "Critical"
-  ).length;
+  const lowStockItems = inventory.filter((item: UIInventory) => item.status === "Low").length;
+  const criticalItems = inventory.filter((item: UIInventory) => item.status === "Critical").length;
+  const totalValue = inventory.reduce((sum: number, item: UIInventory) => sum + (item.totalValue || 0), 0);
 
-  // Handle search
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    debouncedSearch(e.target.value);
+  // Filtering
+  const filteredInventory = inventory.filter((item: UIInventory) => {
+    const matchesSearch = item.productName?.toLowerCase().includes(search.toLowerCase()) ||
+                         item.productSku?.toLowerCase().includes(search.toLowerCase()) ||
+                         item.storeName?.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "" || item.status === statusFilter;
+    const matchesStore = storeFilter === "" || item.storeName === storeFilter;
+    return matchesSearch && matchesStatus && matchesStore;
+  });
+
+  // Event handlers
+  const handleInputChange = (field: keyof NewInventory, value: string | number) => {
+    setNewInventory((prev: NewInventory) => ({ 
+      ...prev, 
+      [field]: typeof value === 'string' && field !== 'storeId' && field !== 'productId' ? 
+        (field === 'quantityOnHand' || field === 'reorderLevel' || field === 'maxStockLevel' || field === 'unitCost' ? parseFloat(value) || 0 : value) : 
+        value 
+    }));
   };
 
-  // Handle clear filters
-  const handleClearFilters = () => {
-    setSearch("");
-    setStoreFilter("");
-    setStatusFilter("");
+  const handleCreateInventory = async () => {
+    try {
+      setIsSubmitting(true);
+      const response = await inventoryAPI.create(newInventory);
+      const created: UIInventory = formatInventoryForUI(response.data);
+
+      setInventory((prev: UIInventory[]) => [created, ...prev]);
+      setNewInventory(emptyNewInventory);
+      setIsModalOpen(false);
+
+      toast({
+        title: 'Inventory created successfully',
+        description: `${created.productName} inventory has been added`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to create inventory';
+      toast({
+        title: 'Error creating inventory',
+        description: errorMessage,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Handle edit item
-  const handleEditItem = (item: InventoryItem) => {
-    setEditingItem(item);
+  const handleEditInventory = (item: UIInventory) => {
+    setEditingInventory(item);
     setIsEditModalOpen(true);
   };
 
-  // Handle save edit
-  const handleSaveEdit = () => {
-    if (!editingItem.id) return;
+  const handleUpdateInventory = async () => {
+    if (!editingInventory) return;
 
-    setInventory((prev) =>
-      prev.map((item) =>
-        item.id === editingItem.id ? { ...item, ...editingItem } : item
-      )
-    );
-
-    showSuccess("Inventory item updated successfully!");
-    setIsEditModalOpen(false);
-    setEditingItem({});
-  };
-
-  // Handle delete item
-  const handleDeleteItem = (item: InventoryItem) => {
-    setSelectedItem(item);
-    setIsDeleteDialogOpen(true);
-  };
-
-  // Confirm delete
-  const confirmDelete = () => {
-    if (!selectedItem) return;
-
-    setInventory((prev) => prev.filter((item) => item.id !== selectedItem.id));
-    showSuccess("Inventory item deleted successfully!");
-    setIsDeleteDialogOpen(false);
-    setSelectedItem(null);
-  };
-
-  // Handle generate PO for critical items
-  const handleGeneratePO = async (item: InventoryItem) => {
     try {
-      setIsLoading(true);
-      showInfo(`Generating purchase order for ${item.sku}...`);
+      setIsSubmitting(true);
+      const updateRequest = {
+        productId: editingInventory.productId,
+        storeId: editingInventory.storeId,
+        quantityOnHand: editingInventory.quantityOnHand,
+        reorderLevel: editingInventory.reorderLevel,
+        maxStockLevel: editingInventory.maxStockLevel,
+        unitCost: editingInventory.unitCost,
+      };
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await inventoryAPI.update(editingInventory.id, updateRequest);
+      const updated: UIInventory = formatInventoryForUI(response.data);
 
-      showSuccess(
-        `Purchase order generated for ${item.sku}! Check Purchase Orders page.`
+      setInventory((prev: UIInventory[]) => 
+        prev.map(item => item.id === updated.id ? updated : item)
       );
-    } catch (error) {
-      showError("Failed to generate purchase order");
+      setEditingInventory(null);
+      setIsEditModalOpen(false);
+
+      toast({
+        title: 'Inventory updated successfully',
+        description: `${updated.productName} inventory has been updated`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to update inventory';
+      toast({
+        title: 'Error updating inventory',
+        description: errorMessage,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Handle refresh inventory data
-  const handleRefreshData = async () => {
+  const handleDeleteInventory = (item: UIInventory) => {
+    setDeletingInventory(item);
+    setIsDeleteAlertOpen(true);
+  };
+
+  const confirmDeleteInventory = async () => {
+    if (!deletingInventory) return;
+
     try {
-      setIsLoading(true);
-      showInfo("Refreshing inventory data...");
+      setIsSubmitting(true);
+      await inventoryAPI.delete(deletingInventory.id);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setInventory((prev: UIInventory[]) => 
+        prev.filter(item => item.id !== deletingInventory.id)
+      );
+      setDeletingInventory(null);
+      setIsDeleteAlertOpen(false);
 
-      showSuccess("Inventory data refreshed successfully!");
-    } catch (error) {
-      showError("Failed to refresh inventory data");
+      toast({
+        title: 'Inventory deleted successfully',
+        description: `${deletingInventory.productName} inventory has been deleted`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to delete inventory';
+      toast({
+        title: 'Error deleting inventory',
+        description: errorMessage,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
+
+  // Unique stores for filter
+  const uniqueStores = [...new Set(inventory.map((item: UIInventory) => item.storeName).filter(Boolean))];
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minH="400px">
+        <VStack spacing={4}>
+          <Spinner size="xl" color="blue.500" />
+          <Text>Loading inventory...</Text>
+        </VStack>
+      </Box>
+    );
+  }
+
+  if (error && inventory.length === 0) {
+    return (
+      <Box p={6}>
+        <Alert status="error">
+          <AlertIcon />
+          <VStack align="start" spacing={2}>
+            <Text fontWeight="bold">Failed to load inventory</Text>
+            <Text fontSize="sm">{error}</Text>
+            <Button size="sm" onClick={fetchInventory}>
+              Retry
+            </Button>
+          </VStack>
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
-    <>
+    <Box>
       <PageHeader
         title="Inventory Management"
-        subtitle="Monitor stock levels, identify at-risk items, and manage replenishment across all stores."
-        icon={<FiPackage />}
-        accentColor="var(--chakra-colors-orange-400)"
         actions={
-          <HStack spacing={3}>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefreshData}
-              isLoading={isLoading}
-              loadingText="Refreshing..."
-            >
-              Refresh Data
-            </Button>
-            <Button
-              colorScheme="brand"
-              size="sm"
-              leftIcon={<FiPlus />}
-              onClick={() => setIsEditModalOpen(true)}
-            >
-              Add Item
-            </Button>
-          </HStack>
+          <Button
+            leftIcon={<FiPackage />}
+            colorScheme="blue"
+            onClick={() => setIsModalOpen(true)}
+          >
+            Add Inventory
+          </Button>
         }
       />
 
-      {/* Summary Stats */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
+      {/* Stats Cards */}
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
+        <Card>
+          <CardBody>
             <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Total Items
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                {totalItems}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="gray.400">
-                Across all stores
+              <StatLabel>Total Items</StatLabel>
+              <StatNumber>{totalItems}</StatNumber>
+              <StatHelpText>
+                <StatArrow type="increase" />
+                Real-time data
               </StatHelpText>
             </Stat>
           </CardBody>
         </Card>
 
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
+        <Card>
+          <CardBody>
             <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Healthy Stock
-              </StatLabel>
-              <StatNumber color="green.400" fontSize="2xl" fontWeight="bold">
-                {healthyCount}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="green.300">
-                <StatArrow type="increase" /> Above reorder point
+              <StatLabel>Low Stock</StatLabel>
+              <StatNumber>{lowStockItems}</StatNumber>
+              <StatHelpText color={lowStockItems > 0 ? "orange.500" : "green.500"}>
+                Items needing attention
               </StatHelpText>
             </Stat>
           </CardBody>
         </Card>
 
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
+        <Card>
+          <CardBody>
             <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Low Stock
-              </StatLabel>
-              <StatNumber color="orange.400" fontSize="2xl" fontWeight="bold">
-                {lowCount}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="orange.300">
-                Near reorder point
+              <StatLabel>Critical Stock</StatLabel>
+              <StatNumber>{criticalItems}</StatNumber>
+              <StatHelpText color={criticalItems > 0 ? "red.500" : "green.500"}>
+                Items out of stock
               </StatHelpText>
             </Stat>
           </CardBody>
         </Card>
 
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
+        <Card>
+          <CardBody>
             <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Critical Stock
-              </StatLabel>
-              <StatNumber color="red.400" fontSize="2xl" fontWeight="bold">
-                {criticalCount}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="red.300">
-                Immediate action needed
+              <StatLabel>Total Value</StatLabel>
+              <StatNumber>${totalValue.toLocaleString()}</StatNumber>
+              <StatHelpText>
+                Inventory value
               </StatHelpText>
             </Stat>
           </CardBody>
@@ -395,281 +427,373 @@ export default function Inventory() {
       </SimpleGrid>
 
       {/* Inventory Table */}
-      <SectionCard title="Stock Levels">
-        <HStack
-          spacing={4}
-          align={{ base: "stretch", md: "center" }}
-          flexWrap="wrap"
-          mb={4}
-        >
-          <InputGroup maxW={{ base: "100%", md: "360px" }}>
-            <Input
-              placeholder="Search by SKU, name, store..."
-              defaultValue={search}
-              onChange={handleSearch}
-              bg="surfaceAlt"
-            />
-            <InputRightElement>
-              <IconButton
-                aria-label="search"
-                icon={<SearchIcon />}
-                size="sm"
-                variant="ghost"
+      <SectionCard title="Inventory Items">
+        <VStack spacing={4} align="stretch">
+          <HStack spacing={4}>
+            <InputGroup maxW="300px">
+              <Input
+                placeholder="Search inventory..."
+                value={search}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
               />
-            </InputRightElement>
-          </InputGroup>
+              <InputRightElement>
+                <IconButton
+                  aria-label="Search"
+                  icon={<SearchIcon />}
+                  size="sm"
+                  variant="ghost"
+                />
+              </InputRightElement>
+            </InputGroup>
 
-          <Select
-            maxW={{ base: "100%", md: "180px" }}
-            placeholder="Filter by store"
-            value={storeFilter}
-            onChange={(e) => setStoreFilter(e.target.value)}
-          >
-            <option value="Downtown">Downtown</option>
-            <option value="Longueuil">Longueuil</option>
-            <option value="Plateau">Plateau</option>
-          </Select>
+            <Select
+              placeholder="All Statuses"
+              maxW="150px"
+              value={statusFilter}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value as "" | InventoryStatus)}
+            >
+              <option value="Healthy">Healthy</option>
+              <option value="Low">Low</option>
+              <option value="Critical">Critical</option>
+            </Select>
 
-          <Select
-            maxW={{ base: "100%", md: "180px" }}
-            placeholder="Filter by status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="Healthy">Healthy</option>
-            <option value="Low">Low</option>
-            <option value="Critical">Critical</option>
-          </Select>
+            <Select
+              placeholder="All Stores"
+              maxW="150px"
+              value={storeFilter}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStoreFilter(e.target.value)}
+            >
+              {uniqueStores.map((store) => (
+                <option key={store} value={store}>
+                  {store}
+                </option>
+              ))}
+            </Select>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClearFilters}
-            isDisabled={!search && !storeFilter && !statusFilter}
-          >
-            Clear Filters
-          </Button>
-        </HStack>
+            <Button size="sm" onClick={fetchInventory}>
+              Refresh
+            </Button>
+          </HStack>
 
-        <DataTable
-          head={
-            <Tr>
-              <Th>SKU</Th>
-              <Th>Name</Th>
-              <Th>Store</Th>
-              <Th isNumeric>Quantity</Th>
-              <Th isNumeric>Reorder Point</Th>
-              <Th isNumeric>Days Left</Th>
-              <Th>Status</Th>
-              <Th>Actions</Th>
-            </Tr>
-          }
-        >
-          {filteredInventory.map((item) => (
-            <Tr key={`${item.sku}-${item.store}`} _odd={{ bg: "gray.850" }}>
-              <Td fontWeight="medium">{item.sku}</Td>
-              <Td>{item.name}</Td>
-              <Td>{item.store}</Td>
-              <Td isNumeric fontWeight="semibold">
-                {item.quantity}
-              </Td>
-              <Td isNumeric fontWeight="semibold">
-                {item.reorderPoint}
-              </Td>
-              <Td isNumeric fontWeight="semibold">
-                {item.daysUntilStockout}
-              </Td>
-              <Td>
-                <Badge
-                  colorScheme={
-                    item.status === "Healthy"
-                      ? "success"
-                      : item.status === "Low"
-                      ? "warning"
-                      : "error"
-                  }
-                  variant="solid"
-                >
-                  {item.status}
-                </Badge>
-              </Td>
-              <Td>
-                <HStack spacing={2}>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    colorScheme="blue"
-                    leftIcon={<FiEdit3 />}
-                    onClick={() => handleEditItem(item)}
-                  >
-                    Edit
-                  </Button>
-                  {item.status === "Critical" && (
-                    <Button
-                      size="sm"
-                      variant="solid"
-                      colorScheme="red"
-                      leftIcon={<FiAlertTriangle />}
-                      onClick={() => handleGeneratePO(item)}
-                      isLoading={isLoading}
-                    >
-                      Generate PO
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    colorScheme="red"
-                    leftIcon={<FiTrash2 />}
-                    onClick={() => handleDeleteItem(item)}
-                  >
-                    Delete
-                  </Button>
-                </HStack>
-              </Td>
-            </Tr>
-          ))}
-        </DataTable>
+          {/* Inventory Table */}
+          <Table variant="simple">
+            <Thead>
+              <Tr>
+                <Th>Product Details</Th>
+                <Th>Store</Th>
+                <Th>Stock Levels</Th>
+                <Th>Status</Th>
+                <Th>Value</Th>
+                <Th>Last Updated</Th>
+                <Th>Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {filteredInventory.length === 0 ? (
+                <Tr>
+                  <Td colSpan={7} textAlign="center" py={8}>
+                    {inventory.length === 0 ? 'No inventory items found. Add your first inventory item!' : 'No items match your filters.'}
+                  </Td>
+                </Tr>
+              ) : (
+                filteredInventory.map((item: UIInventory) => (
+                  <Tr key={item.id}>
+                    <Td>
+                      <VStack align="start" spacing={1}>
+                        <Text fontWeight="medium">{item.productName}</Text>
+                        <Text fontSize="sm" color="gray.600">
+                          SKU: {item.productSku}
+                        </Text>
+                      </VStack>
+                    </Td>
+                    <Td>
+                      <VStack align="start" spacing={1}>
+                        <Text fontSize="sm">{item.storeName}</Text>
+                        <Text fontSize="xs" color="gray.500">
+                          {item.storeCode}
+                        </Text>
+                      </VStack>
+                    </Td>
+                    <Td>
+                      <VStack align="start" spacing={1}>
+                        <Text fontSize="sm">On Hand: {item.quantityOnHand}</Text>
+                        <Text fontSize="sm" color="gray.600">
+                          Reorder: {item.reorderLevel}
+                        </Text>
+                        <Text fontSize="xs" color="gray.500">
+                          Max: {item.maxStockLevel}
+                        </Text>
+                      </VStack>
+                    </Td>
+                    <Td>
+                      <Badge
+                        colorScheme={
+                          item.status === "Healthy" ? "green" :
+                          item.status === "Low" ? "orange" : "red"
+                        }
+                        variant="subtle"
+                      >
+                        {item.status}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <VStack align="start" spacing={1}>
+                        <Text fontSize="sm">${(item.totalValue || 0).toLocaleString()}</Text>
+                        <Text fontSize="xs" color="gray.500">
+                          Unit: ${(item.unitCost || 0).toFixed(2)}
+                        </Text>
+                      </VStack>
+                    </Td>
+                    <Td>
+                      <Text fontSize="sm">
+                        {item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : "—"}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          colorScheme="blue"
+                          onClick={() => handleEditInventory(item)}
+                        >
+                          Edit
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          colorScheme="red"
+                          onClick={() => handleDeleteInventory(item)}
+                        >
+                          Delete
+                        </Button>
+                      </HStack>
+                    </Td>
+                  </Tr>
+                ))
+              )}
+            </Tbody>
+          </Table>
+        </VStack>
       </SectionCard>
 
-      {/* Edit/Add Modal */}
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        size="lg"
-      >
+      {/* Create Inventory Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="xl">
         <ModalOverlay />
-        <ModalContent bg="gray.800" border="1px solid" borderColor="gray.700">
-          <ModalHeader color="gray.100">
-            {editingItem.id ? "Edit Inventory Item" : "Add New Item"}
-          </ModalHeader>
-          <ModalCloseButton color="gray.400" />
+        <ModalContent>
+          <ModalHeader>Add New Inventory Item</ModalHeader>
+          <ModalCloseButton />
           <ModalBody>
-            <VStack spacing={4}>
-              <FormControl>
-                <FormLabel color="gray.200">SKU</FormLabel>
-                <Input
-                  value={editingItem.sku || ""}
-                  onChange={(e) =>
-                    setEditingItem({ ...editingItem, sku: e.target.value })
-                  }
-                  bg="gray.700"
-                  borderColor="gray.600"
-                  color="gray.100"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel color="gray.200">Name</FormLabel>
-                <Input
-                  value={editingItem.name || ""}
-                  onChange={(e) =>
-                    setEditingItem({ ...editingItem, name: e.target.value })
-                  }
-                  bg="gray.700"
-                  borderColor="gray.600"
-                  color="gray.100"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel color="gray.200">Store</FormLabel>
-                <Select
-                  value={editingItem.store || ""}
-                  onChange={(e) =>
-                    setEditingItem({ ...editingItem, store: e.target.value })
-                  }
-                  bg="gray.700"
-                  borderColor="gray.600"
-                  color="gray.100"
-                >
-                  <option value="Downtown">Downtown</option>
-                  <option value="Longueuil">Longueuil</option>
-                  <option value="Plateau">Plateau</option>
-                </Select>
-              </FormControl>
-              <FormControl>
-                <FormLabel color="gray.200">Quantity</FormLabel>
-                <Input
-                  type="number"
-                  value={editingItem.quantity || ""}
-                  onChange={(e) =>
-                    setEditingItem({
-                      ...editingItem,
-                      quantity: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  bg="gray.700"
-                  borderColor="gray.600"
-                  color="gray.100"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel color="gray.200">Reorder Point</FormLabel>
-                <Input
-                  type="number"
-                  value={editingItem.reorderPoint || ""}
-                  onChange={(e) =>
-                    setEditingItem({
-                      ...editingItem,
-                      reorderPoint: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  bg="gray.700"
-                  borderColor="gray.600"
-                  color="gray.100"
-                />
-              </FormControl>
+            <VStack spacing={4} align="stretch">
+              <HStack spacing={4}>
+                <FormControl isRequired>
+                  <FormLabel>Store ID</FormLabel>
+                  <Input
+                    value={newInventory.storeId}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("storeId", e.target.value)}
+                    placeholder="Store UUID"
+                  />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Product ID</FormLabel>
+                  <Input
+                    value={newInventory.productId}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("productId", e.target.value)}
+                    placeholder="Product UUID"
+                  />
+                </FormControl>
+              </HStack>
+
+              <HStack spacing={4}>
+                <FormControl isRequired>
+                  <FormLabel>Quantity on Hand</FormLabel>
+                  <Input
+                    type="number"
+                    value={newInventory.quantityOnHand}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("quantityOnHand", e.target.value)}
+                    placeholder="100"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Reorder Level</FormLabel>
+                  <Input
+                    type="number"
+                    value={newInventory.reorderLevel}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("reorderLevel", e.target.value)}
+                    placeholder="20"
+                  />
+                </FormControl>
+              </HStack>
+
+              <HStack spacing={4}>
+                <FormControl>
+                  <FormLabel>Max Stock Level</FormLabel>
+                  <Input
+                    type="number"
+                    value={newInventory.maxStockLevel}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("maxStockLevel", e.target.value)}
+                    placeholder="500"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Unit Cost</FormLabel>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={newInventory.unitCost}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("unitCost", e.target.value)}
+                    placeholder="25.50"
+                  />
+                </FormControl>
+              </HStack>
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button
-              variant="ghost"
-              mr={3}
-              onClick={() => setIsEditModalOpen(false)}
-            >
+            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button colorScheme="brand" onClick={handleSaveEdit}>
-              {editingItem.id ? "Update" : "Create"}
+            <Button
+              colorScheme="blue"
+              onClick={handleCreateInventory}
+              isLoading={isSubmitting}
+              loadingText="Creating..."
+              disabled={!newInventory.storeId || !newInventory.productId || !newInventory.quantityOnHand}
+            >
+              Create Inventory
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Edit Inventory Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Edit Inventory</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {editingInventory && (
+              <VStack spacing={4} align="stretch">
+                <HStack spacing={4}>
+                  <FormControl isRequired>
+                    <FormLabel>Product</FormLabel>
+                    <Input
+                      value={editingInventory.productName}
+                      isReadOnly
+                      bg="gray.50"
+                    />
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>Store</FormLabel>
+                    <Input
+                      value={editingInventory.storeName}
+                      isReadOnly
+                      bg="gray.50"
+                    />
+                  </FormControl>
+                </HStack>
+
+                <HStack spacing={4}>
+                  <FormControl isRequired>
+                    <FormLabel>Quantity on Hand</FormLabel>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={editingInventory.quantityOnHand}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                        setEditingInventory({...editingInventory, quantityOnHand: parseInt(e.target.value) || 0})
+                      }
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Reorder Level</FormLabel>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={editingInventory.reorderLevel}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                        setEditingInventory({...editingInventory, reorderLevel: parseInt(e.target.value) || 0})
+                      }
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Max Stock Level</FormLabel>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={editingInventory.maxStockLevel}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                        setEditingInventory({...editingInventory, maxStockLevel: parseInt(e.target.value) || 0})
+                      }
+                    />
+                  </FormControl>
+                </HStack>
+
+                <FormControl>
+                  <FormLabel>Unit Cost</FormLabel>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editingInventory.unitCost}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                      setEditingInventory({...editingInventory, unitCost: parseFloat(e.target.value) || 0})
+                    }
+                  />
+                </FormControl>
+              </VStack>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setIsEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="blue"
+              onClick={handleUpdateInventory}
+              isLoading={isSubmitting}
+              loadingText="Updating..."
+              disabled={!editingInventory?.quantityOnHand}
+            >
+              Update Inventory
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete Inventory Alert */}
       <AlertDialog
-        isOpen={isDeleteDialogOpen}
+        isOpen={isDeleteAlertOpen}
         leastDestructiveRef={cancelRef}
-        onClose={() => setIsDeleteDialogOpen(false)}
+        onClose={() => setIsDeleteAlertOpen(false)}
       >
         <AlertDialogOverlay>
-          <AlertDialogContent
-            bg="gray.800"
-            border="1px solid"
-            borderColor="gray.700"
-          >
-            <AlertDialogHeader fontSize="lg" fontWeight="bold" color="gray.100">
-              Delete Inventory Item
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Delete Inventory
             </AlertDialogHeader>
-
-            <AlertDialogBody color="gray.200">
-              Are you sure you want to delete {selectedItem?.name} (
-              {selectedItem?.sku})? This action cannot be undone.
+            <AlertDialogBody>
+              Are you sure you want to delete the inventory for "{deletingInventory?.productName}" at "{deletingInventory?.storeName}"? This action cannot be undone.
             </AlertDialogBody>
-
             <AlertDialogFooter>
-              <Button
-                ref={cancelRef}
-                onClick={() => setIsDeleteDialogOpen(false)}
-              >
+              <Button ref={cancelRef} onClick={() => setIsDeleteAlertOpen(false)}>
                 Cancel
               </Button>
-              <Button colorScheme="red" onClick={confirmDelete} ml={3}>
+              <Button
+                colorScheme="red"
+                onClick={confirmDeleteInventory}
+                ml={3}
+                isLoading={isSubmitting}
+                loadingText="Deleting..."
+              >
                 Delete
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialogOverlay>
       </AlertDialog>
-    </>
+    </Box>
   );
-}
+};
+
+export default Inventory;

@@ -13,7 +13,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update # was 'create' – switched to 'update' because schema + data now seeded via SQL init scripts
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect

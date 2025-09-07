@@ -295,9 +295,9 @@ export default function Profile() {
         mb={6}
       >
         <TabList>
-          <Tab leftIcon={<FiUser />}>Profile Information</Tab>
-          <Tab leftIcon={<FiMail />}>Preferences</Tab>
-          <Tab leftIcon={<FiShield />}>Security</Tab>
+          <Tab><HStack spacing={2}><FiUser /><Text>Profile Information</Text></HStack></Tab>
+          <Tab><HStack spacing={2}><FiMail /><Text>Preferences</Text></HStack></Tab>
+          <Tab><HStack spacing={2}><FiShield /><Text>Security</Text></HStack></Tab>
         </TabList>
 
         <TabPanels>
