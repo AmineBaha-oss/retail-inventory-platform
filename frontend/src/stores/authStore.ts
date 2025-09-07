@@ -130,6 +130,9 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
             error: null,
           });
+
+          // Redirect to dashboard after successful login
+          window.location.href = "/dashboard";
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : "Login failed",

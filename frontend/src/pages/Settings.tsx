@@ -1,199 +1,226 @@
 import React, { useState } from "react";
 import {
   Box,
-  SimpleGrid,
-  HStack,
   VStack,
-  Heading,
+  HStack,
   Text,
-  Card,
-  CardBody,
   Button,
   Switch,
+  Select,
+  Input,
   FormControl,
   FormLabel,
   FormHelperText,
-  Input,
-  Select,
-  Textarea,
   Divider,
   useToast,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
+  Icon,
   Badge,
+  SimpleGrid,
   Tabs,
   TabList,
   TabPanels,
   Tab,
   TabPanel,
+  Card,
+  CardHeader,
+  CardBody,
+  Heading,
+  Flex,
+  Spacer,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
   NumberInput,
   NumberInputField,
   NumberInputStepper,
   NumberIncrementStepper,
   NumberDecrementStepper,
+  Tooltip,
+  Progress,
 } from "@chakra-ui/react";
 import {
+  FiUser,
+  FiBell,
+  FiShield,
+  FiDatabase,
+  FiSettings,
   FiSave,
   FiRefreshCw,
+  FiInfo,
+  FiCheckCircle,
+  FiAlertTriangle,
+  FiClock,
+  FiGlobe,
+  FiMail,
+  FiSmartphone,
+  FiEye,
+  FiEyeOff,
   FiDownload,
   FiUpload,
-  FiShield,
-  FiBell,
-  FiDatabase,
-  FiGlobe,
-  FiUser,
-  FiLock,
-  FiMonitor,
+  FiTrash2,
 } from "react-icons/fi";
 import PageHeader from "../components/ui/PageHeader";
-import SectionCard from "../components/ui/SectionCard";
-import { showSuccess, showError, showInfo } from "../utils/helpers";
 
 export default function Settings() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("general");
-  const toast = useToast();
-
-  // Settings state
   const [settings, setSettings] = useState({
-    // General Settings
-    companyName: "Retail Inventory Platform",
-    timezone: "America/Toronto",
-    currency: "CAD",
+    // User Preferences
+    theme: "dark",
     language: "en",
+    timezone: "UTC",
     dateFormat: "MM/DD/YYYY",
+    currency: "USD",
 
-    // Notification Settings
+    // Notifications
     emailNotifications: true,
+    pushNotifications: false,
     lowStockAlerts: true,
-    poApprovalAlerts: true,
-    forecastAlerts: true,
-    alertFrequency: "daily",
+    orderUpdates: true,
+    weeklyReports: true,
+    systemUpdates: false,
 
-    // System Settings
-    autoSync: true,
-    syncInterval: 15,
-    dataRetention: 365,
-    backupEnabled: true,
-    backupFrequency: "weekly",
-
-    // Security Settings
+    // Security
     twoFactorAuth: false,
     sessionTimeout: 30,
     passwordExpiry: 90,
-    loginAttempts: 5,
+    loginAlerts: true,
+    deviceManagement: true,
 
-    // Integration Settings
-    posSync: true,
-    supplierApi: true,
-    analyticsEnabled: true,
-    webhookEnabled: false,
+    // Data & Privacy
+    dataRetention: 365,
+    analyticsTracking: true,
+    errorReporting: true,
+    dataExport: true,
+    dataBackup: true,
+
+    // System
+    autoRefresh: true,
+    refreshInterval: 5,
+    maxFileSize: 10,
+    cacheSize: 100,
+    logLevel: "info",
   });
 
-  // Handle setting change
+  const [activeTab, setActiveTab] = useState(0);
+  const [hasChanges, setHasChanges] = useState(false);
+  const toast = useToast();
+
   const handleSettingChange = (key: string, value: any) => {
     setSettings((prev) => ({
       ...prev,
       [key]: value,
     }));
+    setHasChanges(true);
   };
 
-  // Handle save settings
-  const handleSaveSettings = async () => {
-    try {
-      setIsLoading(true);
-      showInfo("Saving settings...");
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      showSuccess("Settings saved successfully!");
-    } catch (error) {
-      showError("Failed to save settings");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSave = () => {
+    setHasChanges(false);
+    toast({
+      title: "Settings saved successfully",
+      description: "Your preferences have been updated and applied.",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+      position: "top",
+    });
   };
 
-  // Handle reset settings
-  const handleResetSettings = async () => {
-    try {
-      setIsLoading(true);
-      showInfo("Resetting settings to defaults...");
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      showSuccess("Settings reset to defaults!");
-    } catch (error) {
-      showError("Failed to reset settings");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleReset = () => {
+    setSettings({
+      theme: "dark",
+      language: "en",
+      timezone: "UTC",
+      dateFormat: "MM/DD/YYYY",
+      currency: "USD",
+      emailNotifications: true,
+      pushNotifications: false,
+      lowStockAlerts: true,
+      orderUpdates: true,
+      weeklyReports: true,
+      systemUpdates: false,
+      twoFactorAuth: false,
+      sessionTimeout: 30,
+      passwordExpiry: 90,
+      loginAlerts: true,
+      deviceManagement: true,
+      dataRetention: 365,
+      analyticsTracking: true,
+      errorReporting: true,
+      dataExport: true,
+      dataBackup: true,
+      autoRefresh: true,
+      refreshInterval: 5,
+      maxFileSize: 10,
+      cacheSize: 100,
+      logLevel: "info",
+    });
+    setHasChanges(false);
+    toast({
+      title: "Settings reset to defaults",
+      description: "All settings have been restored to their default values.",
+      status: "info",
+      duration: 3000,
+      isClosable: true,
+      position: "top",
+    });
   };
 
-  // Handle export settings
-  const handleExportSettings = async () => {
-    try {
-      setIsLoading(true);
-      showInfo("Exporting settings...");
-
-      // Create JSON file
-      const settingsData = JSON.stringify(settings, null, 2);
-      const blob = new Blob([settingsData], { type: "application/json" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `settings-${new Date().toISOString().split("T")[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      showSuccess("Settings exported successfully!");
-    } catch (error) {
-      showError("Failed to export settings");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const SettingRow = ({
+    label,
+    description,
+    children,
+    isRequired = false,
+  }: {
+    label: string;
+    description?: string;
+    children: React.ReactNode;
+    isRequired?: boolean;
+  }) => (
+    <FormControl>
+      <HStack justify="space-between" align="flex-start">
+        <VStack align="start" spacing={1} flex={1}>
+          <HStack>
+            <FormLabel mb={0} fontSize="sm" fontWeight="medium">
+              {label}
+            </FormLabel>
+            {isRequired && (
+              <Badge colorScheme="red" size="sm">
+                Required
+              </Badge>
+            )}
+          </HStack>
+          {description && (
+            <Text fontSize="xs" color="gray.400">
+              {description}
+            </Text>
+          )}
+        </VStack>
+        <Box minW="200px">{children}</Box>
+      </HStack>
+    </FormControl>
+  );
 
   return (
-    <>
+    <VStack spacing={6} align="stretch">
       <PageHeader
         title="Settings"
-        subtitle="Configure application preferences, notifications, and system settings."
+        subtitle="Manage your application preferences, security settings, and system configuration"
         actions={
           <HStack spacing={3}>
             <Button
               variant="outline"
+              leftIcon={<Icon as={FiRefreshCw} />}
+              onClick={handleReset}
               size="sm"
-              leftIcon={<FiRefreshCw />}
-              onClick={handleResetSettings}
-              isLoading={isLoading}
-              loadingText="Resetting..."
             >
               Reset to Defaults
             </Button>
             <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<FiDownload />}
-              onClick={handleExportSettings}
-              isLoading={isLoading}
-              loadingText="Exporting..."
-            >
-              Export Settings
-            </Button>
-            <Button
               colorScheme="brand"
+              leftIcon={<Icon as={FiSave} />}
+              onClick={handleSave}
+              isDisabled={!hasChanges}
               size="sm"
-              leftIcon={<FiSave />}
-              onClick={handleSaveSettings}
-              isLoading={isLoading}
-              loadingText="Saving..."
             >
               Save Changes
             </Button>
@@ -201,418 +228,763 @@ export default function Settings() {
         }
       />
 
-      {/* Settings Tabs */}
+      {hasChanges && (
+        <Alert status="info" borderRadius="md">
+          <AlertIcon />
+          <AlertTitle>Unsaved changes detected!</AlertTitle>
+          <AlertDescription>
+            You have unsaved changes. Don't forget to save your settings.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Tabs
-        index={[
-          "general",
-          "notifications",
-          "system",
-          "security",
-          "integrations",
-        ].indexOf(activeTab)}
-        onChange={(index) => {
-          const tabs = [
-            "general",
-            "notifications",
-            "system",
-            "security",
-            "integrations",
-          ];
-          setActiveTab(tabs[index]);
-        }}
-        mb={6}
+        index={activeTab}
+        onChange={setActiveTab}
+        variant="enclosed"
+        colorScheme="brand"
       >
         <TabList>
-          <Tab><HStack spacing={2}><FiUser /><Text>General</Text></HStack></Tab>
-          <Tab><HStack spacing={2}><FiBell /><Text>Notifications</Text></HStack></Tab>
-          <Tab><HStack spacing={2}><FiMonitor /><Text>System</Text></HStack></Tab>
-          <Tab><HStack spacing={2}><FiShield /><Text>Security</Text></HStack></Tab>
-          <Tab><HStack spacing={2}><FiGlobe /><Text>Integrations</Text></HStack></Tab>
+          <Tab>
+            <Icon as={FiUser} mr={2} />
+            Personal
+          </Tab>
+          <Tab>
+            <Icon as={FiBell} mr={2} />
+            Notifications
+          </Tab>
+          <Tab>
+            <Icon as={FiShield} mr={2} />
+            Security
+          </Tab>
+          <Tab>
+            <Icon as={FiDatabase} mr={2} />
+            Data & Privacy
+          </Tab>
+          <Tab>
+            <Icon as={FiSettings} mr={2} />
+            System
+          </Tab>
         </TabList>
 
         <TabPanels>
-          {/* General Settings */}
-          <TabPanel p={0}>
-            <SectionCard title="General Settings">
-              <VStack spacing={6} align="stretch">
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                  <FormControl>
-                    <FormLabel>Company Name</FormLabel>
-                    <Input
-                      value={settings.companyName}
-                      onChange={(e) =>
-                        handleSettingChange("companyName", e.target.value)
-                      }
-                      placeholder="Enter company name"
-                    />
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>Timezone</FormLabel>
-                    <Select
-                      value={settings.timezone}
-                      onChange={(e) =>
-                        handleSettingChange("timezone", e.target.value)
-                      }
+          {/* Personal Settings */}
+          <TabPanel px={0} py={6}>
+            <VStack spacing={6} align="stretch">
+              <Card>
+                <CardHeader pb={3}>
+                  <Heading size="md" color="gray.100">
+                    <Icon as={FiUser} mr={2} />
+                    Personal Preferences
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mt={1}>
+                    Customize your personal experience and interface preferences
+                  </Text>
+                </CardHeader>
+                <CardBody pt={0}>
+                  <VStack spacing={6} align="stretch">
+                    <SettingRow
+                      label="Theme"
+                      description="Choose your preferred color scheme"
                     >
-                      <option value="America/Toronto">
-                        Eastern Time (Toronto)
-                      </option>
-                      <option value="America/New_York">
-                        Eastern Time (New York)
-                      </option>
-                      <option value="America/Chicago">Central Time</option>
-                      <option value="America/Denver">Mountain Time</option>
-                      <option value="America/Los_Angeles">Pacific Time</option>
-                      <option value="UTC">UTC</option>
-                    </Select>
-                  </FormControl>
+                      <Select
+                        value={settings.theme}
+                        onChange={(e) =>
+                          handleSettingChange("theme", e.target.value)
+                        }
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <option value="dark">Dark Mode</option>
+                        <option value="light">Light Mode</option>
+                        <option value="auto">Auto (System)</option>
+                      </Select>
+                    </SettingRow>
 
-                  <FormControl>
-                    <FormLabel>Currency</FormLabel>
-                    <Select
-                      value={settings.currency}
-                      onChange={(e) =>
-                        handleSettingChange("currency", e.target.value)
-                      }
-                    >
-                      <option value="CAD">Canadian Dollar (CAD)</option>
-                      <option value="USD">US Dollar (USD)</option>
-                      <option value="EUR">Euro (EUR)</option>
-                      <option value="GBP">British Pound (GBP)</option>
-                    </Select>
-                  </FormControl>
+                    <Divider />
 
-                  <FormControl>
-                    <FormLabel>Language</FormLabel>
-                    <Select
-                      value={settings.language}
-                      onChange={(e) =>
-                        handleSettingChange("language", e.target.value)
-                      }
+                    <SettingRow
+                      label="Language"
+                      description="Select your preferred language"
                     >
-                      <option value="en">English</option>
-                      <option value="fr">Français</option>
-                      <option value="es">Español</option>
-                      <option value="de">Deutsch</option>
-                    </Select>
-                  </FormControl>
-                </SimpleGrid>
-              </VStack>
-            </SectionCard>
+                      <Select
+                        value={settings.language}
+                        onChange={(e) =>
+                          handleSettingChange("language", e.target.value)
+                        }
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                        <option value="zh">中文</option>
+                        <option value="ja">日本語</option>
+                      </Select>
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Timezone"
+                      description="Set your local timezone for accurate timestamps"
+                    >
+                      <Select
+                        value={settings.timezone}
+                        onChange={(e) =>
+                          handleSettingChange("timezone", e.target.value)
+                        }
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <option value="UTC">
+                          UTC (Coordinated Universal Time)
+                        </option>
+                        <option value="America/New_York">
+                          Eastern Time (ET)
+                        </option>
+                        <option value="America/Chicago">
+                          Central Time (CT)
+                        </option>
+                        <option value="America/Denver">
+                          Mountain Time (MT)
+                        </option>
+                        <option value="America/Los_Angeles">
+                          Pacific Time (PT)
+                        </option>
+                        <option value="Europe/London">London (GMT)</option>
+                        <option value="Europe/Paris">Paris (CET)</option>
+                        <option value="Asia/Tokyo">Tokyo (JST)</option>
+                      </Select>
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Date Format"
+                      description="How dates are displayed throughout the application"
+                    >
+                      <Select
+                        value={settings.dateFormat}
+                        onChange={(e) =>
+                          handleSettingChange("dateFormat", e.target.value)
+                        }
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <option value="MM/DD/YYYY">
+                          MM/DD/YYYY (US Format)
+                        </option>
+                        <option value="DD/MM/YYYY">
+                          DD/MM/YYYY (European Format)
+                        </option>
+                        <option value="YYYY-MM-DD">
+                          YYYY-MM-DD (ISO Format)
+                        </option>
+                      </Select>
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Currency"
+                      description="Default currency for financial displays"
+                    >
+                      <Select
+                        value={settings.currency}
+                        onChange={(e) =>
+                          handleSettingChange("currency", e.target.value)
+                        }
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="JPY">JPY (¥)</option>
+                        <option value="CAD">CAD (C$)</option>
+                        <option value="AUD">AUD (A$)</option>
+                      </Select>
+                    </SettingRow>
+                  </VStack>
+                </CardBody>
+              </Card>
+            </VStack>
           </TabPanel>
 
-          {/* Notification Settings */}
-          <TabPanel p={0}>
-            <SectionCard title="Notification Preferences">
-              <VStack spacing={6} align="stretch">
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">Email Notifications</FormLabel>
-                    <Switch
-                      isChecked={settings.emailNotifications}
-                      onChange={(e) =>
-                        handleSettingChange(
-                          "emailNotifications",
-                          e.target.checked
-                        )
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
+          {/* Notifications */}
+          <TabPanel px={0} py={6}>
+            <VStack spacing={6} align="stretch">
+              <Card>
+                <CardHeader pb={3}>
+                  <Heading size="md" color="gray.100">
+                    <Icon as={FiBell} mr={2} />
+                    Notification Preferences
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mt={1}>
+                    Configure how and when you receive notifications
+                  </Text>
+                </CardHeader>
+                <CardBody pt={0}>
+                  <VStack spacing={6} align="stretch">
+                    <SettingRow
+                      label="Email Notifications"
+                      description="Receive important updates via email"
+                    >
+                      <Switch
+                        isChecked={settings.emailNotifications}
+                        onChange={(e) =>
+                          handleSettingChange(
+                            "emailNotifications",
+                            e.target.checked
+                          )
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
 
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">Low Stock Alerts</FormLabel>
-                    <Switch
-                      isChecked={settings.lowStockAlerts}
-                      onChange={(e) =>
-                        handleSettingChange("lowStockAlerts", e.target.checked)
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
+                    <Divider />
 
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">PO Approval Alerts</FormLabel>
-                    <Switch
-                      isChecked={settings.poApprovalAlerts}
-                      onChange={(e) =>
-                        handleSettingChange(
-                          "poApprovalAlerts",
-                          e.target.checked
-                        )
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
+                    <SettingRow
+                      label="Push Notifications"
+                      description="Get real-time alerts in your browser"
+                    >
+                      <Switch
+                        isChecked={settings.pushNotifications}
+                        onChange={(e) =>
+                          handleSettingChange(
+                            "pushNotifications",
+                            e.target.checked
+                          )
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
 
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">Forecast Alerts</FormLabel>
-                    <Switch
-                      isChecked={settings.forecastAlerts}
-                      onChange={(e) =>
-                        handleSettingChange("forecastAlerts", e.target.checked)
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
-                </SimpleGrid>
+                    <Divider />
 
-                <FormControl>
-                  <FormLabel>Alert Frequency</FormLabel>
-                  <Select
-                    value={settings.alertFrequency}
-                    onChange={(e) =>
-                      handleSettingChange("alertFrequency", e.target.value)
-                    }
-                  >
-                    <option value="realtime">Real-time</option>
-                    <option value="hourly">Hourly</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                  </Select>
-                  <FormHelperText>
-                    How often to send notification summaries
-                  </FormHelperText>
-                </FormControl>
-              </VStack>
-            </SectionCard>
+                    <SettingRow
+                      label="Low Stock Alerts"
+                      description="Get notified when inventory levels are low"
+                    >
+                      <Switch
+                        isChecked={settings.lowStockAlerts}
+                        onChange={(e) =>
+                          handleSettingChange(
+                            "lowStockAlerts",
+                            e.target.checked
+                          )
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Order Updates"
+                      description="Receive notifications about purchase order status changes"
+                    >
+                      <Switch
+                        isChecked={settings.orderUpdates}
+                        onChange={(e) =>
+                          handleSettingChange("orderUpdates", e.target.checked)
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Weekly Reports"
+                      description="Get weekly summary reports via email"
+                    >
+                      <Switch
+                        isChecked={settings.weeklyReports}
+                        onChange={(e) =>
+                          handleSettingChange("weeklyReports", e.target.checked)
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="System Updates"
+                      description="Notifications about system maintenance and updates"
+                    >
+                      <Switch
+                        isChecked={settings.systemUpdates}
+                        onChange={(e) =>
+                          handleSettingChange("systemUpdates", e.target.checked)
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
+                  </VStack>
+                </CardBody>
+              </Card>
+            </VStack>
           </TabPanel>
 
-          {/* System Settings */}
-          <TabPanel p={0}>
-            <SectionCard title="System Configuration">
-              <VStack spacing={6} align="stretch">
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">Auto Sync</FormLabel>
-                    <Switch
-                      isChecked={settings.autoSync}
-                      onChange={(e) =>
-                        handleSettingChange("autoSync", e.target.checked)
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
-
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">Backup Enabled</FormLabel>
-                    <Switch
-                      isChecked={settings.backupEnabled}
-                      onChange={(e) =>
-                        handleSettingChange("backupEnabled", e.target.checked)
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
-                </SimpleGrid>
-
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                  <FormControl>
-                    <FormLabel>Sync Interval (minutes)</FormLabel>
-                    <NumberInput
-                      value={settings.syncInterval}
-                      onChange={(_, value) =>
-                        handleSettingChange("syncInterval", value)
-                      }
-                      min={1}
-                      max={60}
+          {/* Security */}
+          <TabPanel px={0} py={6}>
+            <VStack spacing={6} align="stretch">
+              <Card>
+                <CardHeader pb={3}>
+                  <Heading size="md" color="gray.100">
+                    <Icon as={FiShield} mr={2} />
+                    Security Settings
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mt={1}>
+                    Manage your account security and authentication preferences
+                  </Text>
+                </CardHeader>
+                <CardBody pt={0}>
+                  <VStack spacing={6} align="stretch">
+                    <SettingRow
+                      label="Two-Factor Authentication"
+                      description="Add an extra layer of security to your account"
+                      isRequired
                     >
-                      <NumberInputField />
-                      <NumberInputStepper>
-                        <NumberIncrementStepper />
-                        <NumberDecrementStepper />
-                      </NumberInputStepper>
-                    </NumberInput>
-                  </FormControl>
+                      <HStack>
+                        <Switch
+                          isChecked={settings.twoFactorAuth}
+                          onChange={(e) =>
+                            handleSettingChange(
+                              "twoFactorAuth",
+                              e.target.checked
+                            )
+                          }
+                          colorScheme="brand"
+                          size="lg"
+                        />
+                        {settings.twoFactorAuth && (
+                          <Badge colorScheme="green" size="sm">
+                            <Icon as={FiCheckCircle} mr={1} />
+                            Enabled
+                          </Badge>
+                        )}
+                      </HStack>
+                    </SettingRow>
 
-                  <FormControl>
-                    <FormLabel>Data Retention (days)</FormLabel>
-                    <NumberInput
-                      value={settings.dataRetention}
-                      onChange={(_, value) =>
-                        handleSettingChange("dataRetention", value)
-                      }
-                      min={30}
-                      max={1095}
+                    <Divider />
+
+                    <SettingRow
+                      label="Session Timeout"
+                      description="Automatically log out after inactivity (in minutes)"
                     >
-                      <NumberInputField />
-                      <NumberInputStepper>
-                        <NumberIncrementStepper />
-                        <NumberDecrementStepper />
-                      </NumberInputStepper>
-                    </NumberInput>
-                  </FormControl>
-                </SimpleGrid>
+                      <NumberInput
+                        value={settings.sessionTimeout}
+                        onChange={(value) =>
+                          handleSettingChange(
+                            "sessionTimeout",
+                            parseInt(value) || 30
+                          )
+                        }
+                        min={5}
+                        max={480}
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                    </SettingRow>
 
-                <FormControl>
-                  <FormLabel>Backup Frequency</FormLabel>
-                  <Select
-                    value={settings.backupFrequency}
-                    onChange={(e) =>
-                      handleSettingChange("backupFrequency", e.target.value)
-                    }
-                  >
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </Select>
-                </FormControl>
-              </VStack>
-            </SectionCard>
+                    <Divider />
+
+                    <SettingRow
+                      label="Password Expiry"
+                      description="Force password change after specified days"
+                    >
+                      <NumberInput
+                        value={settings.passwordExpiry}
+                        onChange={(value) =>
+                          handleSettingChange(
+                            "passwordExpiry",
+                            parseInt(value) || 90
+                          )
+                        }
+                        min={30}
+                        max={365}
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Login Alerts"
+                      description="Get notified of new login attempts"
+                    >
+                      <Switch
+                        isChecked={settings.loginAlerts}
+                        onChange={(e) =>
+                          handleSettingChange("loginAlerts", e.target.checked)
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Device Management"
+                      description="Allow device management and remote logout"
+                    >
+                      <Switch
+                        isChecked={settings.deviceManagement}
+                        onChange={(e) =>
+                          handleSettingChange(
+                            "deviceManagement",
+                            e.target.checked
+                          )
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
+                  </VStack>
+                </CardBody>
+              </Card>
+            </VStack>
           </TabPanel>
 
-          {/* Security Settings */}
-          <TabPanel p={0}>
-            <SectionCard title="Security Configuration">
-              <VStack spacing={6} align="stretch">
-                <Alert status="info">
-                  <AlertIcon />
-                  <Box>
-                    <AlertTitle>Security Notice</AlertTitle>
-                    <AlertDescription>
-                      These settings affect the security of your account and
-                      data. Changes may require re-authentication.
-                    </AlertDescription>
-                  </Box>
-                </Alert>
-
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">Two-Factor Authentication</FormLabel>
-                    <Switch
-                      isChecked={settings.twoFactorAuth}
-                      onChange={(e) =>
-                        handleSettingChange("twoFactorAuth", e.target.checked)
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>Session Timeout (minutes)</FormLabel>
-                    <NumberInput
-                      value={settings.sessionTimeout}
-                      onChange={(_, value) =>
-                        handleSettingChange("sessionTimeout", value)
-                      }
-                      min={15}
-                      max={480}
+          {/* Data & Privacy */}
+          <TabPanel px={0} py={6}>
+            <VStack spacing={6} align="stretch">
+              <Card>
+                <CardHeader pb={3}>
+                  <Heading size="md" color="gray.100">
+                    <Icon as={FiDatabase} mr={2} />
+                    Data & Privacy
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mt={1}>
+                    Control how your data is collected, stored, and used
+                  </Text>
+                </CardHeader>
+                <CardBody pt={0}>
+                  <VStack spacing={6} align="stretch">
+                    <SettingRow
+                      label="Data Retention Period"
+                      description="How long to keep your data before automatic deletion (in days)"
                     >
-                      <NumberInputField />
-                      <NumberInputStepper>
-                        <NumberIncrementStepper />
-                        <NumberDecrementStepper />
-                      </NumberInputStepper>
-                    </NumberInput>
-                  </FormControl>
+                      <NumberInput
+                        value={settings.dataRetention}
+                        onChange={(value) =>
+                          handleSettingChange(
+                            "dataRetention",
+                            parseInt(value) || 365
+                          )
+                        }
+                        min={30}
+                        max={2555}
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                    </SettingRow>
 
-                  <FormControl>
-                    <FormLabel>Password Expiry (days)</FormLabel>
-                    <NumberInput
-                      value={settings.passwordExpiry}
-                      onChange={(_, value) =>
-                        handleSettingChange("passwordExpiry", value)
-                      }
-                      min={30}
-                      max={365}
-                    >
-                      <NumberInputField />
-                      <NumberInputStepper>
-                        <NumberIncrementStepper />
-                        <NumberDecrementStepper />
-                      </NumberInputStepper>
-                    </NumberInput>
-                  </FormControl>
+                    <Divider />
 
-                  <FormControl>
-                    <FormLabel>Max Login Attempts</FormLabel>
-                    <NumberInput
-                      value={settings.loginAttempts}
-                      onChange={(_, value) =>
-                        handleSettingChange("loginAttempts", value)
-                      }
-                      min={3}
-                      max={10}
+                    <SettingRow
+                      label="Analytics Tracking"
+                      description="Help improve the application by sharing anonymous usage data"
                     >
-                      <NumberInputField />
-                      <NumberInputStepper>
-                        <NumberIncrementStepper />
-                        <NumberDecrementStepper />
-                      </NumberInputStepper>
-                    </NumberInput>
-                  </FormControl>
-                </SimpleGrid>
-              </VStack>
-            </SectionCard>
+                      <Switch
+                        isChecked={settings.analyticsTracking}
+                        onChange={(e) =>
+                          handleSettingChange(
+                            "analyticsTracking",
+                            e.target.checked
+                          )
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Error Reporting"
+                      description="Automatically report errors to help improve stability"
+                    >
+                      <Switch
+                        isChecked={settings.errorReporting}
+                        onChange={(e) =>
+                          handleSettingChange(
+                            "errorReporting",
+                            e.target.checked
+                          )
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Data Export"
+                      description="Allow exporting your data in various formats"
+                    >
+                      <Switch
+                        isChecked={settings.dataExport}
+                        onChange={(e) =>
+                          handleSettingChange("dataExport", e.target.checked)
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Automatic Backup"
+                      description="Automatically backup your data to prevent data loss"
+                    >
+                      <Switch
+                        isChecked={settings.dataBackup}
+                        onChange={(e) =>
+                          handleSettingChange("dataBackup", e.target.checked)
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
+                  </VStack>
+                </CardBody>
+              </Card>
+            </VStack>
           </TabPanel>
 
-          {/* Integration Settings */}
-          <TabPanel p={0}>
-            <SectionCard title="External Integrations">
-              <VStack spacing={6} align="stretch">
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">POS System Sync</FormLabel>
-                    <Switch
-                      isChecked={settings.posSync}
-                      onChange={(e) =>
-                        handleSettingChange("posSync", e.target.checked)
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
+          {/* System */}
+          <TabPanel px={0} py={6}>
+            <VStack spacing={6} align="stretch">
+              <Card>
+                <CardHeader pb={3}>
+                  <Heading size="md" color="gray.100">
+                    <Icon as={FiSettings} mr={2} />
+                    System Configuration
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mt={1}>
+                    Configure system behavior, performance, and advanced
+                    settings
+                  </Text>
+                </CardHeader>
+                <CardBody pt={0}>
+                  <VStack spacing={6} align="stretch">
+                    <SettingRow
+                      label="Auto Refresh"
+                      description="Automatically refresh data at specified intervals"
+                    >
+                      <Switch
+                        isChecked={settings.autoRefresh}
+                        onChange={(e) =>
+                          handleSettingChange("autoRefresh", e.target.checked)
+                        }
+                        colorScheme="brand"
+                        size="lg"
+                      />
+                    </SettingRow>
 
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">Supplier API Integration</FormLabel>
-                    <Switch
-                      isChecked={settings.supplierApi}
-                      onChange={(e) =>
-                        handleSettingChange("supplierApi", e.target.checked)
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
+                    <Divider />
 
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">Analytics & Reporting</FormLabel>
-                    <Switch
-                      isChecked={settings.analyticsEnabled}
-                      onChange={(e) =>
-                        handleSettingChange(
-                          "analyticsEnabled",
-                          e.target.checked
-                        )
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
+                    <SettingRow
+                      label="Refresh Interval"
+                      description="How often to refresh data when auto-refresh is enabled (in minutes)"
+                    >
+                      <NumberInput
+                        value={settings.refreshInterval}
+                        onChange={(value) =>
+                          handleSettingChange(
+                            "refreshInterval",
+                            parseInt(value) || 5
+                          )
+                        }
+                        min={1}
+                        max={60}
+                        isDisabled={!settings.autoRefresh}
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                    </SettingRow>
 
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">Webhook Notifications</FormLabel>
-                    <Switch
-                      isChecked={settings.webhookEnabled}
-                      onChange={(e) =>
-                        handleSettingChange("webhookEnabled", e.target.checked)
-                      }
-                      colorScheme="brand"
-                    />
-                  </FormControl>
-                </SimpleGrid>
+                    <Divider />
 
-                <Alert status="warning">
-                  <AlertIcon />
-                  <AlertTitle>Integration Status</AlertTitle>
-                  <AlertDescription>
-                    Some integrations require additional configuration and API
-                    keys. Contact your administrator for setup assistance.
-                  </AlertDescription>
-                </Alert>
-              </VStack>
-            </SectionCard>
+                    <SettingRow
+                      label="Max File Upload Size"
+                      description="Maximum file size for uploads (in MB)"
+                    >
+                      <NumberInput
+                        value={settings.maxFileSize}
+                        onChange={(value) =>
+                          handleSettingChange(
+                            "maxFileSize",
+                            parseInt(value) || 10
+                          )
+                        }
+                        min={1}
+                        max={100}
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Cache Size"
+                      description="Amount of memory to use for caching (in MB)"
+                    >
+                      <NumberInput
+                        value={settings.cacheSize}
+                        onChange={(value) =>
+                          handleSettingChange(
+                            "cacheSize",
+                            parseInt(value) || 100
+                          )
+                        }
+                        min={10}
+                        max={1000}
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                    </SettingRow>
+
+                    <Divider />
+
+                    <SettingRow
+                      label="Log Level"
+                      description="Level of detail for system logs"
+                    >
+                      <Select
+                        value={settings.logLevel}
+                        onChange={(e) =>
+                          handleSettingChange("logLevel", e.target.value)
+                        }
+                        bg="gray.700"
+                        borderColor="gray.600"
+                        _hover={{ borderColor: "gray.500" }}
+                        _focus={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
+                        }}
+                      >
+                        <option value="error">Error Only</option>
+                        <option value="warn">Warning & Error</option>
+                        <option value="info">Info, Warning & Error</option>
+                        <option value="debug">All Messages (Debug)</option>
+                      </Select>
+                    </SettingRow>
+                  </VStack>
+                </CardBody>
+              </Card>
+            </VStack>
           </TabPanel>
         </TabPanels>
       </Tabs>
-    </>
+    </VStack>
   );
 }

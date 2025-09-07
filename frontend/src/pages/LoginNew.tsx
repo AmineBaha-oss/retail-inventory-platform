@@ -103,7 +103,6 @@ export default function Login() {
         status: "success",
         duration: 3000,
         isClosable: true,
-        position: "top",
       });
     } catch (error) {
       toast({
@@ -112,14 +111,16 @@ export default function Login() {
         status: "error",
         duration: 3000,
         isClosable: true,
-        position: "top",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const bgGradient = "linear(to-br, gray.900, gray.800)";
+  const bgGradient = useColorModeValue(
+    "linear(to-br, gray.50, gray.100)",
+    "linear(to-br, gray.900, gray.800)"
+  );
 
   return (
     <Box
@@ -133,11 +134,11 @@ export default function Login() {
       <Card
         maxW="md"
         w="full"
-        bg="gray.800"
+        bg={useColorModeValue("white", "gray.800")}
         boxShadow="xl"
         borderRadius="2xl"
         border="1px solid"
-        borderColor="gray.700"
+        borderColor={useColorModeValue("gray.200", "gray.700")}
       >
         <CardHeader textAlign="center" pb={4}>
           <VStack spacing={4}>
@@ -154,10 +155,16 @@ export default function Login() {
               <Icon as={FiGrid} boxSize={8} color="white" />
             </Box>
             <VStack spacing={2}>
-              <Heading size="lg" color="gray.100">
+              <Heading
+                size="lg"
+                color={useColorModeValue("gray.800", "gray.100")}
+              >
                 Welcome back
               </Heading>
-              <Text color="gray.400" fontSize="sm">
+              <Text
+                color={useColorModeValue("gray.600", "gray.400")}
+                fontSize="sm"
+              >
                 Sign in to your Retail Inventory account
               </Text>
             </VStack>
@@ -168,7 +175,11 @@ export default function Login() {
           <form onSubmit={handleSubmit}>
             <VStack spacing={6}>
               <FormControl isInvalid={!!errors.email}>
-                <FormLabel fontSize="sm" fontWeight="medium" color="gray.300">
+                <FormLabel
+                  fontSize="sm"
+                  fontWeight="medium"
+                  color={useColorModeValue("gray.700", "gray.300")}
+                >
                   Email Address
                 </FormLabel>
                 <InputGroup>
@@ -180,8 +191,8 @@ export default function Login() {
                     placeholder="you@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    bg="gray.700"
-                    borderColor="gray.600"
+                    bg={useColorModeValue("gray.50", "gray.700")}
+                    borderColor={useColorModeValue("gray.300", "gray.600")}
                     _focus={{
                       borderColor: "brand.500",
                       boxShadow: "0 0 0 1px rgba(0, 102, 204, 0.6)",
@@ -192,7 +203,11 @@ export default function Login() {
               </FormControl>
 
               <FormControl isInvalid={!!errors.password}>
-                <FormLabel fontSize="sm" fontWeight="medium" color="gray.300">
+                <FormLabel
+                  fontSize="sm"
+                  fontWeight="medium"
+                  color={useColorModeValue("gray.700", "gray.300")}
+                >
                   Password
                 </FormLabel>
                 <InputGroup>
@@ -204,8 +219,8 @@ export default function Login() {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    bg="gray.700"
-                    borderColor="gray.600"
+                    bg={useColorModeValue("gray.50", "gray.700")}
+                    borderColor={useColorModeValue("gray.300", "gray.600")}
                     _focus={{
                       borderColor: "brand.500",
                       boxShadow: "0 0 0 1px rgba(0, 102, 204, 0.6)",
@@ -261,7 +276,11 @@ export default function Login() {
           <VStack spacing={4}>
             <HStack>
               <Icon as={FiShield} color="success.500" />
-              <Text fontSize="sm" fontWeight="medium" color="gray.300">
+              <Text
+                fontSize="sm"
+                fontWeight="medium"
+                color={useColorModeValue("gray.700", "gray.300")}
+              >
                 Demo Credentials
               </Text>
             </HStack>
@@ -271,7 +290,9 @@ export default function Login() {
                 variant="outline"
                 size="sm"
                 w="full"
-                onClick={() => handleDemoLogin("admin@system.com", "admin123")}
+                onClick={() =>
+                  handleDemoLogin("admin@retail.com", "password123")
+                }
                 isLoading={isLoading}
                 leftIcon={<Icon as={FiUser} />}
                 colorScheme="brand"
@@ -294,7 +315,11 @@ export default function Login() {
               </Button>
             </VStack>
 
-            <Text fontSize="xs" color="gray.400" textAlign="center">
+            <Text
+              fontSize="xs"
+              color={useColorModeValue("gray.500", "gray.400")}
+              textAlign="center"
+            >
               Don't have an account?{" "}
               <Link
                 color="brand.500"

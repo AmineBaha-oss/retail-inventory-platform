@@ -1,6 +1,6 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
-import { Box, Text } from "@chakra-ui/react";
+import { Box, Text, ChakraProvider } from "@chakra-ui/react";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Stores from "./pages/Stores";
@@ -15,34 +15,44 @@ import Login from "./pages/Login";
 import OrganizationUsers from "./pages/OrganizationUsers";
 import { useAuthStore } from "./stores/authStore";
 import { OrganizationProvider } from "./contexts/OrganizationContext";
+import theme from "./theme";
 
 function App() {
   const { isAuthenticated } = useAuthStore();
 
   if (!isAuthenticated) {
-    return <Login />;
+    return (
+      <ChakraProvider theme={theme}>
+        <Login />
+      </ChakraProvider>
+    );
   }
 
   return (
-    <OrganizationProvider>
-      <Box minH="100vh" bg="gray.900">
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/stores" element={<Stores />} />
-            <Route path="/forecasting" element={<Forecasting />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/purchase-orders" element={<PurchaseOrders />} />
-            <Route path="/suppliers" element={<Suppliers />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/organization/users" element={<OrganizationUsers />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
-        </Layout>
-      </Box>
-    </OrganizationProvider>
+    <ChakraProvider theme={theme}>
+      <OrganizationProvider>
+        <Box minH="100vh" bg="gray.900">
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/stores" element={<Stores />} />
+              <Route path="/forecasting" element={<Forecasting />} />
+              <Route path="/inventory" element={<Inventory />} />
+              <Route path="/purchase-orders" element={<PurchaseOrders />} />
+              <Route path="/suppliers" element={<Suppliers />} />
+              <Route path="/products" element={<Products />} />
+              <Route
+                path="/organization/users"
+                element={<OrganizationUsers />}
+              />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </Layout>
+        </Box>
+      </OrganizationProvider>
+    </ChakraProvider>
   );
 }
 

@@ -102,7 +102,7 @@ export default function Suppliers() {
     try {
       setIsLoading(true);
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       setSuppliers(suppliersData);
       toast({
         title: "Suppliers loaded successfully",
@@ -166,13 +166,19 @@ export default function Suppliers() {
     });
   };
 
-  const filteredSuppliers = suppliers.filter(supplier => {
-    const matchesSearch = supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         supplier.contactPerson.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         supplier.location.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || supplier.category === categoryFilter;
-    const matchesStatus = statusFilter === "all" || supplier.status.toLowerCase() === statusFilter.toLowerCase();
-    
+  const filteredSuppliers = suppliers.filter((supplier) => {
+    const matchesSearch =
+      supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      supplier.contactPerson
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      supplier.location.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "all" || supplier.category === categoryFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      supplier.status.toLowerCase() === statusFilter.toLowerCase();
+
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
@@ -181,8 +187,8 @@ export default function Suppliers() {
     { key: "category", label: "CATEGORY" },
     { key: "contactPerson", label: "CONTACT PERSON" },
     { key: "location", label: "LOCATION" },
-    { 
-      key: "status", 
+    {
+      key: "status",
       label: "STATUS",
       render: (value: string) => (
         <Badge
@@ -194,7 +200,7 @@ export default function Suppliers() {
         >
           {value}
         </Badge>
-      )
+      ),
     },
     { key: "orders", label: "ORDERS" },
     { key: "totalValue", label: "TOTAL VALUE" },

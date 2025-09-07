@@ -1,83 +1,99 @@
 import React from "react";
-import { Box, Heading, Text, HStack, Divider } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Heading,
+  Text,
+  HStack,
+  Button,
+  Icon,
+  Divider,
+  VStack,
+  Badge,
+} from "@chakra-ui/react";
 
-export default function PageHeader({
-  title,
-  subtitle,
-  actions,
-  icon,
-  accentColor,
-}: {
+interface PageHeaderProps {
   title: string;
   subtitle?: string;
   actions?: React.ReactNode;
-  icon?: React.ReactNode;
-  accentColor?: string;
-}) {
+  breadcrumbs?: Array<{ label: string; href?: string }>;
+  badge?: {
+    text: string;
+    colorScheme: string;
+  };
+}
+
+const PageHeader: React.FC<PageHeaderProps> = ({
+  title,
+  subtitle,
+  actions,
+  breadcrumbs,
+  badge,
+}) => {
   return (
     <Box mb={8}>
-      <HStack
-        justify="space-between"
-        align={{ base: "start", md: "center" }}
-        spacing={6}
-        mb={4}
-      >
-        <HStack align="start" spacing={4}>
-          {icon && (
-            <Box
-              aria-hidden
-              display="grid"
-              placeItems="center"
-              w="42px"
-              h="42px"
-              borderRadius="full"
-              bg={accentColor ? `${accentColor}22` : "gray.800"}
-              border="1px solid"
-              borderColor={accentColor ? `${accentColor}55` : "gray.700"}
-              color={accentColor || "gray.300"}
-              flexShrink={0}
-            >
-              {icon}
-            </Box>
-          )}
-          <Box>
-            <Heading 
-              size="lg" 
-              color="gray.50"
+      {/* Breadcrumbs */}
+      {breadcrumbs && breadcrumbs.length > 0 && (
+        <HStack spacing={2} mb={4} fontSize="sm" color="gray.400">
+          {breadcrumbs.map((crumb, index) => (
+            <React.Fragment key={index}>
+              <Text
+                as={crumb.href ? "a" : "span"}
+                color={crumb.href ? "brand.400" : "gray.400"}
+                _hover={crumb.href ? { color: "brand.300" } : {}}
+                cursor={crumb.href ? "pointer" : "default"}
+                {...(crumb.href && { href: crumb.href })}
+              >
+                {crumb.label}
+              </Text>
+              {index < breadcrumbs.length - 1 && (
+                <Text color="gray.600">/</Text>
+              )}
+            </React.Fragment>
+          ))}
+        </HStack>
+      )}
+
+      {/* Main Header */}
+      <Flex justify="space-between" align="flex-start" mb={4}>
+        <VStack align="flex-start" spacing={2}>
+          <HStack spacing={3} align="center">
+            <Heading
+              as="h1"
+              size="2xl"
               fontWeight="bold"
-              letterSpacing="tight"
-              mb={2}
+              color="gray.100"
+              lineHeight="shorter"
             >
               {title}
             </Heading>
-            {subtitle && (
-              <Text 
-                color="gray.400" 
-                fontSize="md"
-                lineHeight="1.5"
-                maxW="2xl"
+            {badge && (
+              <Badge
+                colorScheme={badge.colorScheme}
+                variant="subtle"
+                fontSize="sm"
+                px={3}
+                py={1}
+                borderRadius="full"
               >
-                {subtitle}
-              </Text>
+                {badge.text}
+              </Badge>
             )}
-          </Box>
-        </HStack>
-        {actions && (
-          <Box flexShrink={0}>
-            {actions}
-          </Box>
-        )}
-      </HStack>
-      <Divider borderColor="gray.800" />
-      {accentColor && (
-        <Box
-          mt={2}
-          h="2px"
-          w="64px"
-          borderRadius="full"
-          bg={accentColor}
-        />
-      )}
+          </HStack>
+          {subtitle && (
+            <Text fontSize="lg" color="gray.400" fontWeight="normal" maxW="2xl">
+              {subtitle}
+            </Text>
+          )}
+        </VStack>
+
+        {/* Actions */}
+        {actions && <HStack spacing={3}>{actions}</HStack>}
+      </Flex>
+
+      <Divider borderColor="gray.700" />
     </Box>
   );
-}
+};
+
+export default PageHeader;

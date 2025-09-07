@@ -119,7 +119,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </Box>
 
       {/* Navigation Menu */}
-      <VStack align="stretch" spacing={2} px={4} py={6} flex="1" bg="gray.900">
+      <VStack align="stretch" spacing={1} px={4} py={6} flex="1" bg="gray.900">
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -130,16 +130,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               variant={isActive ? "solid" : "ghost"}
               colorScheme={isActive ? "brand" : "gray"}
               justifyContent="flex-start"
-              h="48px"
+              h="52px"
               px={4}
               borderRadius="xl"
               fontSize="sm"
               fontWeight="medium"
               letterSpacing="wide"
+              bg={isActive ? "brand.500" : "transparent"}
+              color={isActive ? "white" : "gray.300"}
               _hover={{
+                bg: isActive ? "brand.600" : "gray.800",
+                color: isActive ? "white" : "gray.100",
                 transform: isActive ? "none" : "translateX(4px)",
+                boxShadow: isActive
+                  ? "0 4px 12px rgba(0, 102, 204, 0.3)"
+                  : "none",
               }}
-              transition="all 0.2s"
+              _active={{
+                bg: isActive ? "brand.700" : "gray.700",
+                transform: "none",
+              }}
+              transition="all 0.2s ease-in-out"
               onClick={() => {
                 navigate(item.path);
                 onClose();
@@ -333,7 +344,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Box>
 
           {/* Page Content */}
-          <Box p={6} maxW="7xl" mx="auto">
+          <Box p={8} maxW="7xl" mx="auto" minH="calc(100vh - 4rem)">
             {children}
           </Box>
         </Box>
