@@ -251,9 +251,4 @@ dbt test
 - Implement backup strategies for TimescaleDB
 
 
-### Scaling
-- **Horizontal scaling**: Multiple API instances behind load balancer
-- **Database scaling**: TimescaleDB clustering for high availability
-- **Caching**: Redis clustering for distributed caching
-- **Message queues**: Kafka for event-driven architecture
 
