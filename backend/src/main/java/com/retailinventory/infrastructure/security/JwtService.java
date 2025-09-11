@@ -2,15 +2,13 @@ package com.retailinventory.infrastructure.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,6 +38,28 @@ public class JwtService {
     }
 
     /**
+     * Extract organization ID from JWT token
+     */
+    public String extractOrgId(String token) {
+        return extractClaim(token, claims -> claims.get("orgId", String.class));
+    }
+
+    /**
+     * Extract organization name from JWT token
+     */
+    public String extractOrgName(String token) {
+        return extractClaim(token, claims -> claims.get("orgName", String.class));
+    }
+
+    /**
+     * Extract roles from JWT token
+     */
+    @SuppressWarnings("unchecked")
+    public java.util.List<String> extractRoles(String token) {
+        return extractClaim(token, claims -> claims.get("roles", java.util.List.class));
+    }
+
+    /**
      * Extract claim from JWT token
      */
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -62,6 +82,28 @@ public class JwtService {
     }
 
     /**
+     * Generate JWT token with organization information
+     */
+    public String generateTokenWithOrganization(UserDetails userDetails) {
+        Map<String, Object> claims = new HashMap<>();
+        
+        if (userDetails instanceof com.retailinventory.domain.entity.User user) {
+            // Add organization ID if user belongs to one
+            if (user.getOrganization() != null) {
+                claims.put("orgId", user.getOrganization().getId().toString());
+                claims.put("orgName", user.getOrganization().getName());
+            }
+            
+            // Add role names
+            claims.put("roles", user.getRoles().stream()
+                .map(role -> role.getName())
+                .toList());
+        }
+        
+        return buildToken(claims, userDetails, jwtExpiration);
+    }
+
+    /**
      * Generate refresh token
      */
     public String generateRefreshToken(UserDetails userDetails) {
@@ -74,11 +116,11 @@ public class JwtService {
     private String buildToken(Map<String, Object> extraClaims, UserDetails userDetails, long expiration) {
         return Jwts
                 .builder()
-                .setClaims(extraClaims)
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
+                .claims(extraClaims)
+                .subject(userDetails.getUsername())
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSignInKey())
                 .compact();
     }
 
@@ -88,6 +130,17 @@ public class JwtService {
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+    }
+
+    /**
+     * Check if token is valid (without user validation)
+     */
+    public boolean isTokenValid(String token) {
+        try {
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**
@@ -110,17 +163,16 @@ public class JwtService {
     private Claims extractAllClaims(String token) {
         return Jwts
                 .parser()
-                .setSigningKey(getSignInKey())
+                .verifyWith(getSignInKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     /**
      * Get signing key
      */
-    private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
+    private SecretKey getSignInKey() {
+        return Keys.hmacShaKeyFor(secretKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }

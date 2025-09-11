@@ -21,7 +21,7 @@ import java.util.UUID;
  * Controller for real-time updates using Server-Sent Events.
  */
 @RestController
-@RequestMapping("/api/v1/realtime")
+@RequestMapping("/v1/realtime")
 @RequiredArgsConstructor
 @Slf4j
 public class RealtimeController {
@@ -144,7 +144,11 @@ public class RealtimeController {
     public void broadcastInventoryUpdate(Inventory inventory) {
         log.debug("Broadcasting inventory update for store: {}, product: {}", 
                 inventory.getStoreId(), inventory.getProductId());
-        inventorySink.tryEmitNext(inventory);
+        
+        // Validate inventory exists before broadcasting
+        if (inventoryRepository.existsById(inventory.getId())) {
+            inventorySink.tryEmitNext(inventory);
+        }
     }
 
     /**
@@ -152,7 +156,11 @@ public class RealtimeController {
      */
     public void broadcastPurchaseOrderUpdate(PurchaseOrder purchaseOrder) {
         log.debug("Broadcasting purchase order update for PO: {}", purchaseOrder.getPoNumber());
-        purchaseOrderSink.tryEmitNext(purchaseOrder);
+        
+        // Validate purchase order exists before broadcasting
+        if (purchaseOrderRepository.existsById(purchaseOrder.getId())) {
+            purchaseOrderSink.tryEmitNext(purchaseOrder);
+        }
     }
 
     /**
@@ -161,7 +169,11 @@ public class RealtimeController {
     public void broadcastForecastUpdate(Forecast forecast) {
         log.debug("Broadcasting forecast update for store: {}, product: {}", 
                 forecast.getStoreId(), forecast.getProductId());
-        forecastSink.tryEmitNext(forecast);
+        
+        // Validate forecast exists before broadcasting
+        if (forecastRepository.existsById(forecast.getId())) {
+            forecastSink.tryEmitNext(forecast);
+        }
     }
 
     private DashboardKPIs calculateDashboardKPIs(UUID storeId) {

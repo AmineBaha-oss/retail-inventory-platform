@@ -1,31 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   SimpleGrid,
-  HStack,
   VStack,
-  Heading,
   Text,
-  Card,
-  CardBody,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  InputGroup,
-  InputRightElement,
-  IconButton,
-  Input,
-  Select,
   Button,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
   Badge,
+  useToast,
+  Icon,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  Select,
+  HStack,
+  Tooltip,
+  IconButton,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -36,375 +25,455 @@ import {
   FormControl,
   FormLabel,
 } from "@chakra-ui/react";
-import { SearchIcon } from "@chakra-ui/icons";
+import {
+  FiSearch,
+  FiFilter,
+  FiPlus,
+  FiEdit,
+  FiTrash2,
+  FiGrid,
+  FiTrendingUp,
+  FiAlertTriangle,
+  FiDollarSign,
+  FiRefreshCw,
+} from "react-icons/fi";
 import PageHeader from "../components/ui/PageHeader";
+import StatCard from "../components/ui/StatCard";
 import SectionCard from "../components/ui/SectionCard";
-import FiltersBar from "../components/ui/FiltersBar";
 import DataTable from "../components/ui/DataTable";
+import { productAPI, supplierAPI } from "../services/api";
+import { Product as APIProduct, ProductCreateRequest, ProductUpdateRequest, Supplier } from "../types/api";
 
-type Product = {
-  sku: string;
+type UIProduct = {
+  id: string;
   name: string;
-  category: string;
-  price: number;
-  stock: number;
-  status: "In Stock" | "Low Stock" | "Out of Stock";
+  sku?: string;
+  brand?: string;
+  category?: string;
+  subcategory?: string;
+  salePrice?: number;
+  costPrice?: number;
+  packSize?: number;
+  supplier?: string;
+  stock?: number;
+  stockStatus?: string;
+  status: string;
 };
 
-// Demo data
-const initialProducts: Product[] = [
-  {
-    sku: "TEE-Black-S",
-    name: "Black T-Shirt (Small)",
-    category: "Apparel",
-    price: 29.99,
-    stock: 45,
-    status: "In Stock",
-  },
-  {
-    sku: "JKT-Navy-M",
-    name: "Navy Jacket (Medium)",
-    category: "Apparel",
-    price: 89.99,
-    stock: 12,
-    status: "Low Stock",
-  },
-  {
-    sku: "SHO-Brown-42",
-    name: "Brown Shoes (42)",
-    category: "Footwear",
-    price: 129.99,
-    stock: 0,
-    status: "Out of Stock",
-  },
-];
-
 export default function Products() {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [products, setProducts] = useState<UIProduct[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const toast = useToast();
+
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newProduct, setNewProduct] = useState<Partial<Product>>({});
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [form, setForm] = useState<Partial<ProductCreateRequest & ProductUpdateRequest>>({
+    sku: "",
+    name: "",
+    category: "",
+    subcategory: "",
+    brand: "",
+    description: "",
+    unitCost: 0,
+    unitPrice: 0,
+    casePackSize: 1,
+    supplierId: "",
+    status: "ACTIVE",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    loadProducts();
+    loadSuppliers();
+  }, []);
 
-  const totalProducts = products.length;
-  const inStockCount = products.filter((p) => p.status === "In Stock").length;
-  const lowStockCount = products.filter((p) => p.status === "Low Stock").length;
-  const outOfStockCount = products.filter(
-    (p) => p.status === "Out of Stock"
-  ).length;
-
-  const handleAddProduct = () => {
-    if (!newProduct.sku || !newProduct.name || !newProduct.category) return;
-
-    const created: Product = {
-      sku: newProduct.sku || "",
-      name: newProduct.name || "",
-      category: newProduct.category || "",
-      price: newProduct.price || 0,
-      stock: newProduct.stock || 0,
-      status:
-        (newProduct.stock || 0) > 10
-          ? "In Stock"
-          : (newProduct.stock || 0) > 0
-          ? "Low Stock"
-          : "Out of Stock",
-    };
-
-    setProducts((prev) => [created, ...prev]);
-    setNewProduct({});
-    setIsModalOpen(false);
+  const loadProducts = async () => {
+    try {
+      setIsLoading(true);
+      const res = await productAPI.getAll();
+      const data: APIProduct[] = Array.isArray(res.data) ? res.data : (res.data as any).content ?? [];
+      const ui: UIProduct[] = data.map((p) => ({
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        brand: p.brand,
+        category: p.category,
+        subcategory: p.subcategory,
+        salePrice: p.unitPrice,
+        costPrice: p.unitCost,
+        packSize: p.casePackSize,
+        supplier: p.supplierName,
+        stock: undefined,
+        stockStatus: undefined,
+        status: p.status,
+      }));
+      setProducts(ui);
+    } catch (error) {
+      toast({ title: "Failed to load products", status: "error" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  const loadSuppliers = async () => {
+    try {
+      const res = await supplierAPI.getAll();
+      const list = (res.data as any).content ?? res.data ?? [];
+      setSuppliers(Array.isArray(list) ? list : []);
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await productAPI.getCategories();
+        const arr = Array.isArray(res.data) ? res.data : res.data ?? [];
+        setCategories(arr as string[]);
+      } catch (_) {}
+    };
+    loadCategories();
+  }, []);
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  const handleCategoryFilter = (category: string) => {
+    setCategoryFilter(category);
+  };
+
+  const handleStatusFilter = (status: string) => {
+    setStatusFilter(status);
+  };
+
+  const handleAddProduct = () => {
+    setIsEditing(false);
+    setSelectedId(null);
+    setForm({ name: "", category: "", subcategory: "", brand: "", description: "", unitCost: 0, unitPrice: 0, casePackSize: 1, supplierId: "", status: "ACTIVE" });
+    setIsModalOpen(true);
+  };
+
+  const handleEditProduct = (product: UIProduct) => {
+    setIsEditing(true);
+    setSelectedId(product.id);
+    setForm({
+      sku: product.sku,
+      name: product.name,
+      category: product.category,
+      subcategory: product.subcategory,
+      brand: product.brand,
+      unitCost: product.costPrice,
+      unitPrice: product.salePrice,
+      casePackSize: product.packSize,
+      supplierId: suppliers.find((s) => s.name === product.supplier)?.id || "",
+      status: product.status as any,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteProduct = async (product: UIProduct) => {
+    if (!window.confirm(`Delete product ${product.name}?`)) return;
+    try {
+      await productAPI.delete(product.id);
+      setProducts((prev) => prev.filter((p) => p.id !== product.id));
+      toast({ title: "Product deleted", status: "success" });
+    } catch (e) {
+      toast({ title: "Failed to delete product", status: "error" });
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (isEditing && selectedId) {
+        const update: ProductUpdateRequest = {
+          name: form.name,
+          category: form.category,
+          subcategory: form.subcategory,
+          brand: form.brand,
+          description: form.description,
+          unitCost: form.unitCost,
+          unitPrice: form.unitPrice,
+          casePackSize: form.casePackSize,
+          supplierId: form.supplierId,
+          status: form.status as any,
+        };
+        const res = await productAPI.update(selectedId, update);
+        const p = res.data as APIProduct;
+        setProducts((prev) => prev.map((x) => (x.id === selectedId ? { id: p.id, name: p.name, sku: p.sku, brand: p.brand, category: p.category, subcategory: p.subcategory, salePrice: p.unitPrice, costPrice: p.unitCost, packSize: p.casePackSize, supplier: p.supplierName, status: p.status } : x)));
+        toast({ title: "Product updated", status: "success" });
+      } else {
+        const create: ProductCreateRequest = {
+          sku: form.sku || undefined,
+          name: form.name || "",
+          category: form.category,
+          subcategory: form.subcategory,
+          brand: form.brand,
+          description: form.description,
+          unitCost: form.unitCost,
+          unitPrice: form.unitPrice,
+          casePackSize: form.casePackSize,
+          supplierId: form.supplierId || "",
+          status: form.status as any,
+        };
+        const res = await productAPI.create(create);
+        const p = res.data as APIProduct;
+        setProducts((prev) => [{ id: p.id, name: p.name, sku: p.sku, brand: p.brand, category: p.category, subcategory: p.subcategory, salePrice: p.unitPrice, costPrice: p.unitCost, packSize: p.casePackSize, supplier: p.supplierName, status: p.status }, ...prev]);
+        toast({ title: "Product created", status: "success" });
+      }
+      setIsModalOpen(false);
+    } catch (e) {
+      toast({ title: "Save failed", status: "error" });
+    }
+  };
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.brand.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "all" || product.category === categoryFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (product.status || "").toLowerCase() === statusFilter.toLowerCase();
+
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  const columns = [
+    { key: "name", label: "PRODUCT DETAILS" },
+    { key: "category", label: "CATEGORY" },
+    { key: "salePrice", label: "PRICING" },
+    { key: "supplier", label: "SUPPLIER" },
+    { key: "stock", label: "STOCK" },
+    { key: "status", label: "STATUS" },
+  ];
+
+  const actions = (row: any) => (
+    <HStack spacing={1}>
+      <Tooltip label="Edit Product">
+        <IconButton
+          aria-label="Edit"
+          icon={<Icon as={FiEdit} />}
+          size="sm"
+          variant="ghost"
+          color="gray.400"
+          _hover={{ color: "brand.400", bg: "brand.50" }}
+          onClick={() => handleEditProduct(row)}
+        />
+      </Tooltip>
+      <Tooltip label="Delete Product">
+        <IconButton
+          aria-label="Delete"
+          icon={<Icon as={FiTrash2} />}
+          size="sm"
+          variant="ghost"
+          color="gray.400"
+          _hover={{ color: "error.400", bg: "error.50" }}
+          onClick={() => handleDeleteProduct(row)}
+        />
+      </Tooltip>
+    </HStack>
+  );
+
   return (
-    <>
+    <VStack spacing={8} align="stretch">
+      {/* Page Header */}
       <PageHeader
         title="Products"
-        subtitle="Manage product catalog, inventory levels, and pricing across all stores."
+        subtitle="Manage product catalog, pricing, and inventory levels"
         actions={
-          <Button colorScheme="brand" onClick={() => setIsModalOpen(true)}>
-            Add Product
-          </Button>
+          <HStack spacing={3}>
+            <Button
+              variant="outline"
+              size="md"
+              leftIcon={<Icon as={FiRefreshCw} />}
+              onClick={loadProducts}
+              isLoading={isLoading}
+            >
+              Refresh
+            </Button>
+            <Button
+              leftIcon={<Icon as={FiPlus} />}
+              onClick={handleAddProduct}
+              bg="brand.500"
+              color="white"
+              _hover={{
+                bg: "brand.600",
+                transform: "translateY(-1px)",
+                boxShadow: "0 4px 12px rgba(0, 102, 204, 0.4)",
+              }}
+            >
+              Add Product
+            </Button>
+          </HStack>
         }
       />
 
-      {/* Summary KPIs */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Total Products
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                {totalProducts}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="green.300">
-                <StatArrow type="increase" /> Active catalog
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                In Stock
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                {inStockCount}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="green.300">
-                Available for sale
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Low Stock
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                {lowStockCount}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="orange.300">
-                Reorder needed
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Out of Stock
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                {outOfStockCount}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="red.300">
-                Immediate action
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
+      {/* Overview Cards */}
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+        <StatCard
+          title="Total Products"
+          value="13"
+          change={12.5}
+          changeType="increase"
+          icon={FiGrid}
+          iconColor="brand"
+          description="Product catalog"
+          status="success"
+        />
+        <StatCard
+          title="In Stock"
+          value="4"
+          change={0}
+          changeType="increase"
+          icon={FiTrendingUp}
+          iconColor="success"
+          description="Available items"
+          status="success"
+        />
+        <StatCard
+          title="Low Stock"
+          value="9"
+          change={0}
+          changeType="increase"
+          icon={FiAlertTriangle}
+          iconColor="warning"
+          description="Need restocking"
+          status="warning"
+        />
+        <StatCard
+          title="Out of Stock"
+          value="0"
+          change={0}
+          changeType="increase"
+          icon={FiAlertTriangle}
+          iconColor="error"
+          description="Unavailable items"
+          status="error"
+        />
       </SimpleGrid>
 
       {/* Products Table */}
-      <SectionCard title="Product Catalog">
-        <FiltersBar>
-          <InputGroup maxW={{ base: "100%", md: "360px" }}>
-            <Input
-              placeholder="Search by SKU, name, category..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              bg="surfaceAlt"
-            />
-            <InputRightElement>
-              <IconButton
-                aria-label="search"
-                icon={<SearchIcon />}
-                size="sm"
-                variant="ghost"
-              />
-            </InputRightElement>
-          </InputGroup>
-
-          <Select
-            maxW={{ base: "100%", md: "220px" }}
-            placeholder="Filter by category"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <option value="Apparel">Apparel</option>
-            <option value="Footwear">Footwear</option>
-            <option value="Accessories">Accessories</option>
-          </Select>
-          <Button variant="outline">Export</Button>
-        </FiltersBar>
-
-        <DataTable
-          head={
-            <Tr>
-              <Th>SKU</Th>
-              <Th>Name</Th>
-              <Th>Category</Th>
-              <Th isNumeric>Price</Th>
-              <Th isNumeric>Stock</Th>
-              <Th>Status</Th>
-            </Tr>
-          }
-        >
-          {filteredProducts.map((p) => (
-            <Tr key={p.sku} _odd={{ bg: "gray.850" }}>
-              <Td fontWeight="medium">{p.sku}</Td>
-              <Td>{p.name}</Td>
-              <Td>{p.category}</Td>
-              <Td isNumeric fontWeight="semibold">
-                ${p.price}
-              </Td>
-              <Td isNumeric fontWeight="semibold">
-                {p.stock}
-              </Td>
-              <Td>
-                <Badge
-                  colorScheme={
-                    p.status === "In Stock"
-                      ? "success"
-                      : p.status === "Low Stock"
-                      ? "warning"
-                      : "error"
-                  }
-                  variant="solid"
-                >
-                  {p.status}
-                </Badge>
-              </Td>
-            </Tr>
-          ))}
-        </DataTable>
-      </SectionCard>
-
-      {/* Add Product Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        size="lg"
+      <SectionCard
+        title="Product Catalog"
+        subtitle="Complete product information with pricing and stock levels"
+        icon={FiGrid}
       >
+        <DataTable
+          columns={columns}
+          data={filteredProducts}
+          isLoading={isLoading}
+          searchable={true}
+          searchPlaceholder="Search products..."
+          onSearch={handleSearch}
+          filters={[
+            {
+              key: "category",
+              label: "All Categories",
+              options: [
+                { value: "all", label: "All Categories" },
+                ...categories.map((c) => ({ value: c, label: c })),
+              ],
+              onFilter: handleCategoryFilter,
+            },
+            {
+              key: "status",
+              label: "All Status",
+              options: [
+                { value: "all", label: "All Status" },
+                { value: "ACTIVE", label: "Active" },
+                { value: "INACTIVE", label: "Inactive" },
+                { value: "DISCONTINUED", label: "Discontinued" },
+              ],
+              onFilter: handleStatusFilter,
+            },
+          ]}
+          actions={actions}
+          emptyMessage="No products found"
+        />
+      </SectionCard>
+      {/* Create/Edit Product Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="xl">
         <ModalOverlay />
-        <ModalContent mx={4}>
-          <ModalHeader borderBottom="1px" borderColor="border" pb={4}>
-            Add New Product
-          </ModalHeader>
+        <ModalContent>
+          <ModalHeader>{isEditing ? "Edit Product" : "Add Product"}</ModalHeader>
           <ModalCloseButton />
-          <ModalBody py={6}>
-            <VStack spacing={5} align="stretch">
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
+          <ModalBody>
+            <VStack spacing={4} align="stretch">
+              {isEditing && (
+                <HStack>
+                  <FormControl>
+                    <FormLabel>SKU</FormLabel>
+                    <Input value={(form as any).sku || ""} onChange={(e) => setForm((p) => ({ ...p, sku: e.target.value as any }))} />
+                  </FormControl>
+                </HStack>
+              )}
+              <HStack>
                 <FormControl isRequired>
-                  <FormLabel fontWeight="medium">SKU</FormLabel>
-                  <Input
-                    value={newProduct.sku || ""}
-                    onChange={(e) =>
-                      setNewProduct({ ...newProduct, sku: e.target.value })
-                    }
-                    placeholder="Enter SKU"
-                    size="md"
-                  />
+                  <FormLabel>Name</FormLabel>
+                  <Input value={form.name || ""} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
                 </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel fontWeight="medium">Category</FormLabel>
-                  <Select
-                    value={newProduct.category || ""}
-                    onChange={(e) =>
-                      setNewProduct({ ...newProduct, category: e.target.value })
-                    }
-                    size="md"
-                  >
-                    <option value="">Select category</option>
-                    <option value="Apparel">Apparel</option>
-                    <option value="Footwear">Footwear</option>
-                    <option value="Accessories">Accessories</option>
+              </HStack>
+              <HStack>
+                <FormControl>
+                  <FormLabel>Category</FormLabel>
+                  <Select value={form.category || ""} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} placeholder="Select category">
+                    {categories.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </Select>
                 </FormControl>
-              </SimpleGrid>
-
-              <FormControl isRequired>
-                <FormLabel fontWeight="medium">Product Name</FormLabel>
-                <Input
-                  value={newProduct.name || ""}
-                  onChange={(e) =>
-                    setNewProduct({ ...newProduct, name: e.target.value })
-                  }
-                  placeholder="Enter product name"
-                  size="md"
-                />
+                <FormControl>
+                  <FormLabel>Subcategory</FormLabel>
+                  <Input value={form.subcategory || ""} onChange={(e) => setForm((p) => ({ ...p, subcategory: e.target.value }))} />
+                </FormControl>
+              </HStack>
+              <FormControl>
+                <FormLabel>Brand</FormLabel>
+                <Input value={form.brand || ""} onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value }))} />
               </FormControl>
-
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
-                <FormControl isRequired>
-                  <FormLabel fontWeight="medium">Price ($)</FormLabel>
-                  <Input
-                    type="number"
-                    value={newProduct.price || ""}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        price: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    placeholder="0.00"
-                    size="md"
-                  />
+              <HStack>
+                <FormControl>
+                  <FormLabel>Unit Cost</FormLabel>
+                  <Input type="number" step="0.01" value={form.unitCost ?? 0} onChange={(e) => setForm((p) => ({ ...p, unitCost: parseFloat(e.target.value) }))} />
                 </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel fontWeight="medium">Initial Stock</FormLabel>
-                  <Input
-                    type="number"
-                    value={newProduct.stock || ""}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        stock: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    placeholder="0"
-                    size="md"
-                  />
+                <FormControl>
+                  <FormLabel>Unit Price</FormLabel>
+                  <Input type="number" step="0.01" value={form.unitPrice ?? 0} onChange={(e) => setForm((p) => ({ ...p, unitPrice: parseFloat(e.target.value) }))} />
                 </FormControl>
-              </SimpleGrid>
+                <FormControl>
+                  <FormLabel>Case Pack Size</FormLabel>
+                  <Input type="number" value={form.casePackSize ?? 1} onChange={(e) => setForm((p) => ({ ...p, casePackSize: parseInt(e.target.value || "0") }))} />
+                </FormControl>
+              </HStack>
+              <FormControl isRequired>
+                <FormLabel>Supplier</FormLabel>
+                <Select value={form.supplierId || ""} onChange={(e) => setForm((p) => ({ ...p, supplierId: e.target.value }))}>
+                  <option value="">Select supplier</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Select>
+              </FormControl>
             </VStack>
           </ModalBody>
-
-          <ModalFooter borderTop="1px" borderColor="border" pt={4}>
-            <Button
-              variant="ghost"
-              mr={3}
-              onClick={() => setIsModalOpen(false)}
-            >
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button colorScheme="brand" onClick={handleAddProduct}>
-              Add Product
+            <Button colorScheme="brand" onClick={handleSubmit} disabled={!form.name || !form.supplierId}>
+              {isEditing ? "Save Changes" : "Create Product"}
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </>
+    </VStack>
   );
 }

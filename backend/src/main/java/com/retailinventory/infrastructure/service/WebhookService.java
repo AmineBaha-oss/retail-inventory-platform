@@ -36,10 +36,20 @@ public class WebhookService {
         try {
             JsonNode orderData = objectMapper.readTree(payload);
             
+            // Extract external event ID for idempotency
+            String externalEventId = orderData.get("id").asText();
+            
+            // Check if this webhook has already been processed
+            if (webhookEventRepository.existsBySourceAndExternalEventId("shopify", externalEventId)) {
+                log.info("Shopify order webhook already processed: {}", externalEventId);
+                return;
+            }
+            
             // Store webhook event for audit
             WebhookEvent event = WebhookEvent.builder()
                     .source("shopify")
                     .eventType("order")
+                    .externalEventId(externalEventId)
                     .shopDomain(shopDomain)
                     .payload(payload)
                     .processedAt(LocalDateTime.now())
@@ -80,10 +90,22 @@ public class WebhookService {
         try {
             JsonNode inventoryData = objectMapper.readTree(payload);
             
+            // Extract external event ID for idempotency (use inventory_item_id + location_id)
+            String inventoryItemId = inventoryData.get("inventory_item_id").asText();
+            String locationId = inventoryData.get("location_id").asText();
+            String externalEventId = inventoryItemId + "_" + locationId + "_" + System.currentTimeMillis();
+            
+            // Check if this webhook has already been processed
+            if (webhookEventRepository.existsBySourceAndExternalEventId("shopify", externalEventId)) {
+                log.info("Shopify inventory webhook already processed: {}", externalEventId);
+                return;
+            }
+            
             // Store webhook event for audit
             WebhookEvent event = WebhookEvent.builder()
                     .source("shopify")
                     .eventType("inventory")
+                    .externalEventId(externalEventId)
                     .shopDomain(shopDomain)
                     .payload(payload)
                     .processedAt(LocalDateTime.now())
@@ -91,8 +113,6 @@ public class WebhookService {
             webhookEventRepository.save(event);
             
             // Extract inventory information
-            String inventoryItemId = inventoryData.get("inventory_item_id").asText();
-            String locationId = inventoryData.get("location_id").asText();
             int available = inventoryData.get("available").asInt();
             
             log.info("Processing Shopify inventory update: item={}, location={}, available={}", 
@@ -121,10 +141,20 @@ public class WebhookService {
         try {
             JsonNode orderData = objectMapper.readTree(payload);
             
+            // Extract external event ID for idempotency
+            String externalEventId = orderData.get("saleID").asText();
+            
+            // Check if this webhook has already been processed
+            if (webhookEventRepository.existsBySourceAndExternalEventId("lightspeed", externalEventId)) {
+                log.info("Lightspeed order webhook already processed: {}", externalEventId);
+                return;
+            }
+            
             // Store webhook event for audit
             WebhookEvent event = WebhookEvent.builder()
                     .source("lightspeed")
                     .eventType("order")
+                    .externalEventId(externalEventId)
                     .shopDomain(shopId)
                     .payload(payload)
                     .processedAt(LocalDateTime.now())
@@ -165,10 +195,20 @@ public class WebhookService {
         try {
             JsonNode inventoryData = objectMapper.readTree(payload);
             
+            // Extract external event ID for idempotency
+            String externalEventId = inventoryData.get("itemID").asText() + "_" + System.currentTimeMillis();
+            
+            // Check if this webhook has already been processed
+            if (webhookEventRepository.existsBySourceAndExternalEventId("lightspeed", externalEventId)) {
+                log.info("Lightspeed inventory webhook already processed: {}", externalEventId);
+                return;
+            }
+            
             // Store webhook event for audit
             WebhookEvent event = WebhookEvent.builder()
                     .source("lightspeed")
                     .eventType("inventory")
+                    .externalEventId(externalEventId)
                     .shopDomain(shopId)
                     .payload(payload)
                     .processedAt(LocalDateTime.now())

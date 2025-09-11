@@ -1,52 +1,77 @@
 import React, { useState } from "react";
 import {
   Box,
-  Card,
-  CardBody,
-  Heading,
-  Text,
   VStack,
-  FormControl,
-  FormLabel,
-  Input,
-  Button,
   HStack,
-  Icon,
-  useToast,
+  Text,
+  Button,
+  Input,
   InputGroup,
   InputLeftElement,
+  InputRightElement,
+  IconButton,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  useToast,
+  Icon,
+  Flex,
+  Card,
+  CardBody,
+  CardHeader,
+  Heading,
+  Divider,
+  Badge,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
+  Link,
+  useColorModeValue,
 } from "@chakra-ui/react";
-import { FiGrid, FiMail, FiLock } from "react-icons/fi";
+import {
+  FiMail,
+  FiLock,
+  FiEye,
+  FiEyeOff,
+  FiGrid,
+  FiArrowRight,
+  FiUser,
+  FiShield,
+} from "react-icons/fi";
 import { useAuthStore } from "../stores/authStore";
-import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({ email: "", password: "" });
+
   const { login } = useAuthStore();
-  const navigate = useNavigate();
   const toast = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+
+    // Reset errors
+    setErrors({ email: "", password: "" });
+
+    // Basic validation
+    if (!email) {
+      setErrors((prev) => ({ ...prev, email: "Email is required" }));
+      return;
+    }
+    if (!password) {
+      setErrors((prev) => ({ ...prev, password: "Password is required" }));
       return;
     }
 
-    setIsLoading(true);
     try {
+      setIsLoading(true);
       await login(email, password);
-      navigate("/");
       toast({
-        title: "Success",
+        title: "Login successful",
         description: "Welcome back!",
         status: "success",
         duration: 3000,
@@ -54,13 +79,10 @@ export default function Login() {
       });
     } catch (error) {
       toast({
-        title: "Login Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Please check your credentials",
+        title: "Login failed",
+        description: "Invalid email or password. Please try again.",
         status: "error",
-        duration: 5000,
+        duration: 3000,
         isClosable: true,
       });
     } finally {
@@ -68,152 +90,220 @@ export default function Login() {
     }
   };
 
+  const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+
+    try {
+      setIsLoading(true);
+      await login(demoEmail, demoPassword);
+      toast({
+        title: "Demo login successful",
+        description: "Welcome to the demo!",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
+      });
+    } catch (error) {
+      toast({
+        title: "Demo login failed",
+        description: "Please try again or contact support.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const bgGradient = "linear(to-br, gray.900, gray.800)";
+
   return (
     <Box
       minH="100vh"
-      bg="gray.950"
-      background="linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)"
-      backgroundAttachment="fixed"
-      display="grid"
-      placeItems="center"
-      px={4}
-      py={8}
+      bgGradient={bgGradient}
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      p={4}
     >
       <Card
+        maxW="md"
         w="full"
-        maxW="440px"
-        border="1px solid"
-        borderColor="gray.800"
+        bg="gray.800"
+        boxShadow="xl"
         borderRadius="2xl"
-        boxShadow="2xl"
-        backdropFilter="blur(20px)"
-        bg="rgba(15, 23, 42, 0.9)"
+        border="1px solid"
+        borderColor="gray.700"
       >
-        <CardBody p={10}>
-          <VStack spacing={8} align="stretch">
-            {/* Logo and Header */}
-            <VStack spacing={4} textAlign="center">
-              <Box
-                w="16"
-                h="16"
-                borderRadius="2xl"
-                bgGradient="linear(to-br, brand.500, brand.400)"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                boxShadow="xl"
-              >
-                <Icon as={FiGrid} size={32} color="white" />
-              </Box>
+        <CardHeader textAlign="center" pb={4}>
+          <VStack spacing={4}>
+            <Box
+              w="16"
+              h="16"
+              borderRadius="2xl"
+              bgGradient="linear(to-br, brand.500, brand.400)"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              boxShadow="lg"
+            >
+              <Icon as={FiGrid} boxSize={8} color="white" />
+            </Box>
+            <VStack spacing={2}>
+              <Heading size="lg" color="gray.100">
+                Welcome back
+              </Heading>
+              <Text color="gray.400" fontSize="sm">
+                Sign in to your Retail Inventory account
+              </Text>
+            </VStack>
+          </VStack>
+        </CardHeader>
 
-              <Box>
-                <Heading
-                  size="lg"
-                  color="gray.50"
-                  fontWeight="bold"
-                  letterSpacing="tight"
-                  mb={2}
-                >
-                  Welcome back
-                </Heading>
-                <Text color="gray.400" fontSize="md" lineHeight="1.5">
-                  Sign in to your Retail Inventory account
-                </Text>
-              </Box>
+        <CardBody pt={0}>
+          <form onSubmit={handleSubmit}>
+            <VStack spacing={6}>
+              <FormControl isInvalid={!!errors.email}>
+                <FormLabel fontSize="sm" fontWeight="medium" color="gray.300">
+                  Email Address
+                </FormLabel>
+                <InputGroup>
+                  <InputLeftElement>
+                    <Icon as={FiMail} color="gray.400" />
+                  </InputLeftElement>
+                  <Input
+                    type="email"
+                    placeholder="you@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    bg="gray.700"
+                    borderColor="gray.600"
+                    _focus={{
+                      borderColor: "brand.500",
+                      boxShadow: "0 0 0 1px rgba(0, 102, 204, 0.6)",
+                    }}
+                  />
+                </InputGroup>
+                <FormErrorMessage>{errors.email}</FormErrorMessage>
+              </FormControl>
+
+              <FormControl isInvalid={!!errors.password}>
+                <FormLabel fontSize="sm" fontWeight="medium" color="gray.300">
+                  Password
+                </FormLabel>
+                <InputGroup>
+                  <InputLeftElement>
+                    <Icon as={FiLock} color="gray.400" />
+                  </InputLeftElement>
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    bg="gray.700"
+                    borderColor="gray.600"
+                    _focus={{
+                      borderColor: "brand.500",
+                      boxShadow: "0 0 0 1px rgba(0, 102, 204, 0.6)",
+                    }}
+                  />
+                  <InputRightElement>
+                    <IconButton
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                      icon={<Icon as={showPassword ? FiEyeOff : FiEye} />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowPassword(!showPassword)}
+                      color="gray.400"
+                      _hover={{ color: "gray.600" }}
+                    />
+                  </InputRightElement>
+                </InputGroup>
+                <FormErrorMessage>{errors.password}</FormErrorMessage>
+              </FormControl>
+
+              <Button
+                type="submit"
+                w="full"
+                size="lg"
+                bg="brand.500"
+                color="white"
+                _hover={{
+                  bg: "brand.600",
+                  transform: "translateY(-1px)",
+                  boxShadow: "0 4px 12px rgba(0, 102, 204, 0.4)",
+                }}
+                _active={{
+                  bg: "brand.700",
+                  transform: "translateY(0)",
+                }}
+                isLoading={isLoading}
+                loadingText="Signing in..."
+                rightIcon={<Icon as={FiArrowRight} />}
+              >
+                Sign in
+              </Button>
+            </VStack>
+          </form>
+
+          <Divider
+            my={6}
+            borderColor={useColorModeValue("gray.200", "gray.700")}
+          />
+
+          {/* Demo Credentials */}
+          <VStack spacing={4}>
+            <HStack>
+              <Icon as={FiShield} color="success.500" />
+              <Text fontSize="sm" fontWeight="medium" color="gray.300">
+                Demo Credentials
+              </Text>
+            </HStack>
+
+            <VStack spacing={3} w="full">
+              <Button
+                variant="outline"
+                size="sm"
+                w="full"
+                onClick={() => handleDemoLogin("admin@system.com", "admin123")}
+                isLoading={isLoading}
+                leftIcon={<Icon as={FiUser} />}
+                colorScheme="brand"
+              >
+                Admin Account
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                w="full"
+                onClick={() =>
+                  handleDemoLogin("manager@modernboutique.com", "password123")
+                }
+                isLoading={isLoading}
+                leftIcon={<Icon as={FiUser} />}
+                colorScheme="brand"
+              >
+                Manager Account
+              </Button>
             </VStack>
 
-            {/* Login Form */}
-            <form onSubmit={handleSubmit}>
-              <VStack spacing={6} align="stretch">
-                <FormControl>
-                  <FormLabel color="gray.200" fontWeight="medium" mb={2}>
-                    Email Address
-                  </FormLabel>
-                  <InputGroup size="lg">
-                    <InputLeftElement color="gray.400">
-                      <Icon as={FiMail} />
-                    </InputLeftElement>
-                    <Input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@company.com"
-                      _focus={{
-                        borderColor: "brand.400",
-                        boxShadow: "0 0 0 1px var(--chakra-colors-brand-400)",
-                      }}
-                    />
-                  </InputGroup>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel color="gray.200" fontWeight="medium" mb={2}>
-                    Password
-                  </FormLabel>
-                  <InputGroup size="lg">
-                    <InputLeftElement color="gray.400">
-                      <Icon as={FiLock} />
-                    </InputLeftElement>
-                    <Input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      _focus={{
-                        borderColor: "brand.400",
-                        boxShadow: "0 0 0 1px var(--chakra-colors-brand-400)",
-                      }}
-                    />
-                  </InputGroup>
-                </FormControl>
-
-                <Button
-                  type="submit"
-                  colorScheme="brand"
-                  size="lg"
-                  h="48px"
-                  isLoading={isLoading}
-                  loadingText="Signing in..."
-                  fontWeight="semibold"
-                  letterSpacing="wide"
-                  _hover={{
-                    transform: "translateY(-1px)",
-                    boxShadow: "lg",
-                  }}
-                >
-                  Sign in
-                </Button>
-              </VStack>
-            </form>
-
-            {/* Demo Credentials */}
-            <Box textAlign="center" p={4} bg="gray.800" borderRadius="md">
-              <Text color="gray.300" fontSize="sm" fontWeight="medium" mb={2}>
-                🧪 Demo Credentials
-              </Text>
-              <Text color="gray.400" fontSize="xs" mb={1}>
-                Email: demo@company.com
-              </Text>
-              <Text color="gray.400" fontSize="xs">
-                Password: password123
-              </Text>
-            </Box>
-
-            {/* Footer */}
-            <Box textAlign="center">
-              <Text color="gray.500" fontSize="sm">
-                Don't have an account?{" "}
-                <Button
-                  variant="link"
-                  color="brand.400"
-                  fontSize="sm"
-                  fontWeight="medium"
-                  _hover={{ color: "brand.300" }}
-                >
-                  Contact your administrator
-                </Button>
-              </Text>
-            </Box>
+            <Text fontSize="xs" color="gray.400" textAlign="center">
+              Don't have an account?{" "}
+              <Link
+                color="brand.500"
+                href="#"
+                _hover={{ textDecoration: "underline" }}
+              >
+                Contact your administrator
+              </Link>
+            </Text>
           </VStack>
         </CardBody>
       </Card>

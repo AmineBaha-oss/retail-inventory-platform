@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -18,7 +19,8 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Inventory {
+@EqualsAndHashCode(callSuper = false)
+public class Inventory extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -45,9 +47,6 @@ public class Inventory {
     @Column(name = "quantity_reserved")
     @Builder.Default
     private BigDecimal quantityReserved = BigDecimal.ZERO;
-
-    @Column(name = "quantity_available", insertable = false, updatable = false)
-    private BigDecimal quantityAvailable;
 
     @Column(name = "reorder_point")
     @Builder.Default

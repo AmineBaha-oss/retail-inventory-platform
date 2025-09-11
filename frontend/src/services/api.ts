@@ -1,32 +1,82 @@
-import axios from "axios";
+import axios, {
+  AxiosResponse,
+  AxiosError,
+  InternalAxiosRequestConfig,
+} from "axios";
+import {
+  Store,
+  StoreCreateRequest,
+  StoreUpdateRequest,
+  Supplier,
+  SupplierCreateRequest,
+  SupplierUpdateRequest,
+  Product,
+  ProductCreateRequest,
+  ProductUpdateRequest,
+  Inventory,
+  InventoryCreateRequest,
+  InventoryUpdateRequest,
+  InventoryQuantityUpdateRequest,
+  PurchaseOrder,
+  PurchaseOrderCreateRequest,
+  PurchaseOrderUpdateRequest,
+  PaginatedResponse,
+  Organization,
+  OrganizationUserResponse,
+  OrganizationUserCreateRequest,
+  OrganizationUserUpdateRequest,
+  User,
+} from "../types/api";
 
-const API_BASE_URL =
-  (import.meta as any).env?.VITE_API_URL ?? "http://localhost:8080/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
   },
+  timeout: 10000, // 10 second timeout
 });
 
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
+// Request interceptor to add auth token, organization header, and cache busting
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem("auth-storage")
     ? JSON.parse(localStorage.getItem("auth-storage")!).token
     : null;
 
-  if (token) {
+  if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Add organization header if available
+  const organization = localStorage.getItem("currentOrganization");
+  if (organization && config.headers) {
+    try {
+      const orgData = JSON.parse(organization);
+      config.headers["X-Organization-Id"] = orgData.id;
+    } catch (error) {
+      console.warn("Failed to parse organization data:", error);
+    }
+  }
+
+  // Add cache busting timestamp to all requests
+  if (config.params) {
+    config.params._t = Date.now();
+  } else {
+    config.params = { _t: Date.now() };
+  }
+
   return config;
 });
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: AxiosResponse) => response,
+  (error: AxiosError) => {
     if (error.response?.status === 401) {
       // Handle unauthorized access
       localStorage.removeItem("auth-storage");
@@ -36,81 +86,253 @@ api.interceptors.response.use(
   }
 );
 
-// Store API
+// Store API - Updated for our Spring Boot backend
 export const storeAPI = {
-  getAll: (params?: any) => api.get("/v1/stores", { params }),
-  getById: (id: string) => api.get(`/v1/stores/${id}`),
-  create: (data: any) => api.post("/v1/stores", data),
-  update: (id: string, data: any) => api.put(`/v1/stores/${id}`, data),
-  delete: (id: string) => api.delete(`/v1/stores/${id}`),
-  getAnalytics: (id: string) => api.get(`/v1/stores/${id}/analytics`),
+  getAll: (params?: any): Promise<AxiosResponse<PaginatedResponse<Store>>> =>
+    api.get("/stores", { params }),
+  getById: (id: string): Promise<AxiosResponse<Store>> =>
+    api.get(`/stores/${id}`),
+  create: (data: StoreCreateRequest): Promise<AxiosResponse<Store>> =>
+    api.post("/stores", data),
+  update: (
+    id: string,
+    data: StoreUpdateRequest
+  ): Promise<AxiosResponse<Store>> => api.put(`/stores/${id}`, data),
+  delete: (id: string): Promise<AxiosResponse<void>> =>
+    api.delete(`/stores/${id}`),
+  getByCode: (code: string): Promise<AxiosResponse<Store>> =>
+    api.get(`/stores/code/${code}`),
 };
 
-// Inventory API (placeholder - implement when backend is ready)
+// Inventory API - Updated for our Spring Boot backend
 export const inventoryAPI = {
-  getAll: (params?: any) => api.get("/v1/inventory", { params }),
-  getByStore: (storeId: string) => api.get(`/v1/inventory/store/${storeId}`),
-  updateQuantity: (id: string, quantity: number) =>
-    api.put(`/v1/inventory/${id}/quantity`, { quantity }),
-  getLowStock: () => api.get("/v1/inventory/low-stock"),
-  getCritical: () => api.get("/v1/inventory/critical"),
+  getAll: (
+    params?: any
+  ): Promise<AxiosResponse<PaginatedResponse<Inventory>>> =>
+    api.get("/inventory", { params }),
+  getById: (id: string): Promise<AxiosResponse<Inventory>> =>
+    api.get(`/inventory/${id}`),
+  getByStore: (storeId: string): Promise<AxiosResponse<Inventory[]>> =>
+    api.get(`/inventory/store/${storeId}`),
+  getByProduct: (productId: string): Promise<AxiosResponse<Inventory[]>> =>
+    api.get(`/inventory/product/${productId}`),
+  create: (data: InventoryCreateRequest): Promise<AxiosResponse<Inventory>> =>
+    api.post("/inventory", data),
+  update: (
+    id: string,
+    data: InventoryUpdateRequest
+  ): Promise<AxiosResponse<Inventory>> => api.put(`/inventory/${id}`, data),
+  updateQuantity: (
+    id: string,
+    data: InventoryQuantityUpdateRequest
+  ): Promise<AxiosResponse<Inventory>> =>
+    api.patch(`/inventory/${id}/quantity`, data),
+  getLowStock: (threshold?: number): Promise<AxiosResponse<Inventory[]>> =>
+    api.get("/inventory/low-stock", { params: { threshold } }),
+  delete: (id: string): Promise<AxiosResponse<void>> =>
+    api.delete(`/inventory/${id}`),
 };
 
-// Purchase Orders API (placeholder - implement when backend is ready)
+// Purchase Orders API - Updated for our Spring Boot backend
 export const purchaseOrderAPI = {
-  getAll: (params?: any) => api.get("/v1/purchase-orders", { params }),
-  getById: (id: string) => api.get(`/v1/purchase-orders/${id}`),
-  create: (data: any) => api.post("/v1/purchase-orders", data),
-  update: (id: string, data: any) => api.put(`/v1/purchase-orders/${id}`, data),
-  approve: (id: string) => api.post(`/v1/purchase-orders/${id}/approve`),
-  reject: (id: string, reason: string) =>
-    api.post(`/v1/purchase-orders/${id}/reject`, { reason }),
+  getAll: (
+    params?: any
+  ): Promise<AxiosResponse<PaginatedResponse<PurchaseOrder>>> =>
+    api.get("/purchase-orders", { params }),
+  getById: (id: string): Promise<AxiosResponse<PurchaseOrder>> =>
+    api.get(`/purchase-orders/${id}`),
+  getByPoNumber: (poNumber: string): Promise<AxiosResponse<PurchaseOrder>> =>
+    api.get(`/purchase-orders/po-number/${poNumber}`),
+  create: (
+    data: PurchaseOrderCreateRequest
+  ): Promise<AxiosResponse<PurchaseOrder>> =>
+    api.post("/purchase-orders", data),
+  update: (
+    id: string,
+    data: PurchaseOrderUpdateRequest
+  ): Promise<AxiosResponse<PurchaseOrder>> =>
+    api.put(`/purchase-orders/${id}`, data),
+  updateStatus: (
+    id: string,
+    status: string,
+    approvedBy?: string
+  ): Promise<AxiosResponse<PurchaseOrder>> =>
+    api.patch(`/purchase-orders/${id}/status`, null, {
+      params: { status, approvedBy },
+    }),
+  delete: (id: string): Promise<AxiosResponse<void>> =>
+    api.delete(`/purchase-orders/${id}`),
 };
 
-// Suppliers API (placeholder - implement when backend is ready)
+// Suppliers API - Updated for our Spring Boot backend
 export const supplierAPI = {
-  getAll: (params?: any) => api.get("/v1/suppliers", { params }),
-  getById: (id: string) => api.get(`/v1/suppliers/${id}`),
-  create: (data: any) => api.post("/v1/suppliers", data),
-  update: (id: string, data: any) => api.put(`/v1/suppliers/${id}`, data),
-  delete: (id: string) => api.delete(`/v1/suppliers/${id}`),
+  getAll: (params?: any): Promise<AxiosResponse<PaginatedResponse<Supplier>>> =>
+    api.get("/suppliers", { params }),
+  getById: (id: string): Promise<AxiosResponse<Supplier>> =>
+    api.get(`/suppliers/${id}`),
+  getByCode: (code: string): Promise<AxiosResponse<Supplier>> =>
+    api.get(`/suppliers/code/${code}`),
+  create: (data: SupplierCreateRequest): Promise<AxiosResponse<Supplier>> =>
+    api.post("/suppliers", data),
+  update: (
+    id: string,
+    data: SupplierUpdateRequest
+  ): Promise<AxiosResponse<Supplier>> => api.put(`/suppliers/${id}`, data),
+  delete: (id: string): Promise<AxiosResponse<void>> =>
+    api.delete(`/suppliers/${id}`),
+};
+
+// Products API - New for our Spring Boot backend
+export const productAPI = {
+  getAll: (params?: any): Promise<AxiosResponse<Product[]>> =>
+    api.get("/products", { params }),
+  getById: (id: string): Promise<AxiosResponse<Product>> =>
+    api.get(`/products/${id}`),
+  getBySku: (sku: string): Promise<AxiosResponse<Product>> =>
+    api.get(`/products/sku/${sku}`),
+  getBySupplier: (supplierId: string): Promise<AxiosResponse<Product[]>> =>
+    api.get(`/products/supplier/${supplierId}`),
+  search: (
+    query: string,
+    params?: any
+  ): Promise<AxiosResponse<PaginatedResponse<Product>>> =>
+    api.get("/products/search", { params: { query, ...params } }),
+  getCategories: (): Promise<AxiosResponse<string[]>> =>
+    api.get("/products/categories"),
+  getSubcategories: (category: string): Promise<AxiosResponse<string[]>> =>
+    api.get(`/products/categories/${category}/subcategories`),
+  getBrands: (): Promise<AxiosResponse<string[]>> =>
+    api.get("/products/brands"),
+  create: (data: ProductCreateRequest): Promise<AxiosResponse<Product>> =>
+    api.post("/products", data),
+  update: (
+    id: string,
+    data: ProductUpdateRequest
+  ): Promise<AxiosResponse<Product>> => api.put(`/products/${id}`, data),
+  updateStatus: (id: string, status: string): Promise<AxiosResponse<Product>> =>
+    api.patch(`/products/${id}/status`, null, { params: { status } }),
+  delete: (id: string): Promise<AxiosResponse<void>> =>
+    api.delete(`/products/${id}`),
 };
 
 // Forecasting API
 export const forecastingAPI = {
   getForecast: (storeId: string, productId: string) =>
-    api.get(`/v1/forecasting/${storeId}/${productId}`),
+    api.get(`/api/v1/forecasting/${storeId}/${productId}`),
   generateForecast: (storeId: string) =>
-    api.post(`/v1/forecasting/${storeId}/generate`),
+    api.post(`/api/v1/forecasting/${storeId}/generate`),
   getForecastHistory: (storeId: string) =>
-    api.get(`/v1/forecasting/${storeId}/history`),
-  getKPIs: () => api.get("/v1/forecasting/dashboard/kpis"),
-  createScenario: (data: any) => api.post("/v1/forecasting/scenarios", data),
+    api.get(`/api/v1/forecasting/${storeId}/history`),
+  getKPIs: () => api.get("/api/v1/forecasting/dashboard/kpis"),
+  createScenario: (data: any) =>
+    api.post("/api/v1/forecasting/scenarios", data),
   runScenario: (scenarioId: string) =>
-    api.post(`/v1/forecasting/scenarios/${scenarioId}/run`),
+    api.post(`/api/v1/forecasting/scenarios/${scenarioId}/run`),
+  trainModel: (data: any) => api.post("/api/v1/forecasting/train", data),
+  generateForecastModel: (data: any) =>
+    api.post("/api/v1/forecasting/generate", data),
+  listModels: () => api.get("/api/v1/forecasting/models"),
 };
 
 // Dashboard API
 export const dashboardAPI = {
-  getKPIs: () => api.get("/v1/dashboard/kpis"),
-  getAtRiskItems: () => api.get("/v1/dashboard/at-risk"),
-  getOpenPOs: () => api.get("/v1/dashboard/open-pos"),
-  getRecentActivity: () => api.get("/v1/dashboard/recent-activity"),
+  getKPIs: () => api.get("/api/v1/dashboard/kpis"),
+  getAtRiskItems: () => api.get("/api/v1/dashboard/at-risk"),
+  getOpenPOs: () => api.get("/api/v1/dashboard/open-pos"),
+  getRecentActivity: () => api.get("/api/v1/dashboard/recent-activity"),
+};
+
+// Organization Admin API
+export const organizationAPI = {
+  // Organization management
+  getCurrentOrganization: (): Promise<AxiosResponse<Organization>> =>
+    api.get("/organizations/current"),
+  updateOrganization: (
+    id: string,
+    data: Partial<Organization>
+  ): Promise<AxiosResponse<Organization>> =>
+    api.put(`/organizations/${id}`, data),
+
+  // User management within organization
+  getOrganizationUsers: (
+    orgId: string,
+    params?: any
+  ): Promise<AxiosResponse<PaginatedResponse<OrganizationUserResponse>>> =>
+    api.get(`/orgs/${orgId}/users`, { params }),
+  getOrganizationUser: (
+    orgId: string,
+    userId: string
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.get(`/orgs/${orgId}/users/${userId}`),
+  createOrganizationUser: (
+    orgId: string,
+    data: OrganizationUserCreateRequest
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.post(`/orgs/${orgId}/users`, data),
+  updateOrganizationUser: (
+    orgId: string,
+    userId: string,
+    data: OrganizationUserUpdateRequest
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.put(`/orgs/${orgId}/users/${userId}`, data),
+  activateUser: (
+    orgId: string,
+    userId: string
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.patch(`/orgs/${orgId}/users/${userId}/activate`),
+  deactivateUser: (
+    orgId: string,
+    userId: string
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.patch(`/orgs/${orgId}/users/${userId}/deactivate`),
+  suspendUser: (
+    orgId: string,
+    userId: string
+  ): Promise<AxiosResponse<OrganizationUserResponse>> =>
+    api.patch(`/orgs/${orgId}/users/${userId}/suspend`),
+  deleteOrganizationUser: (
+    orgId: string,
+    userId: string
+  ): Promise<AxiosResponse<void>> =>
+    api.delete(`/orgs/${orgId}/users/${userId}`),
+};
+
+// Auth API
+export const authAPI = {
+  login: (
+    email: string,
+    password: string
+  ): Promise<
+    AxiosResponse<{
+      accessToken: string;
+      user: User;
+      organization?: Organization;
+    }>
+  > => api.post("/auth/login", { email, password }),
+  logout: (): Promise<AxiosResponse<void>> => api.post("/auth/logout"),
+  refreshToken: (): Promise<AxiosResponse<{ accessToken: string }>> =>
+    api.post("/auth/refresh"),
+  getCurrentUser: (): Promise<AxiosResponse<User>> => api.get("/auth/me"),
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ): Promise<AxiosResponse<void>> =>
+    api.post("/auth/change-password", { currentPassword, newPassword }),
 };
 
 // Export functions
 export const exportAPI = {
   exportInventory: (params?: any) =>
-    api.get("/v1/export/inventory", {
+    api.get("/api/v1/export/inventory", {
       params,
       responseType: "blob",
     }),
   exportForecast: (storeId: string) =>
-    api.get(`/v1/export/forecast/${storeId}`, {
+    api.get(`/api/v1/export/forecast/${storeId}`, {
       responseType: "blob",
     }),
   exportPurchaseOrders: (params?: any) =>
-    api.get("/v1/export/purchase-orders", {
+    api.get("/api/v1/export/purchase-orders", {
       params,
       responseType: "blob",
     }),

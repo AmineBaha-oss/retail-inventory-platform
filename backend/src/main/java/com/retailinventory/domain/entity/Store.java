@@ -67,6 +67,10 @@ public class Store {
     @Builder.Default
     private List<PurchaseOrder> purchaseOrders = new ArrayList<>();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
+
     @ManyToMany(mappedBy = "accessibleStores", fetch = FetchType.LAZY)
     @Builder.Default
     private Set<User> authorizedUsers = new HashSet<>();

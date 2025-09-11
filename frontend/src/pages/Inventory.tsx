@@ -2,30 +2,19 @@ import React, { useState, useEffect } from "react";
 import {
   Box,
   SimpleGrid,
-  HStack,
   VStack,
-  Heading,
   Text,
-  Card,
-  CardBody,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  InputGroup,
-  InputRightElement,
-  IconButton,
-  Input,
-  Select,
   Button,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
   Badge,
+  useToast,
+  Icon,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  Select,
+  HStack,
+  Tooltip,
+  IconButton,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -35,641 +24,451 @@ import {
   ModalFooter,
   FormControl,
   FormLabel,
-  useToast,
-  useDisclosure,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
 } from "@chakra-ui/react";
-import { SearchIcon } from "@chakra-ui/icons";
-import { FiPlus, FiEdit3, FiTrash2, FiAlertTriangle } from "react-icons/fi";
-import { useRef } from "react";
+import {
+  FiSearch,
+  FiFilter,
+  FiPlus,
+  FiEdit,
+  FiTrash2,
+  FiPackage,
+  FiTrendingUp,
+  FiAlertTriangle,
+  FiDollarSign,
+  FiRefreshCw,
+} from "react-icons/fi";
 import PageHeader from "../components/ui/PageHeader";
-import { FiPackage } from "react-icons/fi";
+import StatCard from "../components/ui/StatCard";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
-import { inventoryAPI } from "../services/api";
-import { showSuccess, showError, showInfo, debounce } from "../utils/helpers";
-import { useLocation } from "react-router-dom";
+import { inventoryAPI, storeAPI, productAPI } from "../services/api";
+import { Inventory as APIInventory, Store, Product } from "../types/api";
 
-type InventoryItem = {
+type UIInventory = {
   id: string;
-  sku: string;
-  name: string;
-  store: string;
-  quantity: number;
-  reorderPoint: number;
-  daysUntilStockout: number;
-  status: "Healthy" | "Low" | "Critical";
-  lastUpdated: string;
-  forecastedDemand?: number;
-  leadTime?: number;
+  productName?: string;
+  sku?: string;
+  brand?: string;
+  store?: string;
+  storeCode?: string;
+  onHand: number;
+  reorderPoint?: number;
+  maxStock?: number;
+  status: string;
+  value?: number;
+  unitValue?: number;
+  lastUpdated?: string;
+  productId?: string;
+  storeId?: string;
 };
 
-// Demo data with more realistic inventory items
-const initialInventory: InventoryItem[] = [
-  {
-    id: "1",
-    sku: "TEE-Black-S",
-    name: "Black T-Shirt (Small)",
-    store: "Downtown",
-    quantity: 45,
-    reorderPoint: 20,
-    daysUntilStockout: 12,
-    status: "Healthy",
-    lastUpdated: "2024-01-15",
-    forecastedDemand: 3.2,
-    leadTime: 14,
-  },
-  {
-    id: "2",
-    sku: "JKT-Navy-M",
-    name: "Navy Jacket (Medium)",
-    store: "Longueuil",
-    quantity: 8,
-    reorderPoint: 15,
-    daysUntilStockout: 3,
-    status: "Critical",
-    lastUpdated: "2024-01-15",
-    forecastedDemand: 2.1,
-    leadTime: 21,
-  },
-  {
-    id: "3",
-    sku: "SHO-Brown-42",
-    name: "Brown Shoes (42)",
-    store: "Plateau",
-    quantity: 0,
-    reorderPoint: 10,
-    daysUntilStockout: 0,
-    status: "Critical",
-    lastUpdated: "2024-01-15",
-    forecastedDemand: 1.8,
-    leadTime: 28,
-  },
-  {
-    id: "4",
-    sku: "PANT-Khaki-32",
-    name: "Khaki Pants (32)",
-    store: "Downtown",
-    quantity: 22,
-    reorderPoint: 25,
-    daysUntilStockout: 8,
-    status: "Low",
-    lastUpdated: "2024-01-15",
-    forecastedDemand: 2.8,
-    leadTime: 18,
-  },
-  {
-    id: "5",
-    sku: "HAT-Red-L",
-    name: "Red Baseball Cap (Large)",
-    store: "Longueuil",
-    quantity: 35,
-    reorderPoint: 30,
-    daysUntilStockout: 15,
-    status: "Healthy",
-    lastUpdated: "2024-01-15",
-    forecastedDemand: 1.5,
-    leadTime: 12,
-  },
-];
-
 export default function Inventory() {
-  const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
-  const [search, setSearch] = useState("");
-  const [storeFilter, setStoreFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Partial<InventoryItem>>({});
+  const [inventory, setInventory] = useState<UIInventory[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [storeFilter, setStoreFilter] = useState("all");
   const toast = useToast();
-  const location = useLocation();
-  const cancelRef = useRef<HTMLButtonElement>(null);
 
-  // Get filters from navigation state (when coming from dashboard)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [form, setForm] = useState<{ storeId: string; productId: string; quantityOnHand: string; reorderPoint: string; maxStockLevel: string; costPerUnit: string }>(
+    { storeId: "", productId: "", quantityOnHand: "", reorderPoint: "", maxStockLevel: "", costPerUnit: "" }
+  );
+  const [stores, setStores] = useState<Store[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+
   useEffect(() => {
-    if (location.state) {
-      const {
-        search: searchFilter,
-        storeFilter: storeFilterState,
-        statusFilter: statusFilterState,
-      } = location.state;
-      if (searchFilter) setSearch(searchFilter);
-      if (storeFilterState) setStoreFilter(storeFilterState);
-      if (statusFilterState) setStatusFilter(statusFilterState);
+    loadInventory();
+  }, []);
+
+  useEffect(() => {
+    const loadRefs = async () => {
+      try {
+        const [s, p] = await Promise.all([storeAPI.getAll(), productAPI.getAll()]);
+        const storeList = (s.data as any).content ?? s.data ?? [];
+        const productList = (p.data as any).content ?? p.data ?? [];
+        setStores(Array.isArray(storeList) ? storeList : []);
+        setProducts(Array.isArray(productList) ? productList : []);
+      } catch (_) {
+        // ignore
+      }
+    };
+    loadRefs();
+  }, []);
+
+  const loadInventory = async () => {
+    try {
+      setIsLoading(true);
+      const res = await inventoryAPI.getAll();
+      const list: any = Array.isArray(res.data) ? res.data : (res.data as any).content ?? [];
+      const ui: UIInventory[] = (list as APIInventory[]).map((i) => ({
+        id: i.id,
+        store: i.storeName,
+        storeCode: i.storeCode,
+        productName: i.productName,
+        sku: i.productSku,
+        onHand: i.quantityOnHand,
+        reorderPoint: (i as any).reorderPoint ?? undefined,
+        maxStock: (i as any).maxStockLevel ?? undefined,
+        status: i.quantityOnHand <= 0 ? "Critical" : (i as any).reorderLevel ? (i.quantityOnHand <= (i as any).reorderLevel ? "Low" : "Healthy") : "Healthy",
+        value: i.totalValue,
+        unitValue: i.unitCost,
+        lastUpdated: i.lastUpdated,
+        productId: i.productId,
+        storeId: i.storeId,
+      }));
+      setInventory(ui);
+    } catch (error) {
+      toast({ title: "Failed to load inventory", status: "error" });
+    } finally {
+      setIsLoading(false);
     }
-  }, [location.state]);
+  };
 
-  // Debounced search function
-  const debouncedSearch = debounce((searchTerm: string) => {
-    setSearch(searchTerm);
-  }, 300);
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
 
-  const filteredInventory = inventory.filter(
-    (item) =>
-      (item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.sku.toLowerCase().includes(search.toLowerCase())) &&
-      (storeFilter === "" || item.store === storeFilter) &&
-      (statusFilter === "" || item.status === statusFilter)
+  const handleStatusFilter = (status: string) => {
+    setStatusFilter(status);
+  };
+
+  const handleStoreFilter = (store: string) => {
+    setStoreFilter(store);
+  };
+
+  const handleAddInventory = () => {
+    setIsEditing(false);
+    setSelectedId(null);
+    setForm({ storeId: "", productId: "", quantityOnHand: "", reorderPoint: "", maxStockLevel: "", costPerUnit: "" });
+    setIsModalOpen(true);
+  };
+
+  const handleEditInventory = (item: UIInventory) => {
+    setIsEditing(true);
+    setSelectedId(item.id);
+    setForm({
+      storeId: item.storeId || "",
+      productId: item.productId || "",
+      quantityOnHand: String(item.onHand ?? ""),
+      reorderPoint: item.reorderPoint != null ? String(item.reorderPoint) : "",
+      maxStockLevel: item.maxStock != null ? String(item.maxStock) : "",
+      costPerUnit: item.unitValue != null ? String(item.unitValue) : "",
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteInventory = async (item: UIInventory) => {
+    if (!window.confirm(`Delete inventory for ${item.productName || item.sku}?`)) return;
+    try {
+      await inventoryAPI.delete(item.id);
+      setInventory((prev) => prev.filter((x) => x.id !== item.id));
+      toast({ title: "Inventory deleted", status: "success" });
+    } catch (_) {
+      toast({ title: "Failed to delete inventory", status: "error" });
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (!form.storeId || !form.productId || form.quantityOnHand === "") {
+        toast({ title: "Please fill required fields", status: "warning" });
+        return;
+      }
+      if (isEditing && selectedId) {
+        const updatePayload: any = {
+          quantityOnHand: Number(form.quantityOnHand),
+          reorderPoint: form.reorderPoint === "" ? undefined : Number(form.reorderPoint),
+          maxStockLevel: form.maxStockLevel === "" ? undefined : Number(form.maxStockLevel),
+          costPerUnit: form.costPerUnit === "" ? undefined : Number(form.costPerUnit),
+        };
+        const res = await inventoryAPI.update(selectedId, updatePayload);
+        const i = res.data as any;
+        setInventory((prev) => prev.map((x) => (x.id === selectedId ? {
+          id: i.id,
+          store: i.storeName,
+          storeCode: i.storeCode,
+          productName: i.productName,
+          sku: i.productSku,
+          onHand: i.quantityOnHand,
+          reorderPoint: i.reorderPoint,
+          maxStock: i.maxStockLevel,
+          status: i.quantityOnHand <= 0 ? "Critical" : i.reorderPoint && i.quantityOnHand <= i.reorderPoint ? "Low" : "Healthy",
+          value: i.totalValue,
+          unitValue: i.costPerUnit,
+          lastUpdated: i.recordedAt,
+          productId: i.productId,
+          storeId: i.storeId,
+        } : x)));
+        toast({ title: "Inventory updated", status: "success" });
+      } else {
+        const createPayload: any = {
+          storeId: form.storeId,
+          productId: form.productId,
+          quantityOnHand: Number(form.quantityOnHand),
+          reorderPoint: form.reorderPoint === "" ? undefined : Number(form.reorderPoint),
+          maxStockLevel: form.maxStockLevel === "" ? undefined : Number(form.maxStockLevel),
+          costPerUnit: form.costPerUnit === "" ? undefined : Number(form.costPerUnit),
+        };
+        const res = await inventoryAPI.create(createPayload);
+        const i = res.data as any;
+        const item: UIInventory = {
+          id: i.id,
+          store: i.storeName,
+          storeCode: i.storeCode,
+          productName: i.productName,
+          sku: i.productSku,
+          onHand: i.quantityOnHand,
+          reorderPoint: i.reorderPoint,
+          maxStock: i.maxStockLevel,
+          status: i.quantityOnHand <= 0 ? "Critical" : i.reorderPoint && i.quantityOnHand <= i.reorderPoint ? "Low" : "Healthy",
+          value: i.totalValue,
+          unitValue: i.costPerUnit,
+          lastUpdated: i.recordedAt,
+          productId: i.productId,
+          storeId: i.storeId,
+        };
+        setInventory((prev) => [item, ...prev]);
+        toast({ title: "Inventory created", status: "success" });
+      }
+      setIsModalOpen(false);
+    } catch (_) {
+      toast({ title: "Save failed", status: "error" });
+    }
+  };
+
+  const filteredInventory = inventory.filter((item) => {
+    const matchesSearch =
+      item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.brand.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" ||
+      item.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesStore = storeFilter === "all" || item.store === storeFilter;
+
+    return matchesSearch && matchesStatus && matchesStore;
+  });
+
+  const columns = [
+    { key: "productName", label: "PRODUCT DETAILS" },
+    { key: "store", label: "STORE" },
+    { key: "onHand", label: "STOCK LEVELS" },
+    { key: "status", label: "STATUS" },
+    { key: "value", label: "VALUE" },
+    { key: "lastUpdated", label: "LAST UPDATED" },
+  ];
+
+  const actions = (row: any) => (
+    <HStack spacing={1}>
+      <Tooltip label="Edit Inventory">
+        <IconButton
+          aria-label="Edit"
+          icon={<Icon as={FiEdit} />}
+          size="sm"
+          variant="ghost"
+          color="gray.400"
+          _hover={{ color: "brand.400", bg: "brand.50" }}
+          onClick={() => handleEditInventory(row)}
+        />
+      </Tooltip>
+      <Tooltip label="Delete Inventory">
+        <IconButton
+          aria-label="Delete"
+          icon={<Icon as={FiTrash2} />}
+          size="sm"
+          variant="ghost"
+          color="gray.400"
+          _hover={{ color: "error.400", bg: "error.50" }}
+          onClick={() => handleDeleteInventory(row)}
+        />
+      </Tooltip>
+    </HStack>
   );
 
-  const totalItems = inventory.length;
-  const healthyCount = inventory.filter(
-    (item) => item.status === "Healthy"
-  ).length;
-  const lowCount = inventory.filter((item) => item.status === "Low").length;
-  const criticalCount = inventory.filter(
-    (item) => item.status === "Critical"
-  ).length;
-
-  // Handle search
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    debouncedSearch(e.target.value);
-  };
-
-  // Handle clear filters
-  const handleClearFilters = () => {
-    setSearch("");
-    setStoreFilter("");
-    setStatusFilter("");
-  };
-
-  // Handle edit item
-  const handleEditItem = (item: InventoryItem) => {
-    setEditingItem(item);
-    setIsEditModalOpen(true);
-  };
-
-  // Handle save edit
-  const handleSaveEdit = () => {
-    if (!editingItem.id) return;
-
-    setInventory((prev) =>
-      prev.map((item) =>
-        item.id === editingItem.id ? { ...item, ...editingItem } : item
-      )
-    );
-
-    showSuccess("Inventory item updated successfully!");
-    setIsEditModalOpen(false);
-    setEditingItem({});
-  };
-
-  // Handle delete item
-  const handleDeleteItem = (item: InventoryItem) => {
-    setSelectedItem(item);
-    setIsDeleteDialogOpen(true);
-  };
-
-  // Confirm delete
-  const confirmDelete = () => {
-    if (!selectedItem) return;
-
-    setInventory((prev) => prev.filter((item) => item.id !== selectedItem.id));
-    showSuccess("Inventory item deleted successfully!");
-    setIsDeleteDialogOpen(false);
-    setSelectedItem(null);
-  };
-
-  // Handle generate PO for critical items
-  const handleGeneratePO = async (item: InventoryItem) => {
-    try {
-      setIsLoading(true);
-      showInfo(`Generating purchase order for ${item.sku}...`);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      showSuccess(
-        `Purchase order generated for ${item.sku}! Check Purchase Orders page.`
-      );
-    } catch (error) {
-      showError("Failed to generate purchase order");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle refresh inventory data
-  const handleRefreshData = async () => {
-    try {
-      setIsLoading(true);
-      showInfo("Refreshing inventory data...");
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      showSuccess("Inventory data refreshed successfully!");
-    } catch (error) {
-      showError("Failed to refresh inventory data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
-    <>
+    <VStack spacing={8} align="stretch">
+      {/* Page Header */}
       <PageHeader
-        title="Inventory Management"
-        subtitle="Monitor stock levels, identify at-risk items, and manage replenishment across all stores."
-        icon={<FiPackage />}
-        accentColor="var(--chakra-colors-orange-400)"
+        title="Inventory"
+        subtitle="Manage stock levels, track inventory value, and monitor reorder points"
         actions={
           <HStack spacing={3}>
             <Button
               variant="outline"
-              size="sm"
-              onClick={handleRefreshData}
+              size="md"
+              leftIcon={<Icon as={FiRefreshCw} />}
+              onClick={loadInventory}
               isLoading={isLoading}
-              loadingText="Refreshing..."
             >
-              Refresh Data
+              Refresh
             </Button>
             <Button
-              colorScheme="brand"
-              size="sm"
-              leftIcon={<FiPlus />}
-              onClick={() => setIsEditModalOpen(true)}
+              leftIcon={<Icon as={FiPlus} />}
+              onClick={handleAddInventory}
+              bg="brand.500"
+              color="white"
+              _hover={{
+                bg: "brand.600",
+                transform: "translateY(-1px)",
+                boxShadow: "0 4px 12px rgba(0, 102, 204, 0.4)",
+              }}
             >
-              Add Item
+              Add Inventory
             </Button>
           </HStack>
         }
       />
 
-      {/* Summary Stats */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Total Items
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                {totalItems}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="gray.400">
-                Across all stores
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Healthy Stock
-              </StatLabel>
-              <StatNumber color="green.400" fontSize="2xl" fontWeight="bold">
-                {healthyCount}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="green.300">
-                <StatArrow type="increase" /> Above reorder point
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Low Stock
-              </StatLabel>
-              <StatNumber color="orange.400" fontSize="2xl" fontWeight="bold">
-                {lowCount}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="orange.300">
-                Near reorder point
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Critical Stock
-              </StatLabel>
-              <StatNumber color="red.400" fontSize="2xl" fontWeight="bold">
-                {criticalCount}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="red.300">
-                Immediate action needed
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
+      {/* Overview Cards */}
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+        <StatCard
+          title="Total Items"
+          value="8"
+          change={12.5}
+          changeType="increase"
+          icon={FiPackage}
+          iconColor="brand"
+          description="Real-time data"
+          status="success"
+        />
+        <StatCard
+          title="Low Stock"
+          value="4"
+          change={0}
+          changeType="increase"
+          icon={FiAlertTriangle}
+          iconColor="warning"
+          description="Items needing attention"
+          status="warning"
+        />
+        <StatCard
+          title="Critical Stock"
+          value="1"
+          change={0}
+          changeType="increase"
+          icon={FiAlertTriangle}
+          iconColor="error"
+          description="Items out of stock"
+          status="error"
+        />
+        <StatCard
+          title="Total Value"
+          value="$0"
+          change={0}
+          changeType="increase"
+          icon={FiDollarSign}
+          iconColor="brand"
+          description="Inventory value"
+          status="info"
+        />
       </SimpleGrid>
 
       {/* Inventory Table */}
-      <SectionCard title="Stock Levels">
-        <HStack
-          spacing={4}
-          align={{ base: "stretch", md: "center" }}
-          flexWrap="wrap"
-          mb={4}
-        >
-          <InputGroup maxW={{ base: "100%", md: "360px" }}>
-            <Input
-              placeholder="Search by SKU, name, store..."
-              defaultValue={search}
-              onChange={handleSearch}
-              bg="surfaceAlt"
-            />
-            <InputRightElement>
-              <IconButton
-                aria-label="search"
-                icon={<SearchIcon />}
-                size="sm"
-                variant="ghost"
-              />
-            </InputRightElement>
-          </InputGroup>
-
-          <Select
-            maxW={{ base: "100%", md: "180px" }}
-            placeholder="Filter by store"
-            value={storeFilter}
-            onChange={(e) => setStoreFilter(e.target.value)}
-          >
-            <option value="Downtown">Downtown</option>
-            <option value="Longueuil">Longueuil</option>
-            <option value="Plateau">Plateau</option>
-          </Select>
-
-          <Select
-            maxW={{ base: "100%", md: "180px" }}
-            placeholder="Filter by status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="Healthy">Healthy</option>
-            <option value="Low">Low</option>
-            <option value="Critical">Critical</option>
-          </Select>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClearFilters}
-            isDisabled={!search && !storeFilter && !statusFilter}
-          >
-            Clear Filters
-          </Button>
-        </HStack>
-
+      <SectionCard
+        title="Inventory Items"
+        subtitle="Complete inventory overview with stock levels and status"
+        icon={FiPackage}
+      >
         <DataTable
-          head={
-            <Tr>
-              <Th>SKU</Th>
-              <Th>Name</Th>
-              <Th>Store</Th>
-              <Th isNumeric>Quantity</Th>
-              <Th isNumeric>Reorder Point</Th>
-              <Th isNumeric>Days Left</Th>
-              <Th>Status</Th>
-              <Th>Actions</Th>
-            </Tr>
-          }
-        >
-          {filteredInventory.map((item) => (
-            <Tr key={`${item.sku}-${item.store}`} _odd={{ bg: "gray.850" }}>
-              <Td fontWeight="medium">{item.sku}</Td>
-              <Td>{item.name}</Td>
-              <Td>{item.store}</Td>
-              <Td isNumeric fontWeight="semibold">
-                {item.quantity}
-              </Td>
-              <Td isNumeric fontWeight="semibold">
-                {item.reorderPoint}
-              </Td>
-              <Td isNumeric fontWeight="semibold">
-                {item.daysUntilStockout}
-              </Td>
-              <Td>
-                <Badge
-                  colorScheme={
-                    item.status === "Healthy"
-                      ? "success"
-                      : item.status === "Low"
-                      ? "warning"
-                      : "error"
-                  }
-                  variant="solid"
-                >
-                  {item.status}
-                </Badge>
-              </Td>
-              <Td>
-                <HStack spacing={2}>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    colorScheme="blue"
-                    leftIcon={<FiEdit3 />}
-                    onClick={() => handleEditItem(item)}
-                  >
-                    Edit
-                  </Button>
-                  {item.status === "Critical" && (
-                    <Button
-                      size="sm"
-                      variant="solid"
-                      colorScheme="red"
-                      leftIcon={<FiAlertTriangle />}
-                      onClick={() => handleGeneratePO(item)}
-                      isLoading={isLoading}
-                    >
-                      Generate PO
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    colorScheme="red"
-                    leftIcon={<FiTrash2 />}
-                    onClick={() => handleDeleteItem(item)}
-                  >
-                    Delete
-                  </Button>
-                </HStack>
-              </Td>
-            </Tr>
-          ))}
-        </DataTable>
+          columns={columns}
+          data={filteredInventory}
+          isLoading={isLoading}
+          searchable={true}
+          searchPlaceholder="Search inventory..."
+          onSearch={handleSearch}
+          filters={[
+            {
+              key: "status",
+              label: "All Statuses",
+              options: [
+                { value: "all", label: "All Statuses" },
+                { value: "Healthy", label: "Healthy" },
+                { value: "Low", label: "Low Stock" },
+                { value: "Critical", label: "Critical" },
+              ],
+              onFilter: handleStatusFilter,
+            },
+            {
+              key: "store",
+              label: "All Stores",
+              options: [
+                { value: "all", label: "All Stores" },
+                { value: "SoHo Flagship", label: "SoHo Flagship" },
+                {
+                  value: "Beverly Hills Premium",
+                  label: "Beverly Hills Premium",
+                },
+                { value: "Magnificent Mile", label: "Magnificent Mile" },
+              ],
+              onFilter: handleStoreFilter,
+            },
+          ]}
+          actions={actions}
+          emptyMessage="No inventory items found"
+        />
       </SectionCard>
 
-      {/* Edit/Add Modal */}
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        size="lg"
-      >
+      {/* Create/Edit Inventory Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <ModalOverlay />
-        <ModalContent bg="gray.800" border="1px solid" borderColor="gray.700">
-          <ModalHeader color="gray.100">
-            {editingItem.id ? "Edit Inventory Item" : "Add New Item"}
-          </ModalHeader>
-          <ModalCloseButton color="gray.400" />
+        <ModalContent>
+          <ModalHeader>{isEditing ? "Edit Inventory" : "Add Inventory"}</ModalHeader>
+          <ModalCloseButton />
           <ModalBody>
-            <VStack spacing={4}>
-              <FormControl>
-                <FormLabel color="gray.200">SKU</FormLabel>
-                <Input
-                  value={editingItem.sku || ""}
-                  onChange={(e) =>
-                    setEditingItem({ ...editingItem, sku: e.target.value })
-                  }
-                  bg="gray.700"
-                  borderColor="gray.600"
-                  color="gray.100"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel color="gray.200">Name</FormLabel>
-                <Input
-                  value={editingItem.name || ""}
-                  onChange={(e) =>
-                    setEditingItem({ ...editingItem, name: e.target.value })
-                  }
-                  bg="gray.700"
-                  borderColor="gray.600"
-                  color="gray.100"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel color="gray.200">Store</FormLabel>
-                <Select
-                  value={editingItem.store || ""}
-                  onChange={(e) =>
-                    setEditingItem({ ...editingItem, store: e.target.value })
-                  }
-                  bg="gray.700"
-                  borderColor="gray.600"
-                  color="gray.100"
-                >
-                  <option value="Downtown">Downtown</option>
-                  <option value="Longueuil">Longueuil</option>
-                  <option value="Plateau">Plateau</option>
-                </Select>
-              </FormControl>
-              <FormControl>
-                <FormLabel color="gray.200">Quantity</FormLabel>
-                <Input
-                  type="number"
-                  value={editingItem.quantity || ""}
-                  onChange={(e) =>
-                    setEditingItem({
-                      ...editingItem,
-                      quantity: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  bg="gray.700"
-                  borderColor="gray.600"
-                  color="gray.100"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel color="gray.200">Reorder Point</FormLabel>
-                <Input
-                  type="number"
-                  value={editingItem.reorderPoint || ""}
-                  onChange={(e) =>
-                    setEditingItem({
-                      ...editingItem,
-                      reorderPoint: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  bg="gray.700"
-                  borderColor="gray.600"
-                  color="gray.100"
-                />
-              </FormControl>
+            <VStack spacing={4} align="stretch">
+              <HStack>
+                <FormControl isRequired>
+                  <FormLabel>Store</FormLabel>
+                  <Select value={form.storeId} onChange={(e) => setForm((p) => ({ ...p, storeId: e.target.value }))} placeholder="Select a store">
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Product</FormLabel>
+                  <Select value={form.productId} onChange={(e) => setForm((p) => ({ ...p, productId: e.target.value }))} placeholder="Select a product">
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ""}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+              </HStack>
+              <HStack>
+                <FormControl isRequired>
+                  <FormLabel>Quantity On Hand</FormLabel>
+                  <Input type="number" value={form.quantityOnHand} onChange={(e) => setForm((p) => ({ ...p, quantityOnHand: e.target.value }))} placeholder="e.g. 100" />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Reorder Point</FormLabel>
+                  <Input type="number" value={form.reorderPoint} onChange={(e) => setForm((p) => ({ ...p, reorderPoint: e.target.value }))} placeholder="e.g. 20" />
+                </FormControl>
+              </HStack>
+              <HStack>
+                <FormControl>
+                  <FormLabel>Max Stock Level</FormLabel>
+                  <Input type="number" value={form.maxStockLevel} onChange={(e) => setForm((p) => ({ ...p, maxStockLevel: e.target.value }))} placeholder="e.g. 500" />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Cost Per Unit</FormLabel>
+                  <Input type="number" step="0.01" value={form.costPerUnit} onChange={(e) => setForm((p) => ({ ...p, costPerUnit: e.target.value }))} placeholder="e.g. 12.50" />
+                </FormControl>
+              </HStack>
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button
-              variant="ghost"
-              mr={3}
-              onClick={() => setIsEditModalOpen(false)}
-            >
+            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button colorScheme="brand" onClick={handleSaveEdit}>
-              {editingItem.id ? "Update" : "Create"}
+            <Button colorScheme="brand" onClick={handleSubmit} disabled={!form.storeId || !form.productId || form.quantityOnHand === ""}>
+              {isEditing ? "Save Changes" : "Create Inventory"}
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        isOpen={isDeleteDialogOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={() => setIsDeleteDialogOpen(false)}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent
-            bg="gray.800"
-            border="1px solid"
-            borderColor="gray.700"
-          >
-            <AlertDialogHeader fontSize="lg" fontWeight="bold" color="gray.100">
-              Delete Inventory Item
-            </AlertDialogHeader>
-
-            <AlertDialogBody color="gray.200">
-              Are you sure you want to delete {selectedItem?.name} (
-              {selectedItem?.sku})? This action cannot be undone.
-            </AlertDialogBody>
-
-            <AlertDialogFooter>
-              <Button
-                ref={cancelRef}
-                onClick={() => setIsDeleteDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button colorScheme="red" onClick={confirmDelete} ml={3}>
-                Delete
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
-    </>
+    </VStack>
   );
 }

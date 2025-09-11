@@ -1,31 +1,20 @@
-import React, { useMemo, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   SimpleGrid,
-  HStack,
   VStack,
-  Heading,
   Text,
-  Card,
-  CardBody,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  InputGroup,
-  InputRightElement,
-  IconButton,
-  Input,
-  Select,
   Button,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
   Badge,
+  useToast,
+  Icon,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  Select,
+  HStack,
+  Tooltip,
+  IconButton,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -35,687 +24,405 @@ import {
   ModalFooter,
   FormControl,
   FormLabel,
+  Spinner,
 } from "@chakra-ui/react";
-import { SearchIcon } from "@chakra-ui/icons";
+import {
+  FiSearch,
+  FiFilter,
+  FiPlus,
+  FiEdit,
+  FiTrash2,
+  FiHome,
+  FiTrendingUp,
+  FiAlertTriangle,
+  FiDollarSign,
+  FiRefreshCw,
+} from "react-icons/fi";
 import PageHeader from "../components/ui/PageHeader";
-import { FiMapPin } from "react-icons/fi";
+import StatCard from "../components/ui/StatCard";
 import SectionCard from "../components/ui/SectionCard";
+import DataTable from "../components/ui/DataTable";
+import { storeAPI } from "../services/api";
+import { Store as APIStore, StoreCreateRequest, StoreUpdateRequest } from "../types/api";
 
-type StoreStatus = "Active" | "Inactive";
+type UIStore = APIStore & { location?: string; statusText?: string };
 
-type Store = {
-  id: string;
-  name: string;
-  code: string;
-  manager: string;
-  email: string;
-  phone: string;
-  country: string;
-  city: string;
-  address: string;
-  timezone: string;
-  totalProducts: number;
-  totalValue: number;
-  lastSync: string; // ISO or formatted string
-  status: StoreStatus;
-};
+export default function Stores() {
+  const [stores, setStores] = useState<UIStore[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("all");
+  const toast = useToast();
 
-type NewStore = {
-  name: string;
-  code: string;
-  manager: string;
-  email: string;
-  phone: string;
-  country: string;
-  city: string;
-  address: string;
-  timezone: string;
-};
-
-// --- Demo data (replace with API later) ---
-const initialStores: Store[] = [
-  {
-    id: `store_${Date.now() - 100000}`,
-    name: "Downtown Boutique",
-    code: "DT-001",
-    manager: "Alice Martin",
-    email: "alice@downtown.example",
-    phone: "+1 (514) 555-1000",
-    country: "Canada",
-    city: "Montreal",
-    address: "123 Sainte-Catherine St W, Montreal, QC",
-    timezone: "America/Toronto",
-    totalProducts: 1240,
-    totalValue: 92500,
-    lastSync: "2025-08-29 10:15",
-    status: "Active",
-  },
-  {
-    id: `store_${Date.now() - 50000}`,
-    name: "Plateau Outlet",
-    code: "PL-002",
-    manager: "Benoit Chartrand",
-    email: "benoit@plateau.example",
-    phone: "+1 (514) 555-2000",
-    country: "Canada",
-    city: "Montreal",
-    address: "456 Mont-Royal Ave E, Montreal, QC",
-    timezone: "America/Toronto",
-    totalProducts: 980,
-    totalValue: 71200,
-    lastSync: "2025-08-28 16:42",
-    status: "Inactive",
-  },
-  {
-    id: `store_${Date.now() - 25000}`,
-    name: "Longueuil Showroom",
-    code: "LG-003",
-    manager: "Camille Roy",
-    email: "camille@longueuil.example",
-    phone: "+1 (450) 555-3000",
-    country: "Canada",
-    city: "Longueuil",
-    address: "789 Rue Saint-Charles O, Longueuil, QC",
-    timezone: "America/Toronto",
-    totalProducts: 1520,
-    totalValue: 110400,
-    lastSync: "2025-08-29 09:05",
-    status: "Active",
-  },
-];
-
-const emptyNewStore: NewStore = {
-  name: "",
-  code: "",
-  manager: "",
-  email: "",
-  phone: "",
-  country: "Canada",
-  city: "",
-  address: "",
-  timezone: "America/Toronto",
-};
-
-const Stores: React.FC = () => {
-  // state
-  const [stores, setStores] = useState<Store[]>(initialStores);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"" | StoreStatus>("");
-  const [countryFilter, setCountryFilter] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newStore, setNewStore] = useState<NewStore>(emptyNewStore);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [form, setForm] = useState<Partial<StoreCreateRequest & StoreUpdateRequest & { code?: string }>>({
+    name: "",
+    manager: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    country: "",
+    timezone: "UTC",
+  });
+  const [submitting, setSubmitting] = useState(false);
 
-  // derived metrics
-  const avgProductsPerStore = useMemo(() => {
-    if (!stores.length) return 0;
-    return Math.round(
-      stores.reduce((sum, s) => sum + s.totalProducts, 0) / stores.length
-    );
-  }, [stores]);
+  useEffect(() => {
+    loadStores();
+  }, []);
 
-  const avgValuePerStore = useMemo(() => {
-    if (!stores.length) return 0;
-    return Math.round(
-      stores.reduce((sum, s) => sum + s.totalValue, 0) / stores.length
-    );
-  }, [stores]);
-
-  const outOfSyncCount = useMemo(
-    () => stores.filter((s) => s.status === "Inactive").length,
-    [stores]
-  );
-
-  // filtered list
-  const filteredStores = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return stores.filter((s) => {
-      const matchesQuery =
-        !q ||
-        s.name.toLowerCase().includes(q) ||
-        s.code.toLowerCase().includes(q) ||
-        s.city.toLowerCase().includes(q) ||
-        s.manager.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q);
-      const matchesStatus = !statusFilter || s.status === statusFilter;
-      const matchesCountry = !countryFilter || s.country === countryFilter;
-      return matchesQuery && matchesStatus && matchesCountry;
-    });
-  }, [stores, search, statusFilter, countryFilter]);
-
-  // handlers
-  const handleInputChange = (field: keyof NewStore, value: string) => {
-    setNewStore((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleAddStore = () => {
-    if (!newStore.name || !newStore.code) return;
-    const created: Store = {
-      id: `store_${Date.now()}`,
-      name: newStore.name,
-      code: newStore.code,
-      manager: newStore.manager || "—",
-      email: newStore.email || "—",
-      phone: newStore.phone || "—",
-      country: newStore.country || "Canada",
-      city: newStore.city || "—",
-      address: newStore.address || "—",
-      timezone: newStore.timezone || "America/Toronto",
-      totalProducts: 0,
-      totalValue: 0,
-      lastSync: new Date().toISOString().slice(0, 16).replace("T", " "),
-      status: "Active",
-    };
-    setStores((prev) => [created, ...prev]);
-    setNewStore(emptyNewStore);
-    setIsModalOpen(false);
-  };
-
-  const handleViewStore = (store: Store) => {
-    setSelectedStore(store);
-    // You can implement a view modal here or navigate to a detailed view
-    console.log("Viewing store:", store);
-  };
-
-  const handleSyncStore = async (store: Store) => {
+  const loadStores = async () => {
     try {
       setIsLoading(true);
-      // Simulate sync operation
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Update last sync time
-      setStores((prev) =>
-        prev.map((s) =>
-          s.id === store.id
-            ? {
-                ...s,
-                lastSync: new Date()
-                  .toISOString()
-                  .slice(0, 16)
-                  .replace("T", " "),
-                status: "Active" as StoreStatus,
-              }
-            : s
-        )
-      );
-
-      // Show success message
-      alert(`Store ${store.name} synchronized successfully!`);
+      const response = await storeAPI.getAll();
+      const data = Array.isArray(response.data)
+        ? response.data
+        : (response.data as any).content ?? [];
+      const ui = (data as APIStore[]).map((s) => ({
+        ...s,
+        location: [s.city, s.country].filter(Boolean).join(", "),
+        statusText: (s as any).status ?? (s.isActive ? "Active" : "Inactive"),
+      }));
+      setStores(ui);
     } catch (error) {
-      console.error("Sync failed:", error);
-      alert("Sync failed. Please try again.");
+      toast({ title: "Failed to load stores", status: "error" });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  const handleStatusFilter = (status: string) => {
+    setStatusFilter(status);
+  };
+
+  const handleCountryFilter = (country: string) => {
+    setCountryFilter(country);
+  };
+
+  const handleAddStore = () => {
+    setIsEditing(false);
+    setSelectedId(null);
+    setForm({ name: "", manager: "", email: "", phone: "", address: "", city: "", country: "", timezone: "UTC" });
+    setIsModalOpen(true);
+  };
+
+  const handleEditStore = (store: UIStore) => {
+    setIsEditing(true);
+    setSelectedId(store.id);
+    setForm({
+      code: store.code,
+      name: store.name,
+      manager: store.manager,
+      email: store.email,
+      phone: store.phone,
+      address: store.address,
+      city: store.city,
+      country: store.country,
+      timezone: store.timezone || "UTC",
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteStore = async (store: UIStore) => {
+    if (!window.confirm(`Delete store ${store.name}?`)) return;
+    try {
+      setSubmitting(true);
+      await storeAPI.delete(store.id);
+      setStores((prev) => prev.filter((s) => s.id !== store.id));
+      toast({ title: "Store deleted", status: "success" });
+    } catch (e) {
+      toast({ title: "Failed to delete store", status: "error" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setSubmitting(true);
+      if (isEditing && selectedId) {
+        const update: StoreUpdateRequest = {
+          name: form.name,
+          manager: form.manager,
+          email: form.email,
+          phone: form.phone,
+          address: form.address,
+          city: form.city,
+          country: form.country,
+          timezone: form.timezone,
+        };
+        const res = await storeAPI.update(selectedId, update);
+        const updated = res.data as APIStore;
+        setStores((prev) => prev.map((s) => (s.id === selectedId ? { ...updated, location: [updated.city, updated.country].filter(Boolean).join(", "), statusText: (updated as any).status ?? (updated.isActive ? "Active" : "Inactive") } : s)));
+        toast({ title: "Store updated", status: "success" });
+      } else {
+        // Auto-generate store code from name
+        const base = (form.name || "STORE").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+        const suffix = String(Date.now()).slice(-3);
+        const code = `${base.substring(0, 3)}${suffix}`;
+        const create: StoreCreateRequest = {
+          code,
+          name: form.name || "",
+          manager: form.manager,
+          email: form.email,
+          phone: form.phone,
+          address: form.address,
+          city: form.city,
+          country: form.country,
+          timezone: form.timezone,
+        } as StoreCreateRequest;
+        const res = await storeAPI.create(create);
+        const created = res.data as APIStore;
+        setStores((prev) => [{ ...created, location: [created.city, created.country].filter(Boolean).join(", "), statusText: (created as any).status ?? (created.isActive ? "Active" : "Inactive") }, ...prev]);
+        toast({ title: "Store created", status: "success" });
+      }
+      setIsModalOpen(false);
+    } catch (e) {
+      toast({ title: "Save failed", status: "error" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const filteredStores = stores.filter((store) => {
+    const matchesSearch =
+      store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      store.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (store.manager || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (store.location || "").toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" ||
+      (store.statusText || "").toLowerCase() === statusFilter.toLowerCase();
+    const matchesCountry =
+      countryFilter === "all" || (store.location || "").includes(countryFilter);
+
+    return matchesSearch && matchesStatus && matchesCountry;
+  });
+
+  const columns = [
+    { key: "name", label: "STORE DETAILS" },
+    { key: "location", label: "LOCATION" },
+    { key: "phone", label: "CONTACT" },
+    { key: "statusText", label: "STATUS" },
+    { key: "productCount", label: "STATS" },
+  ];
+
+  const actions = (row: any) => (
+    <HStack spacing={1}>
+      <Tooltip label="Edit Store">
+        <IconButton
+          aria-label="Edit"
+          icon={<Icon as={FiEdit} />}
+          size="sm"
+          variant="ghost"
+          color="gray.400"
+          _hover={{ color: "brand.400", bg: "brand.50" }}
+          onClick={() => handleEditStore(row)}
+        />
+      </Tooltip>
+      <Tooltip label="Delete Store">
+        <IconButton
+          aria-label="Delete"
+          icon={<Icon as={FiTrash2} />}
+          size="sm"
+          variant="ghost"
+          color="gray.400"
+          _hover={{ color: "error.400", bg: "error.50" }}
+          onClick={() => handleDeleteStore(row)}
+        />
+      </Tooltip>
+    </HStack>
+  );
+
   return (
-    <>
+    <VStack spacing={8} align="stretch">
+      {/* Page Header */}
       <PageHeader
         title="Stores"
-        subtitle="Manage locations, sync status, and settings."
-        icon={<FiMapPin />}
-        accentColor="var(--chakra-colors-green-400)"
+        subtitle="Manage store locations, contact information, and performance metrics"
         actions={
-          <Button colorScheme="brand" onClick={() => setIsModalOpen(true)}>
-            Add Store
-          </Button>
+          <HStack spacing={3}>
+            <Button
+              variant="outline"
+              size="md"
+              leftIcon={<Icon as={FiRefreshCw} />}
+              onClick={loadStores}
+              isLoading={isLoading}
+            >
+              Refresh
+            </Button>
+            <Button
+              leftIcon={<Icon as={FiPlus} />}
+              onClick={handleAddStore}
+              bg="brand.500"
+              color="white"
+              _hover={{
+                bg: "brand.600",
+                transform: "translateY(-1px)",
+                boxShadow: "0 4px 12px rgba(0, 102, 204, 0.4)",
+              }}
+            >
+              Add Store
+            </Button>
+          </HStack>
         }
       />
 
-      {/* Summary KPIs */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Total Stores
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                {stores.length}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="green.300">
-                <StatArrow type="increase" />1 new this year
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Avg Products / Store
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                {avgProductsPerStore}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="gray.400">
-                Products per location
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Avg Inventory Value
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                ${avgValuePerStore.toLocaleString()}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="gray.400">
-                CAD per store
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card
-          bg="gray.800"
-          border="none"
-          outline="none"
-          _hover={{ transform: "translateY(-2px)" }}
-          transition="200ms"
-        >
-          <CardBody p={6}>
-            <Stat>
-              <StatLabel color="gray.200" fontSize="sm" fontWeight="medium">
-                Stores Out of Sync
-              </StatLabel>
-              <StatNumber color="brand.400" fontSize="2xl" fontWeight="bold">
-                {outOfSyncCount}
-              </StatNumber>
-              <StatHelpText fontSize="xs" color="gray.400">
-                Last 24 hours
-              </StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
+      {/* Overview Cards */}
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+        <StatCard
+          title="Total Stores"
+          value="7"
+          change={0}
+          changeType="increase"
+          icon={FiHome}
+          iconColor="brand"
+          description="Real-time data"
+          status="info"
+        />
+        <StatCard
+          title="Active Stores"
+          value="6"
+          change={0}
+          changeType="increase"
+          icon={FiTrendingUp}
+          iconColor="success"
+          description="Currently operational"
+          status="success"
+        />
+        <StatCard
+          title="Avg Products"
+          value="1"
+          change={0}
+          changeType="increase"
+          icon={FiAlertTriangle}
+          iconColor="warning"
+          description="Per store"
+          status="warning"
+        />
+        <StatCard
+          title="Avg Store Value"
+          value="$0"
+          change={0}
+          changeType="increase"
+          icon={FiDollarSign}
+          iconColor="brand"
+          description="Inventory value"
+          status="info"
+        />
       </SimpleGrid>
 
-      {/* Filters + Table */}
-      <SectionCard title="Locations">
-        <HStack
-          spacing={4}
-          align={{ base: "stretch", md: "center" }}
-          flexWrap="wrap"
-          mb={4}
-        >
-          <InputGroup maxW={{ base: "100%", md: "360px" }}>
-            <Input
-              placeholder="Search by name, code, city, manager..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              bg="surfaceAlt"
-            />
-            <InputRightElement>
-              <IconButton
-                aria-label="search"
-                icon={<SearchIcon />}
-                size="sm"
-                variant="ghost"
-              />
-            </InputRightElement>
-          </InputGroup>
-
-          <Select
-            maxW={{ base: "100%", md: "220px" }}
-            placeholder="Filter by status"
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(e.target.value as "" | StoreStatus)
-            }
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </Select>
-
-          <Select
-            maxW={{ base: "100%", md: "220px" }}
-            placeholder="Filter by country"
-            value={countryFilter}
-            onChange={(e) => setCountryFilter(e.target.value)}
-          >
-            <option value="Canada">Canada</option>
-            <option value="USA">USA</option>
-            <option value="UK">UK</option>
-            <option value="Germany">Germany</option>
-          </Select>
-
-          <Box flex="1" />
-
-          <Button colorScheme="brand" onClick={() => setIsModalOpen(true)}>
-            Add Store
-          </Button>
-        </HStack>
-
-        <Box
-          overflowX="auto"
-          border="1px solid"
-          borderColor="border"
-          borderRadius="lg"
-        >
-          <Table variant="simple" size="sm">
-            <Thead position="sticky" top={0} zIndex={1} bg="gray.700">
-              <Tr>
-                <Th px={4} py={3} color="white" fontWeight="600">
-                  Store
-                </Th>
-                <Th px={4} py={3} color="white" fontWeight="600">
-                  Code
-                </Th>
-                <Th px={4} py={3} color="white" fontWeight="600">
-                  Manager
-                </Th>
-                <Th px={4} py={3} color="white" fontWeight="600">
-                  Email
-                </Th>
-                <Th px={4} py={3} color="white" fontWeight="600">
-                  Phone
-                </Th>
-                <Th px={4} py={3} color="white" fontWeight="600">
-                  Country
-                </Th>
-                <Th px={4} py={3} color="white" fontWeight="600">
-                  City
-                </Th>
-                <Th px={4} py={3} color="white" fontWeight="600">
-                  Timezone
-                </Th>
-                <Th px={4} py={3} isNumeric color="white" fontWeight="600">
-                  Total Products
-                </Th>
-                <Th px={4} py={3} isNumeric color="white" fontWeight="600">
-                  Total Value
-                </Th>
-                <Th px={4} py={3} color="white" fontWeight="600">
-                  Last Sync
-                </Th>
-                <Th px={4} py={3} color="white" fontWeight="600">
-                  Status
-                </Th>
-                <Th
-                  px={4}
-                  py={3}
-                  textAlign="right"
-                  color="white"
-                  fontWeight="600"
-                >
-                  Actions
-                </Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {filteredStores.map((store, idx) => (
-                <Tr
-                  key={store.id}
-                  _odd={{ bg: "gray.800" }}
-                  _hover={{ bg: "gray.700" }}
-                >
-                  <Td px={4} py={3}>
-                    <VStack align="start" spacing={0}>
-                      <Text fontWeight="semibold" color="white">
-                        {store.name}
-                      </Text>
-                      <Text fontSize="sm" color="gray.200" noOfLines={1}>
-                        {store.address}
-                      </Text>
-                    </VStack>
-                  </Td>
-                  <Td px={4} py={3}>
-                    <Text fontSize="sm" color="gray.100">
-                      {store.code}
-                    </Text>
-                  </Td>
-                  <Td px={4} py={3}>
-                    <Text fontSize="sm" color="gray.100">
-                      {store.manager}
-                    </Text>
-                  </Td>
-                  <Td px={4} py={3} maxW="220px">
-                    <Text fontSize="sm" noOfLines={1} color="gray.100">
-                      {store.email}
-                    </Text>
-                  </Td>
-                  <Td px={4} py={3}>
-                    <Text fontSize="sm" color="gray.100">
-                      {store.phone}
-                    </Text>
-                  </Td>
-                  <Td px={4} py={3}>
-                    <Text fontSize="sm" color="gray.100">
-                      {store.country}
-                    </Text>
-                  </Td>
-                  <Td px={4} py={3}>
-                    <Text fontSize="sm" color="gray.100">
-                      {store.city}
-                    </Text>
-                  </Td>
-                  <Td px={4} py={3} maxW="140px">
-                    <Text fontSize="sm" noOfLines={1} color="gray.100">
-                      {store.timezone}
-                    </Text>
-                  </Td>
-                  <Td px={4} py={3} isNumeric>
-                    <Text color="gray.100">
-                      {store.totalProducts.toLocaleString()}
-                    </Text>
-                  </Td>
-                  <Td px={4} py={3} isNumeric>
-                    <Text color="gray.100">
-                      ${store.totalValue.toLocaleString()}
-                    </Text>
-                  </Td>
-                  <Td px={4} py={3} maxW="140px">
-                    <Text fontSize="sm" noOfLines={1} color="gray.100">
-                      {store.lastSync}
-                    </Text>
-                  </Td>
-                  <Td px={4} py={3}>
-                    <Badge
-                      colorScheme={store.status === "Active" ? "green" : "red"}
-                      variant="subtle"
-                      px={2}
-                      py={1}
-                      borderRadius="md"
-                    >
-                      {store.status}
-                    </Badge>
-                  </Td>
-                  <Td px={4} py={3} textAlign="right">
-                    <HStack justify="flex-end" spacing={2}>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        minW="60px"
-                        onClick={() => handleViewStore(store)}
-                      >
-                        View
-                      </Button>
-                      <Button
-                        size="sm"
-                        colorScheme="green"
-                        minW="60px"
-                        onClick={() => handleSyncStore(store)}
-                        isLoading={isLoading}
-                      >
-                        Sync
-                      </Button>
-                    </HStack>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        </Box>
+      {/* Stores Table */}
+      <SectionCard
+        title="Store Directory"
+        subtitle="Complete store information with contact details and performance"
+        icon={FiHome}
+      >
+        <DataTable
+          columns={columns}
+          data={filteredStores}
+          isLoading={isLoading}
+          searchable={true}
+          searchPlaceholder="Search stores..."
+          onSearch={handleSearch}
+          filters={[
+            {
+              key: "status",
+              label: "All Statuses",
+              options: [
+                { value: "all", label: "All Statuses" },
+                { value: "Active", label: "Active" },
+                { value: "Inactive", label: "Inactive" },
+                { value: "Maintenance", label: "Maintenance" },
+              ],
+              onFilter: handleStatusFilter,
+            },
+            {
+              key: "country",
+              label: "All Countries",
+              options: [
+                { value: "all", label: "All Countries" },
+                { value: "USA", label: "USA" },
+                { value: "US", label: "US" },
+                { value: "Canada", label: "Canada" },
+              ],
+              onFilter: handleCountryFilter,
+            },
+          ]}
+          actions={actions}
+          emptyMessage="No stores found"
+        />
       </SectionCard>
 
-      {/* Add Store Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        size="lg"
-      >
+      {/* Create/Edit Store Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <ModalOverlay />
-        <ModalContent mx={4}>
-          <ModalHeader borderBottom="1px" borderColor="border" pb={4}>
-            Add New Store
-          </ModalHeader>
+        <ModalContent>
+          <ModalHeader>{isEditing ? "Edit Store" : "Add Store"}</ModalHeader>
           <ModalCloseButton />
-          <ModalBody py={6}>
-            <VStack spacing={5} align="stretch">
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
-                <FormControl isRequired>
-                  <FormLabel fontWeight="medium">Store Name</FormLabel>
-                  <Input
-                    value={newStore.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    placeholder="Enter store name"
-                    size="md"
-                  />
-                </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel fontWeight="medium">Store Code</FormLabel>
-                  <Input
-                    value={newStore.code}
-                    onChange={(e) => handleInputChange("code", e.target.value)}
-                    placeholder="Enter unique code"
-                    size="md"
-                  />
-                </FormControl>
-              </SimpleGrid>
-
-              <FormControl>
-                <FormLabel fontWeight="medium">Manager</FormLabel>
-                <Input
-                  value={newStore.manager}
-                  onChange={(e) => handleInputChange("manager", e.target.value)}
-                  placeholder="Enter manager name"
-                  size="md"
-                />
+          <ModalBody>
+            <VStack align="stretch" spacing={4}>
+              <FormControl isRequired>
+                <FormLabel>Name</FormLabel>
+                <Input value={form.name || ""} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
               </FormControl>
-
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
+              <HStack>
                 <FormControl>
-                  <FormLabel fontWeight="medium">Email</FormLabel>
-                  <Input
-                    type="email"
-                    value={newStore.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    placeholder="name@company.com"
-                    size="md"
-                  />
+                  <FormLabel>Manager</FormLabel>
+                  <Input value={form.manager || ""} onChange={(e) => setForm((p) => ({ ...p, manager: e.target.value }))} />
                 </FormControl>
-
                 <FormControl>
-                  <FormLabel fontWeight="medium">Phone</FormLabel>
-                  <Input
-                    value={newStore.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    placeholder="+1 (555) 555-5555"
-                    size="md"
-                  />
+                  <FormLabel>Email</FormLabel>
+                  <Input value={form.email || ""} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
                 </FormControl>
-              </SimpleGrid>
-
-              <FormControl>
-                <FormLabel fontWeight="medium">Address</FormLabel>
-                <Input
-                  value={newStore.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
-                  placeholder="Enter full address"
-                  size="md"
-                />
-              </FormControl>
-
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
-                <FormControl isRequired>
-                  <FormLabel fontWeight="medium">City</FormLabel>
-                  <Input
-                    value={newStore.city}
-                    onChange={(e) => handleInputChange("city", e.target.value)}
-                    placeholder="City"
-                    size="md"
-                  />
-                </FormControl>
-
+              </HStack>
+              <HStack>
                 <FormControl>
-                  <FormLabel fontWeight="medium">Country</FormLabel>
-                  <Select
-                    value={newStore.country}
-                    onChange={(e) =>
-                      handleInputChange("country", e.target.value)
-                    }
-                    size="md"
-                  >
-                    <option value="Canada">Canada</option>
-                    <option value="USA">USA</option>
-                    <option value="UK">UK</option>
-                    <option value="Germany">Germany</option>
+                  <FormLabel>Phone</FormLabel>
+                  <Input value={form.phone || ""} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Timezone</FormLabel>
+                  <Select value={form.timezone || "UTC"} onChange={(e) => setForm((p) => ({ ...p, timezone: e.target.value }))}>
+                    <option value="UTC">UTC</option>
+                    <option value="America/New_York">America/New_York</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles</option>
                   </Select>
                 </FormControl>
-              </SimpleGrid>
-
+              </HStack>
               <FormControl>
-                <FormLabel fontWeight="medium">Timezone</FormLabel>
-                <Select
-                  value={newStore.timezone}
-                  onChange={(e) =>
-                    handleInputChange("timezone", e.target.value)
-                  }
-                  size="md"
-                >
-                  <option value="America/New_York">Eastern Time</option>
-                  <option value="America/Chicago">Central Time</option>
-                  <option value="America/Denver">Mountain Time</option>
-                  <option value="America/Los_Angeles">Pacific Time</option>
-                  <option value="America/Toronto">America/Toronto</option>
-                  <option value="UTC">UTC</option>
-                </Select>
+                <FormLabel>Address</FormLabel>
+                <Input value={form.address || ""} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
               </FormControl>
+              <HStack>
+                <FormControl>
+                  <FormLabel>City</FormLabel>
+                  <Input value={form.city || ""} onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Country</FormLabel>
+                  <Input value={form.country || ""} onChange={(e) => setForm((p) => ({ ...p, country: e.target.value }))} />
+                </FormControl>
+              </HStack>
             </VStack>
           </ModalBody>
-
-          <ModalFooter borderTop="1px" borderColor="border" pt={4}>
-            <Button
-              variant="ghost"
-              mr={3}
-              onClick={() => setIsModalOpen(false)}
-            >
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button colorScheme="brand" onClick={handleAddStore}>
-              Add Store
+            <Button colorScheme="brand" onClick={handleSubmit} isLoading={submitting} disabled={!form.name || (!isEditing && !form.code)}>
+              {isEditing ? "Save Changes" : "Create Store"}
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </>
+    </VStack>
   );
-};
-
-export default Stores;
+}

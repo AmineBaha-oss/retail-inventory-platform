@@ -12,13 +12,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
-import java.util.Map;
 
 /**
  * Controller for handling webhooks from external systems (Shopify, Lightspeed, etc.).
  */
 @RestController
-@RequestMapping("/api/v1/webhooks")
+@RequestMapping("/v1/webhooks")
 @RequiredArgsConstructor
 @Slf4j
 public class WebhookController {

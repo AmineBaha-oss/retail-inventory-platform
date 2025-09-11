@@ -35,15 +35,22 @@ import {
   FiLogOut,
   FiUser,
   FiGrid,
+  FiBell,
+  FiMoon,
+  FiGlobe,
+  FiHelpCircle,
+  FiChevronRight,
 } from "react-icons/fi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
+import { useOrganization } from "../contexts/OrganizationContext";
 
 const SIDEBAR_W = 280;
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { user, logout } = useAuthStore();
+  const { currentOrganization, canManageUsers } = useOrganization();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -55,6 +62,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: "Suppliers", icon: FiUsers, path: "/suppliers" },
     { name: "Products", icon: FiGrid, path: "/products" },
     { name: "Stores", icon: FiHome, path: "/stores" },
+    ...(canManageUsers
+      ? [{ name: "Users", icon: FiUsers, path: "/organization/users" }]
+      : []),
   ];
 
   const handleLogout = () => {
@@ -99,10 +109,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Text>
           </Box>
         </HStack>
+
+        {/* Organization Info */}
+        {currentOrganization && (
+          <Box mt={4} p={3} bg="gray.800" borderRadius="lg">
+            <Text fontSize="sm" fontWeight="medium" color="gray.200">
+              {currentOrganization.name}
+            </Text>
+            <Text fontSize="xs" color="gray.400">
+              {currentOrganization.status}
+            </Text>
+          </Box>
+        )}
       </Box>
 
       {/* Navigation Menu */}
-      <VStack align="stretch" spacing={2} px={4} py={6} flex="1" bg="gray.900">
+      <VStack align="stretch" spacing={1} px={4} py={6} flex="1" bg="gray.900">
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -113,16 +135,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               variant={isActive ? "solid" : "ghost"}
               colorScheme={isActive ? "brand" : "gray"}
               justifyContent="flex-start"
-              h="48px"
+              h="52px"
               px={4}
               borderRadius="xl"
               fontSize="sm"
               fontWeight="medium"
               letterSpacing="wide"
+              bg={isActive ? "brand.500" : "transparent"}
+              color={isActive ? "white" : "gray.300"}
               _hover={{
+                bg: isActive ? "brand.600" : "gray.800",
+                color: isActive ? "white" : "gray.100",
                 transform: isActive ? "none" : "translateX(4px)",
+                boxShadow: isActive
+                  ? "0 4px 12px rgba(0, 102, 204, 0.3)"
+                  : "none",
               }}
-              transition="all 0.2s"
+              _active={{
+                bg: isActive ? "brand.700" : "gray.700",
+                transform: "none",
+              }}
+              transition="all 0.2s ease-in-out"
               onClick={() => {
                 navigate(item.path);
                 onClose();
@@ -142,7 +175,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         borderTop="1px solid"
         borderColor="gray.800"
       >
-        <Menu>
+        <Menu placement="bottom-end">
           <MenuButton
             as={Button}
             variant="ghost"
@@ -171,48 +204,75 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Box>
             </HStack>
           </MenuButton>
+
           <MenuList
-            bg="blue.900"
+            bg="gray.800"
             border="1px solid"
-            borderColor="blue.800"
+            borderColor="gray.700"
             borderRadius="lg"
             boxShadow="xl"
-            py={1}
+            p={1} // use padding instead of MenuItem mx
+            w="280px"
+            overflow="hidden" // 🚫 clip hover/focus backgrounds
           >
             <MenuItem
               icon={<FiUser size={16} />}
-              color="blue.50"
-              _hover={{ bg: "blue.800", color: "white" }}
-              _focus={{ bg: "blue.800", color: "white" }}
+              w="full"
+              bg="gray.800"
+              color="gray.100"
               borderRadius="md"
-              mx={2}
-              my={1}
+              px={3}
+              py={2}
+              _hover={{ bg: "gray.700", color: "white" }}
+              _focus={{
+                bg: "gray.700",
+                color: "white",
+                boxShadow: "none",
+                outline: "none",
+              }}
               onClick={() => navigate("/profile")}
             >
               Profile
             </MenuItem>
+
             <MenuItem
               icon={<FiSettings size={16} />}
-              color="blue.50"
-              _hover={{ bg: "blue.800", color: "white" }}
-              _focus={{ bg: "blue.800", color: "white" }}
+              w="full"
+              bg="gray.800"
+              color="gray.100"
               borderRadius="md"
-              mx={2}
-              my={1}
+              px={3}
+              py={2}
+              _hover={{ bg: "gray.700", color: "white" }}
+              _focus={{
+                bg: "gray.700",
+                color: "white",
+                boxShadow: "none",
+                outline: "none",
+              }}
               onClick={() => navigate("/settings")}
             >
               Settings
             </MenuItem>
-            <MenuDivider borderColor="blue.700" />
+
+            <MenuDivider borderColor="gray.600" mx={0} />
+
             <MenuItem
               icon={<FiLogOut size={16} />}
-              onClick={handleLogout}
-              color="blue.50"
-              _hover={{ bg: "blue.800", color: "white" }}
-              _focus={{ bg: "blue.800", color: "white" }}
+              w="full"
+              bg="gray.800"
+              color="gray.100"
               borderRadius="md"
-              mx={2}
-              my={1}
+              px={3}
+              py={2}
+              _hover={{ bg: "gray.700", color: "white" }}
+              _focus={{
+                bg: "gray.700",
+                color: "white",
+                boxShadow: "none",
+                outline: "none",
+              }}
+              onClick={handleLogout}
             >
               Logout
             </MenuItem>
@@ -316,7 +376,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Box>
 
           {/* Page Content */}
-          <Box p={6} maxW="7xl" mx="auto">
+          <Box p={8} maxW="7xl" mx="auto" minH="calc(100vh - 4rem)">
             {children}
           </Box>
         </Box>
