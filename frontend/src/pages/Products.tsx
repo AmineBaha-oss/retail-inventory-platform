@@ -86,6 +86,7 @@ export default function Products() {
     status: "ACTIVE",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
     loadProducts();
@@ -128,6 +129,17 @@ export default function Products() {
     } catch (_) {}
   };
 
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await productAPI.getCategories();
+        const arr = Array.isArray(res.data) ? res.data : res.data ?? [];
+        setCategories(arr as string[]);
+      } catch (_) {}
+    };
+    loadCategories();
+  }, []);
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
   };
@@ -143,7 +155,7 @@ export default function Products() {
   const handleAddProduct = () => {
     setIsEditing(false);
     setSelectedId(null);
-    setForm({ sku: "", name: "", category: "", subcategory: "", brand: "", description: "", unitCost: 0, unitPrice: 0, casePackSize: 1, supplierId: "", status: "ACTIVE" });
+    setForm({ name: "", category: "", subcategory: "", brand: "", description: "", unitCost: 0, unitPrice: 0, casePackSize: 1, supplierId: "", status: "ACTIVE" });
     setIsModalOpen(true);
   };
 
@@ -166,6 +178,7 @@ export default function Products() {
   };
 
   const handleDeleteProduct = async (product: UIProduct) => {
+    if (!window.confirm(`Delete product ${product.name}?`)) return;
     try {
       await productAPI.delete(product.id);
       setProducts((prev) => prev.filter((p) => p.id !== product.id));
@@ -366,10 +379,7 @@ export default function Products() {
               label: "All Categories",
               options: [
                 { value: "all", label: "All Categories" },
-                { value: "OUTERWEAR", label: "Outerwear" },
-                { value: "TOPS", label: "Tops" },
-                { value: "BOTTOMS", label: "Bottoms" },
-                { value: "DRESSES", label: "Dresses" },
+                ...categories.map((c) => ({ value: c, label: c })),
               ],
               onFilter: handleCategoryFilter,
             },
@@ -397,11 +407,15 @@ export default function Products() {
           <ModalCloseButton />
           <ModalBody>
             <VStack spacing={4} align="stretch">
+              {isEditing && (
+                <HStack>
+                  <FormControl>
+                    <FormLabel>SKU</FormLabel>
+                    <Input value={(form as any).sku || ""} onChange={(e) => setForm((p) => ({ ...p, sku: e.target.value as any }))} />
+                  </FormControl>
+                </HStack>
+              )}
               <HStack>
-                <FormControl>
-                  <FormLabel>SKU</FormLabel>
-                  <Input value={form.sku || ""} onChange={(e) => setForm((p) => ({ ...p, sku: e.target.value }))} />
-                </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Name</FormLabel>
                   <Input value={form.name || ""} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
@@ -410,7 +424,11 @@ export default function Products() {
               <HStack>
                 <FormControl>
                   <FormLabel>Category</FormLabel>
-                  <Input value={form.category || ""} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} />
+                  <Select value={form.category || ""} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} placeholder="Select category">
+                    {categories.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </Select>
                 </FormControl>
                 <FormControl>
                   <FormLabel>Subcategory</FormLabel>
