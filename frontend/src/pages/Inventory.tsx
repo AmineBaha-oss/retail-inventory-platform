@@ -8,7 +8,6 @@ import {
   Badge,
   useToast,
   Icon,
-  Flex,
   Input,
   InputGroup,
   InputLeftElement,
@@ -16,6 +15,15 @@ import {
   HStack,
   Tooltip,
   IconButton,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  FormControl,
+  FormLabel,
 } from "@chakra-ui/react";
 import {
   FiSearch,
@@ -33,63 +41,41 @@ import PageHeader from "../components/ui/PageHeader";
 import StatCard from "../components/ui/StatCard";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
+import { inventoryAPI } from "../services/api";
+import { Inventory as APIInventory } from "../types/api";
 
-// Mock data
-const inventoryData = [
-  {
-    id: "1",
-    productName: "Tailored Power Blazer",
-    sku: "LOFT-BLZ-001",
-    brand: "Loft",
-    store: "SoHo Flagship",
-    storeCode: "NYC001",
-    onHand: 15,
-    reorderPoint: 20,
-    maxStock: 25,
-    status: "Healthy",
-    value: 0,
-    unitValue: 0,
-    lastUpdated: "2024-01-15",
-  },
-  {
-    id: "2",
-    productName: "Silk Wrap Blouse",
-    sku: "LOFT-TOP-001",
-    brand: "Loft",
-    store: "SoHo Flagship",
-    storeCode: "NYC001",
-    onHand: 8,
-    reorderPoint: 15,
-    maxStock: 30,
-    status: "Low",
-    value: 0,
-    unitValue: 0,
-    lastUpdated: "2024-01-14",
-  },
-  {
-    id: "3",
-    productName: "Midnight Gala Dress",
-    sku: "VERA-DRS-001",
-    brand: "Vera",
-    store: "SoHo Flagship",
-    storeCode: "NYC001",
-    onHand: 45,
-    reorderPoint: 20,
-    maxStock: 50,
-    status: "Low",
-    value: 0,
-    unitValue: 0,
-    lastUpdated: "2024-01-13",
-  },
-];
+type UIInventory = {
+  id: string;
+  productName?: string;
+  sku?: string;
+  brand?: string;
+  store?: string;
+  storeCode?: string;
+  onHand: number;
+  reorderPoint?: number;
+  maxStock?: number;
+  status: string;
+  value?: number;
+  unitValue?: number;
+  lastUpdated?: string;
+  productId?: string;
+  storeId?: string;
+};
 
 export default function Inventory() {
-  const [inventory, setInventory] = useState(inventoryData);
-  const [isLoading, setIsLoading] = useState(false);
+  const [inventory, setInventory] = useState<UIInventory[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [storeFilter, setStoreFilter] = useState("all");
   const toast = useToast();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [form, setForm] = useState<{ storeId: string; productId: string; quantityOnHand: number; reorderPoint?: number; maxStockLevel?: number; costPerUnit?: number }>(
+    { storeId: "", productId: "", quantityOnHand: 0, reorderPoint: 10, maxStockLevel: 100, costPerUnit: 0 }
+  );
 
   useEffect(() => {
     loadInventory();
@@ -98,24 +84,27 @@ export default function Inventory() {
   const loadInventory = async () => {
     try {
       setIsLoading(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setInventory(inventoryData);
-      toast({
-        title: "Inventory loaded successfully",
-        description: `Loaded ${inventoryData.length} inventory items`,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+      const res = await inventoryAPI.getAll();
+      const list: any = Array.isArray(res.data) ? res.data : (res.data as any).content ?? [];
+      const ui: UIInventory[] = (list as APIInventory[]).map((i) => ({
+        id: i.id,
+        store: i.storeName,
+        storeCode: i.storeCode,
+        productName: i.productName,
+        sku: i.productSku,
+        onHand: i.quantityOnHand,
+        reorderPoint: (i as any).reorderPoint ?? undefined,
+        maxStock: (i as any).maxStockLevel ?? undefined,
+        status: i.quantityOnHand <= 0 ? "Critical" : (i as any).reorderLevel ? (i.quantityOnHand <= (i as any).reorderLevel ? "Low" : "Healthy") : "Healthy",
+        value: i.totalValue,
+        unitValue: i.unitCost,
+        lastUpdated: i.lastUpdated,
+        productId: i.productId,
+        storeId: i.storeId,
+      }));
+      setInventory(ui);
     } catch (error) {
-      toast({
-        title: "Error loading inventory",
-        description: "Failed to load inventory data",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast({ title: "Failed to load inventory", status: "error" });
     } finally {
       setIsLoading(false);
     }
@@ -134,33 +123,98 @@ export default function Inventory() {
   };
 
   const handleAddInventory = () => {
-    toast({
-      title: "Add Inventory",
-      description: "Add inventory functionality coming soon",
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
+    setIsEditing(false);
+    setSelectedId(null);
+    setForm({ storeId: "", productId: "", quantityOnHand: 0, reorderPoint: 10, maxStockLevel: 100, costPerUnit: 0 });
+    setIsModalOpen(true);
   };
 
-  const handleEditInventory = (item: any) => {
-    toast({
-      title: "Edit Inventory",
-      description: `Edit ${item.productName} functionality coming soon`,
-      status: "info",
-      duration: 3000,
-      isClosable: true,
+  const handleEditInventory = (item: UIInventory) => {
+    setIsEditing(true);
+    setSelectedId(item.id);
+    setForm({
+      storeId: item.storeId || "",
+      productId: item.productId || "",
+      quantityOnHand: item.onHand,
+      reorderPoint: item.reorderPoint,
+      maxStockLevel: item.maxStock,
+      costPerUnit: item.unitValue,
     });
+    setIsModalOpen(true);
   };
 
-  const handleDeleteInventory = (item: any) => {
-    toast({
-      title: "Delete Inventory",
-      description: `Delete ${item.productName} functionality coming soon`,
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
+  const handleDeleteInventory = async (item: UIInventory) => {
+    try {
+      await inventoryAPI.delete(item.id);
+      setInventory((prev) => prev.filter((x) => x.id !== item.id));
+      toast({ title: "Inventory deleted", status: "success" });
+    } catch (_) {
+      toast({ title: "Failed to delete inventory", status: "error" });
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (isEditing && selectedId) {
+        const updatePayload: any = {
+          quantityOnHand: form.quantityOnHand,
+          reorderPoint: form.reorderPoint,
+          maxStockLevel: form.maxStockLevel,
+          costPerUnit: form.costPerUnit,
+        };
+        const res = await inventoryAPI.update(selectedId, updatePayload);
+        const i = res.data as any;
+        setInventory((prev) => prev.map((x) => (x.id === selectedId ? {
+          id: i.id,
+          store: i.storeName,
+          storeCode: i.storeCode,
+          productName: i.productName,
+          sku: i.productSku,
+          onHand: i.quantityOnHand,
+          reorderPoint: i.reorderPoint,
+          maxStock: i.maxStockLevel,
+          status: i.quantityOnHand <= 0 ? "Critical" : i.reorderPoint && i.quantityOnHand <= i.reorderPoint ? "Low" : "Healthy",
+          value: i.totalValue,
+          unitValue: i.costPerUnit,
+          lastUpdated: i.recordedAt,
+          productId: i.productId,
+          storeId: i.storeId,
+        } : x)));
+        toast({ title: "Inventory updated", status: "success" });
+      } else {
+        const createPayload: any = {
+          storeId: form.storeId,
+          productId: form.productId,
+          quantityOnHand: form.quantityOnHand,
+          reorderPoint: form.reorderPoint,
+          maxStockLevel: form.maxStockLevel,
+          costPerUnit: form.costPerUnit,
+        };
+        const res = await inventoryAPI.create(createPayload);
+        const i = res.data as any;
+        const item: UIInventory = {
+          id: i.id,
+          store: i.storeName,
+          storeCode: i.storeCode,
+          productName: i.productName,
+          sku: i.productSku,
+          onHand: i.quantityOnHand,
+          reorderPoint: i.reorderPoint,
+          maxStock: i.maxStockLevel,
+          status: i.quantityOnHand <= 0 ? "Critical" : i.reorderPoint && i.quantityOnHand <= i.reorderPoint ? "Low" : "Healthy",
+          value: i.totalValue,
+          unitValue: i.costPerUnit,
+          lastUpdated: i.recordedAt,
+          productId: i.productId,
+          storeId: i.storeId,
+        };
+        setInventory((prev) => [item, ...prev]);
+        toast({ title: "Inventory created", status: "success" });
+      }
+      setIsModalOpen(false);
+    } catch (_) {
+      toast({ title: "Save failed", status: "error" });
+    }
   };
 
   const filteredInventory = inventory.filter((item) => {
@@ -334,6 +388,57 @@ export default function Inventory() {
           emptyMessage="No inventory items found"
         />
       </SectionCard>
+
+      {/* Create/Edit Inventory Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>{isEditing ? "Edit Inventory" : "Add Inventory"}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} align="stretch">
+              <HStack>
+                <FormControl isRequired>
+                  <FormLabel>Store ID</FormLabel>
+                  <Input value={form.storeId} onChange={(e) => setForm((p) => ({ ...p, storeId: e.target.value }))} placeholder="Store UUID" />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Product ID</FormLabel>
+                  <Input value={form.productId} onChange={(e) => setForm((p) => ({ ...p, productId: e.target.value }))} placeholder="Product UUID" />
+                </FormControl>
+              </HStack>
+              <HStack>
+                <FormControl isRequired>
+                  <FormLabel>Quantity On Hand</FormLabel>
+                  <Input type="number" value={form.quantityOnHand} onChange={(e) => setForm((p) => ({ ...p, quantityOnHand: parseFloat(e.target.value || "0") }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Reorder Point</FormLabel>
+                  <Input type="number" value={form.reorderPoint ?? 0} onChange={(e) => setForm((p) => ({ ...p, reorderPoint: parseInt(e.target.value || "0") }))} />
+                </FormControl>
+              </HStack>
+              <HStack>
+                <FormControl>
+                  <FormLabel>Max Stock Level</FormLabel>
+                  <Input type="number" value={form.maxStockLevel ?? 0} onChange={(e) => setForm((p) => ({ ...p, maxStockLevel: parseInt(e.target.value || "0") }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Cost Per Unit</FormLabel>
+                  <Input type="number" step="0.01" value={form.costPerUnit ?? 0} onChange={(e) => setForm((p) => ({ ...p, costPerUnit: parseFloat(e.target.value || "0") }))} />
+                </FormControl>
+              </HStack>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button colorScheme="brand" onClick={handleSubmit} disabled={!form.storeId || !form.productId || !form.quantityOnHand}>
+              {isEditing ? "Save Changes" : "Create Inventory"}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </VStack>
   );
 }
