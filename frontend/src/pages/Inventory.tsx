@@ -41,8 +41,8 @@ import PageHeader from "../components/ui/PageHeader";
 import StatCard from "../components/ui/StatCard";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
-import { inventoryAPI } from "../services/api";
-import { Inventory as APIInventory } from "../types/api";
+import { inventoryAPI, storeAPI, productAPI } from "../services/api";
+import { Inventory as APIInventory, Store, Product } from "../types/api";
 
 type UIInventory = {
   id: string;
@@ -73,12 +73,29 @@ export default function Inventory() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [form, setForm] = useState<{ storeId: string; productId: string; quantityOnHand: number; reorderPoint?: number; maxStockLevel?: number; costPerUnit?: number }>(
-    { storeId: "", productId: "", quantityOnHand: 0, reorderPoint: 10, maxStockLevel: 100, costPerUnit: 0 }
+  const [form, setForm] = useState<{ storeId: string; productId: string; quantityOnHand: string; reorderPoint: string; maxStockLevel: string; costPerUnit: string }>(
+    { storeId: "", productId: "", quantityOnHand: "", reorderPoint: "", maxStockLevel: "", costPerUnit: "" }
   );
+  const [stores, setStores] = useState<Store[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     loadInventory();
+  }, []);
+
+  useEffect(() => {
+    const loadRefs = async () => {
+      try {
+        const [s, p] = await Promise.all([storeAPI.getAll(), productAPI.getAll()]);
+        const storeList = (s.data as any).content ?? s.data ?? [];
+        const productList = (p.data as any).content ?? p.data ?? [];
+        setStores(Array.isArray(storeList) ? storeList : []);
+        setProducts(Array.isArray(productList) ? productList : []);
+      } catch (_) {
+        // ignore
+      }
+    };
+    loadRefs();
   }, []);
 
   const loadInventory = async () => {
@@ -125,7 +142,7 @@ export default function Inventory() {
   const handleAddInventory = () => {
     setIsEditing(false);
     setSelectedId(null);
-    setForm({ storeId: "", productId: "", quantityOnHand: 0, reorderPoint: 10, maxStockLevel: 100, costPerUnit: 0 });
+    setForm({ storeId: "", productId: "", quantityOnHand: "", reorderPoint: "", maxStockLevel: "", costPerUnit: "" });
     setIsModalOpen(true);
   };
 
@@ -135,15 +152,16 @@ export default function Inventory() {
     setForm({
       storeId: item.storeId || "",
       productId: item.productId || "",
-      quantityOnHand: item.onHand,
-      reorderPoint: item.reorderPoint,
-      maxStockLevel: item.maxStock,
-      costPerUnit: item.unitValue,
+      quantityOnHand: String(item.onHand ?? ""),
+      reorderPoint: item.reorderPoint != null ? String(item.reorderPoint) : "",
+      maxStockLevel: item.maxStock != null ? String(item.maxStock) : "",
+      costPerUnit: item.unitValue != null ? String(item.unitValue) : "",
     });
     setIsModalOpen(true);
   };
 
   const handleDeleteInventory = async (item: UIInventory) => {
+    if (!window.confirm(`Delete inventory for ${item.productName || item.sku}?`)) return;
     try {
       await inventoryAPI.delete(item.id);
       setInventory((prev) => prev.filter((x) => x.id !== item.id));
@@ -155,12 +173,16 @@ export default function Inventory() {
 
   const handleSubmit = async () => {
     try {
+      if (!form.storeId || !form.productId || form.quantityOnHand === "") {
+        toast({ title: "Please fill required fields", status: "warning" });
+        return;
+      }
       if (isEditing && selectedId) {
         const updatePayload: any = {
-          quantityOnHand: form.quantityOnHand,
-          reorderPoint: form.reorderPoint,
-          maxStockLevel: form.maxStockLevel,
-          costPerUnit: form.costPerUnit,
+          quantityOnHand: Number(form.quantityOnHand),
+          reorderPoint: form.reorderPoint === "" ? undefined : Number(form.reorderPoint),
+          maxStockLevel: form.maxStockLevel === "" ? undefined : Number(form.maxStockLevel),
+          costPerUnit: form.costPerUnit === "" ? undefined : Number(form.costPerUnit),
         };
         const res = await inventoryAPI.update(selectedId, updatePayload);
         const i = res.data as any;
@@ -185,10 +207,10 @@ export default function Inventory() {
         const createPayload: any = {
           storeId: form.storeId,
           productId: form.productId,
-          quantityOnHand: form.quantityOnHand,
-          reorderPoint: form.reorderPoint,
-          maxStockLevel: form.maxStockLevel,
-          costPerUnit: form.costPerUnit,
+          quantityOnHand: Number(form.quantityOnHand),
+          reorderPoint: form.reorderPoint === "" ? undefined : Number(form.reorderPoint),
+          maxStockLevel: form.maxStockLevel === "" ? undefined : Number(form.maxStockLevel),
+          costPerUnit: form.costPerUnit === "" ? undefined : Number(form.costPerUnit),
         };
         const res = await inventoryAPI.create(createPayload);
         const i = res.data as any;
@@ -399,32 +421,40 @@ export default function Inventory() {
             <VStack spacing={4} align="stretch">
               <HStack>
                 <FormControl isRequired>
-                  <FormLabel>Store ID</FormLabel>
-                  <Input value={form.storeId} onChange={(e) => setForm((p) => ({ ...p, storeId: e.target.value }))} placeholder="Store UUID" />
+                  <FormLabel>Store</FormLabel>
+                  <Select value={form.storeId} onChange={(e) => setForm((p) => ({ ...p, storeId: e.target.value }))} placeholder="Select a store">
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </Select>
                 </FormControl>
                 <FormControl isRequired>
-                  <FormLabel>Product ID</FormLabel>
-                  <Input value={form.productId} onChange={(e) => setForm((p) => ({ ...p, productId: e.target.value }))} placeholder="Product UUID" />
+                  <FormLabel>Product</FormLabel>
+                  <Select value={form.productId} onChange={(e) => setForm((p) => ({ ...p, productId: e.target.value }))} placeholder="Select a product">
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ""}</option>
+                    ))}
+                  </Select>
                 </FormControl>
               </HStack>
               <HStack>
                 <FormControl isRequired>
                   <FormLabel>Quantity On Hand</FormLabel>
-                  <Input type="number" value={form.quantityOnHand} onChange={(e) => setForm((p) => ({ ...p, quantityOnHand: parseFloat(e.target.value || "0") }))} />
+                  <Input type="number" value={form.quantityOnHand} onChange={(e) => setForm((p) => ({ ...p, quantityOnHand: e.target.value }))} placeholder="e.g. 100" />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Reorder Point</FormLabel>
-                  <Input type="number" value={form.reorderPoint ?? 0} onChange={(e) => setForm((p) => ({ ...p, reorderPoint: parseInt(e.target.value || "0") }))} />
+                  <Input type="number" value={form.reorderPoint} onChange={(e) => setForm((p) => ({ ...p, reorderPoint: e.target.value }))} placeholder="e.g. 20" />
                 </FormControl>
               </HStack>
               <HStack>
                 <FormControl>
                   <FormLabel>Max Stock Level</FormLabel>
-                  <Input type="number" value={form.maxStockLevel ?? 0} onChange={(e) => setForm((p) => ({ ...p, maxStockLevel: parseInt(e.target.value || "0") }))} />
+                  <Input type="number" value={form.maxStockLevel} onChange={(e) => setForm((p) => ({ ...p, maxStockLevel: e.target.value }))} placeholder="e.g. 500" />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Cost Per Unit</FormLabel>
-                  <Input type="number" step="0.01" value={form.costPerUnit ?? 0} onChange={(e) => setForm((p) => ({ ...p, costPerUnit: parseFloat(e.target.value || "0") }))} />
+                  <Input type="number" step="0.01" value={form.costPerUnit} onChange={(e) => setForm((p) => ({ ...p, costPerUnit: e.target.value }))} placeholder="e.g. 12.50" />
                 </FormControl>
               </HStack>
             </VStack>
@@ -433,7 +463,7 @@ export default function Inventory() {
             <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button colorScheme="brand" onClick={handleSubmit} disabled={!form.storeId || !form.productId || !form.quantityOnHand}>
+            <Button colorScheme="brand" onClick={handleSubmit} disabled={!form.storeId || !form.productId || form.quantityOnHand === ""}>
               {isEditing ? "Save Changes" : "Create Inventory"}
             </Button>
           </ModalFooter>
