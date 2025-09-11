@@ -58,8 +58,7 @@ export default function Stores() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [form, setForm] = useState<Partial<StoreCreateRequest & StoreUpdateRequest & { code: string }>>({
-    code: "",
+  const [form, setForm] = useState<Partial<StoreCreateRequest & StoreUpdateRequest & { code?: string }>>({
     name: "",
     manager: "",
     email: "",
@@ -110,7 +109,7 @@ export default function Stores() {
   const handleAddStore = () => {
     setIsEditing(false);
     setSelectedId(null);
-    setForm({ code: "", name: "", manager: "", email: "", phone: "", address: "", city: "", country: "", timezone: "UTC" });
+    setForm({ name: "", manager: "", email: "", phone: "", address: "", city: "", country: "", timezone: "UTC" });
     setIsModalOpen(true);
   };
 
@@ -132,6 +131,7 @@ export default function Stores() {
   };
 
   const handleDeleteStore = async (store: UIStore) => {
+    if (!window.confirm(`Delete store ${store.name}?`)) return;
     try {
       setSubmitting(true);
       await storeAPI.delete(store.id);
@@ -163,8 +163,12 @@ export default function Stores() {
         setStores((prev) => prev.map((s) => (s.id === selectedId ? { ...updated, location: [updated.city, updated.country].filter(Boolean).join(", "), statusText: (updated as any).status ?? (updated.isActive ? "Active" : "Inactive") } : s)));
         toast({ title: "Store updated", status: "success" });
       } else {
+        // Auto-generate store code from name
+        const base = (form.name || "STORE").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+        const suffix = String(Date.now()).slice(-3);
+        const code = `${base.substring(0, 3)}${suffix}`;
         const create: StoreCreateRequest = {
-          code: form.code || "",
+          code,
           name: form.name || "",
           manager: form.manager,
           email: form.email,
@@ -365,12 +369,6 @@ export default function Stores() {
           <ModalCloseButton />
           <ModalBody>
             <VStack align="stretch" spacing={4}>
-              {!isEditing && (
-                <FormControl isRequired>
-                  <FormLabel>Code</FormLabel>
-                  <Input value={form.code || ""} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} placeholder="NYC001" />
-                </FormControl>
-              )}
               <FormControl isRequired>
                 <FormLabel>Name</FormLabel>
                 <Input value={form.name || ""} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
