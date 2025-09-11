@@ -8,7 +8,6 @@ import {
   Badge,
   useToast,
   Icon,
-  Flex,
   Input,
   InputGroup,
   InputLeftElement,
@@ -16,6 +15,15 @@ import {
   HStack,
   Tooltip,
   IconButton,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  FormControl,
+  FormLabel,
 } from "@chakra-ui/react";
 import {
   FiSearch,
@@ -33,107 +41,91 @@ import PageHeader from "../components/ui/PageHeader";
 import StatCard from "../components/ui/StatCard";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
+import { productAPI, supplierAPI } from "../services/api";
+import { Product as APIProduct, ProductCreateRequest, ProductUpdateRequest, Supplier } from "../types/api";
 
-// Mock data
-const productsData = [
-  {
-    id: "1",
-    name: "Tailored Power Blazer",
-    sku: "LOFT-BLZ-001",
-    brand: "Loft",
-    category: "OUTERWEAR",
-    subcategory: "BLAZERS",
-    salePrice: 295.0,
-    costPrice: 85.0,
-    packSize: 6,
-    supplier: "Loft & Co",
-    stock: 95,
-    stockStatus: "In Stock",
-    status: "ACTIVE",
-  },
-  {
-    id: "2",
-    name: "Silk Wrap Blouse",
-    sku: "LOFT-TOP-001",
-    brand: "Loft",
-    category: "TOPS",
-    subcategory: "BLOUSES",
-    salePrice: 165.0,
-    costPrice: 45.0,
-    packSize: 1,
-    supplier: "Loft & Co",
-    stock: 13,
-    stockStatus: "Low Stock",
-    status: "ACTIVE",
-  },
-  {
-    id: "3",
-    name: "Wide Leg Trousers",
-    sku: "LOFT-PNT-001",
-    brand: "Loft",
-    category: "BOTTOMS",
-    subcategory: "PANTS",
-    salePrice: 125.0,
-    costPrice: 35.0,
-    packSize: 1,
-    supplier: "Loft & Co",
-    stock: 49,
-    stockStatus: "Low Stock",
-    status: "ACTIVE",
-  },
-  {
-    id: "4",
-    name: "Midnight Gala Dress",
-    sku: "VERA-DRS-001",
-    brand: "Vera",
-    category: "DRESSES",
-    subcategory: "EVENING",
-    salePrice: 450.0,
-    costPrice: 120.0,
-    packSize: 1,
-    supplier: "Vera Couture",
-    stock: 8,
-    stockStatus: "Low Stock",
-    status: "ACTIVE",
-  },
-];
+type UIProduct = {
+  id: string;
+  name: string;
+  sku?: string;
+  brand?: string;
+  category?: string;
+  subcategory?: string;
+  salePrice?: number;
+  costPrice?: number;
+  packSize?: number;
+  supplier?: string;
+  stock?: number;
+  stockStatus?: string;
+  status: string;
+};
 
 export default function Products() {
-  const [products, setProducts] = useState(productsData);
-  const [isLoading, setIsLoading] = useState(false);
+  const [products, setProducts] = useState<UIProduct[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const toast = useToast();
 
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [form, setForm] = useState<Partial<ProductCreateRequest & ProductUpdateRequest>>({
+    sku: "",
+    name: "",
+    category: "",
+    subcategory: "",
+    brand: "",
+    description: "",
+    unitCost: 0,
+    unitPrice: 0,
+    casePackSize: 1,
+    supplierId: "",
+    status: "ACTIVE",
+  });
+  const [submitting, setSubmitting] = useState(false);
+
   useEffect(() => {
     loadProducts();
+    loadSuppliers();
   }, []);
 
   const loadProducts = async () => {
     try {
       setIsLoading(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setProducts(productsData);
-      toast({
-        title: "Products loaded successfully",
-        description: `Loaded ${productsData.length} products`,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+      const res = await productAPI.getAll();
+      const data: APIProduct[] = Array.isArray(res.data) ? res.data : (res.data as any).content ?? [];
+      const ui: UIProduct[] = data.map((p) => ({
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        brand: p.brand,
+        category: p.category,
+        subcategory: p.subcategory,
+        salePrice: p.unitPrice,
+        costPrice: p.unitCost,
+        packSize: p.casePackSize,
+        supplier: p.supplierName,
+        stock: undefined,
+        stockStatus: undefined,
+        status: p.status,
+      }));
+      setProducts(ui);
     } catch (error) {
-      toast({
-        title: "Error loading products",
-        description: "Failed to load products data",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast({ title: "Failed to load products", status: "error" });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadSuppliers = async () => {
+    try {
+      const res = await supplierAPI.getAll();
+      const list = (res.data as any).content ?? res.data ?? [];
+      setSuppliers(Array.isArray(list) ? list : []);
+    } catch (_) {}
   };
 
   const handleSearch = (query: string) => {
@@ -149,33 +141,82 @@ export default function Products() {
   };
 
   const handleAddProduct = () => {
-    toast({
-      title: "Add Product",
-      description: "Add product functionality coming soon",
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
+    setIsEditing(false);
+    setSelectedId(null);
+    setForm({ sku: "", name: "", category: "", subcategory: "", brand: "", description: "", unitCost: 0, unitPrice: 0, casePackSize: 1, supplierId: "", status: "ACTIVE" });
+    setIsModalOpen(true);
   };
 
-  const handleEditProduct = (product: any) => {
-    toast({
-      title: "Edit Product",
-      description: `Edit ${product.name} functionality coming soon`,
-      status: "info",
-      duration: 3000,
-      isClosable: true,
+  const handleEditProduct = (product: UIProduct) => {
+    setIsEditing(true);
+    setSelectedId(product.id);
+    setForm({
+      sku: product.sku,
+      name: product.name,
+      category: product.category,
+      subcategory: product.subcategory,
+      brand: product.brand,
+      unitCost: product.costPrice,
+      unitPrice: product.salePrice,
+      casePackSize: product.packSize,
+      supplierId: suppliers.find((s) => s.name === product.supplier)?.id || "",
+      status: product.status as any,
     });
+    setIsModalOpen(true);
   };
 
-  const handleDeleteProduct = (product: any) => {
-    toast({
-      title: "Delete Product",
-      description: `Delete ${product.name} functionality coming soon`,
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
+  const handleDeleteProduct = async (product: UIProduct) => {
+    try {
+      await productAPI.delete(product.id);
+      setProducts((prev) => prev.filter((p) => p.id !== product.id));
+      toast({ title: "Product deleted", status: "success" });
+    } catch (e) {
+      toast({ title: "Failed to delete product", status: "error" });
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (isEditing && selectedId) {
+        const update: ProductUpdateRequest = {
+          name: form.name,
+          category: form.category,
+          subcategory: form.subcategory,
+          brand: form.brand,
+          description: form.description,
+          unitCost: form.unitCost,
+          unitPrice: form.unitPrice,
+          casePackSize: form.casePackSize,
+          supplierId: form.supplierId,
+          status: form.status as any,
+        };
+        const res = await productAPI.update(selectedId, update);
+        const p = res.data as APIProduct;
+        setProducts((prev) => prev.map((x) => (x.id === selectedId ? { id: p.id, name: p.name, sku: p.sku, brand: p.brand, category: p.category, subcategory: p.subcategory, salePrice: p.unitPrice, costPrice: p.unitCost, packSize: p.casePackSize, supplier: p.supplierName, status: p.status } : x)));
+        toast({ title: "Product updated", status: "success" });
+      } else {
+        const create: ProductCreateRequest = {
+          sku: form.sku || undefined,
+          name: form.name || "",
+          category: form.category,
+          subcategory: form.subcategory,
+          brand: form.brand,
+          description: form.description,
+          unitCost: form.unitCost,
+          unitPrice: form.unitPrice,
+          casePackSize: form.casePackSize,
+          supplierId: form.supplierId || "",
+          status: form.status as any,
+        };
+        const res = await productAPI.create(create);
+        const p = res.data as APIProduct;
+        setProducts((prev) => [{ id: p.id, name: p.name, sku: p.sku, brand: p.brand, category: p.category, subcategory: p.subcategory, salePrice: p.unitPrice, costPrice: p.unitCost, packSize: p.casePackSize, supplier: p.supplierName, status: p.status }, ...prev]);
+        toast({ title: "Product created", status: "success" });
+      }
+      setIsModalOpen(false);
+    } catch (e) {
+      toast({ title: "Save failed", status: "error" });
+    }
   };
 
   const filteredProducts = products.filter((product) => {
@@ -187,7 +228,7 @@ export default function Products() {
       categoryFilter === "all" || product.category === categoryFilter;
     const matchesStatus =
       statusFilter === "all" ||
-      product.status.toLowerCase() === statusFilter.toLowerCase();
+      (product.status || "").toLowerCase() === statusFilter.toLowerCase();
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
@@ -348,6 +389,73 @@ export default function Products() {
           emptyMessage="No products found"
         />
       </SectionCard>
+      {/* Create/Edit Product Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>{isEditing ? "Edit Product" : "Add Product"}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} align="stretch">
+              <HStack>
+                <FormControl>
+                  <FormLabel>SKU</FormLabel>
+                  <Input value={form.sku || ""} onChange={(e) => setForm((p) => ({ ...p, sku: e.target.value }))} />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Name</FormLabel>
+                  <Input value={form.name || ""} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+                </FormControl>
+              </HStack>
+              <HStack>
+                <FormControl>
+                  <FormLabel>Category</FormLabel>
+                  <Input value={form.category || ""} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Subcategory</FormLabel>
+                  <Input value={form.subcategory || ""} onChange={(e) => setForm((p) => ({ ...p, subcategory: e.target.value }))} />
+                </FormControl>
+              </HStack>
+              <FormControl>
+                <FormLabel>Brand</FormLabel>
+                <Input value={form.brand || ""} onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value }))} />
+              </FormControl>
+              <HStack>
+                <FormControl>
+                  <FormLabel>Unit Cost</FormLabel>
+                  <Input type="number" step="0.01" value={form.unitCost ?? 0} onChange={(e) => setForm((p) => ({ ...p, unitCost: parseFloat(e.target.value) }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Unit Price</FormLabel>
+                  <Input type="number" step="0.01" value={form.unitPrice ?? 0} onChange={(e) => setForm((p) => ({ ...p, unitPrice: parseFloat(e.target.value) }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Case Pack Size</FormLabel>
+                  <Input type="number" value={form.casePackSize ?? 1} onChange={(e) => setForm((p) => ({ ...p, casePackSize: parseInt(e.target.value || "0") }))} />
+                </FormControl>
+              </HStack>
+              <FormControl isRequired>
+                <FormLabel>Supplier</FormLabel>
+                <Select value={form.supplierId || ""} onChange={(e) => setForm((p) => ({ ...p, supplierId: e.target.value }))}>
+                  <option value="">Select supplier</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Select>
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button colorScheme="brand" onClick={handleSubmit} disabled={!form.name || !form.supplierId}>
+              {isEditing ? "Save Changes" : "Create Product"}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </VStack>
   );
 }
