@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: retail-inventory
+  labels:
+    name: retail-inventory
+    app: retail-inventory-platform

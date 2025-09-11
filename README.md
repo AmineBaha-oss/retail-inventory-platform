@@ -2,6 +2,7 @@
 
 A comprehensive retail inventory management system with intelligent demand forecasting, automated purchase order generation, and real-time analytics.
 
+
 ## Architecture
 
 The platform consists of three main components:
@@ -250,9 +251,4 @@ dbt test
 - Implement backup strategies for TimescaleDB
 
 
-### Scaling
-- **Horizontal scaling**: Multiple API instances behind load balancer
-- **Database scaling**: TimescaleDB clustering for high availability
-- **Caching**: Redis clustering for distributed caching
-- **Message queues**: Kafka for event-driven architecture
 
