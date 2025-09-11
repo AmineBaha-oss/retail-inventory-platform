@@ -8,7 +8,6 @@ import {
   Badge,
   useToast,
   Icon,
-  Flex,
   Input,
   InputGroup,
   InputLeftElement,
@@ -16,6 +15,16 @@ import {
   HStack,
   Tooltip,
   IconButton,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  FormControl,
+  FormLabel,
+  Spinner,
 } from "@chakra-ui/react";
 import {
   FiSearch,
@@ -33,60 +42,34 @@ import PageHeader from "../components/ui/PageHeader";
 import StatCard from "../components/ui/StatCard";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
+import { storeAPI } from "../services/api";
+import { Store as APIStore, StoreCreateRequest, StoreUpdateRequest } from "../types/api";
 
-// Mock data
-const storesData = [
-  {
-    id: "1",
-    name: "SoHo Flagship",
-    code: "NYC001",
-    manager: "Emma Rodriguez",
-    location: "USA",
-    address: "123 Spring St, New York, NY 10012",
-    phone: "+1-212-555-0100",
-    email: "soho@modernboutique.com",
-    status: "Active",
-    productCount: 5,
-    totalValue: 0,
-    lastSync: "2024-01-15 06:54:51",
-  },
-  {
-    id: "2",
-    name: "Beverly Hills Premium",
-    code: "LA001",
-    manager: "James Chen",
-    location: "Beverly Hills, US",
-    address: "456 Rodeo Dr, Beverly Hills, CA 90210",
-    phone: "+1-310-555-0200",
-    email: "beverlyhills@modernboutique.com",
-    status: "Active",
-    productCount: 3,
-    totalValue: 0,
-    lastSync: "2024-01-15 06:54:51",
-  },
-  {
-    id: "3",
-    name: "Magnificent Mile",
-    code: "CHI001",
-    manager: "Sarah Johnson",
-    location: "663 N Michigan, US",
-    address: "663 N Michigan Ave, Chicago, IL 60611",
-    phone: "+1-312-555-0300",
-    email: "chicago@modernboutique.com",
-    status: "Active",
-    productCount: 0,
-    totalValue: 0,
-    lastSync: "2024-01-15 06:54:51",
-  },
-];
+type UIStore = APIStore & { location?: string; statusText?: string };
 
 export default function Stores() {
-  const [stores, setStores] = useState(storesData);
-  const [isLoading, setIsLoading] = useState(false);
+  const [stores, setStores] = useState<UIStore[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
   const toast = useToast();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [form, setForm] = useState<Partial<StoreCreateRequest & StoreUpdateRequest & { code: string }>>({
+    code: "",
+    name: "",
+    manager: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    country: "",
+    timezone: "UTC",
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadStores();
@@ -95,24 +78,18 @@ export default function Stores() {
   const loadStores = async () => {
     try {
       setIsLoading(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setStores(storesData);
-      toast({
-        title: "Stores loaded successfully",
-        description: `Loaded ${storesData.length} stores`,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+      const response = await storeAPI.getAll();
+      const data = Array.isArray(response.data)
+        ? response.data
+        : (response.data as any).content ?? [];
+      const ui = (data as APIStore[]).map((s) => ({
+        ...s,
+        location: [s.city, s.country].filter(Boolean).join(", "),
+        statusText: (s as any).status ?? (s.isActive ? "Active" : "Inactive"),
+      }));
+      setStores(ui);
     } catch (error) {
-      toast({
-        title: "Error loading stores",
-        description: "Failed to load stores data",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast({ title: "Failed to load stores", status: "error" });
     } finally {
       setIsLoading(false);
     }
@@ -131,46 +108,96 @@ export default function Stores() {
   };
 
   const handleAddStore = () => {
-    toast({
-      title: "Add Store",
-      description: "Add store functionality coming soon",
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
+    setIsEditing(false);
+    setSelectedId(null);
+    setForm({ code: "", name: "", manager: "", email: "", phone: "", address: "", city: "", country: "", timezone: "UTC" });
+    setIsModalOpen(true);
   };
 
-  const handleEditStore = (store: any) => {
-    toast({
-      title: "Edit Store",
-      description: `Edit ${store.name} functionality coming soon`,
-      status: "info",
-      duration: 3000,
-      isClosable: true,
+  const handleEditStore = (store: UIStore) => {
+    setIsEditing(true);
+    setSelectedId(store.id);
+    setForm({
+      code: store.code,
+      name: store.name,
+      manager: store.manager,
+      email: store.email,
+      phone: store.phone,
+      address: store.address,
+      city: store.city,
+      country: store.country,
+      timezone: store.timezone || "UTC",
     });
+    setIsModalOpen(true);
   };
 
-  const handleDeleteStore = (store: any) => {
-    toast({
-      title: "Delete Store",
-      description: `Delete ${store.name} functionality coming soon`,
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
+  const handleDeleteStore = async (store: UIStore) => {
+    try {
+      setSubmitting(true);
+      await storeAPI.delete(store.id);
+      setStores((prev) => prev.filter((s) => s.id !== store.id));
+      toast({ title: "Store deleted", status: "success" });
+    } catch (e) {
+      toast({ title: "Failed to delete store", status: "error" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setSubmitting(true);
+      if (isEditing && selectedId) {
+        const update: StoreUpdateRequest = {
+          name: form.name,
+          manager: form.manager,
+          email: form.email,
+          phone: form.phone,
+          address: form.address,
+          city: form.city,
+          country: form.country,
+          timezone: form.timezone,
+        };
+        const res = await storeAPI.update(selectedId, update);
+        const updated = res.data as APIStore;
+        setStores((prev) => prev.map((s) => (s.id === selectedId ? { ...updated, location: [updated.city, updated.country].filter(Boolean).join(", "), statusText: (updated as any).status ?? (updated.isActive ? "Active" : "Inactive") } : s)));
+        toast({ title: "Store updated", status: "success" });
+      } else {
+        const create: StoreCreateRequest = {
+          code: form.code || "",
+          name: form.name || "",
+          manager: form.manager,
+          email: form.email,
+          phone: form.phone,
+          address: form.address,
+          city: form.city,
+          country: form.country,
+          timezone: form.timezone,
+        } as StoreCreateRequest;
+        const res = await storeAPI.create(create);
+        const created = res.data as APIStore;
+        setStores((prev) => [{ ...created, location: [created.city, created.country].filter(Boolean).join(", "), statusText: (created as any).status ?? (created.isActive ? "Active" : "Inactive") }, ...prev]);
+        toast({ title: "Store created", status: "success" });
+      }
+      setIsModalOpen(false);
+    } catch (e) {
+      toast({ title: "Save failed", status: "error" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredStores = stores.filter((store) => {
     const matchesSearch =
       store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       store.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      store.manager.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      store.location.toLowerCase().includes(searchQuery.toLowerCase());
+      (store.manager || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (store.location || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       statusFilter === "all" ||
-      store.status.toLowerCase() === statusFilter.toLowerCase();
+      (store.statusText || "").toLowerCase() === statusFilter.toLowerCase();
     const matchesCountry =
-      countryFilter === "all" || store.location.includes(countryFilter);
+      countryFilter === "all" || (store.location || "").includes(countryFilter);
 
     return matchesSearch && matchesStatus && matchesCountry;
   });
@@ -179,7 +206,7 @@ export default function Stores() {
     { key: "name", label: "STORE DETAILS" },
     { key: "location", label: "LOCATION" },
     { key: "phone", label: "CONTACT" },
-    { key: "status", label: "STATUS" },
+    { key: "statusText", label: "STATUS" },
     { key: "productCount", label: "STATS" },
   ];
 
@@ -329,6 +356,75 @@ export default function Stores() {
           emptyMessage="No stores found"
         />
       </SectionCard>
+
+      {/* Create/Edit Store Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>{isEditing ? "Edit Store" : "Add Store"}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={4}>
+              {!isEditing && (
+                <FormControl isRequired>
+                  <FormLabel>Code</FormLabel>
+                  <Input value={form.code || ""} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} placeholder="NYC001" />
+                </FormControl>
+              )}
+              <FormControl isRequired>
+                <FormLabel>Name</FormLabel>
+                <Input value={form.name || ""} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+              </FormControl>
+              <HStack>
+                <FormControl>
+                  <FormLabel>Manager</FormLabel>
+                  <Input value={form.manager || ""} onChange={(e) => setForm((p) => ({ ...p, manager: e.target.value }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Email</FormLabel>
+                  <Input value={form.email || ""} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+                </FormControl>
+              </HStack>
+              <HStack>
+                <FormControl>
+                  <FormLabel>Phone</FormLabel>
+                  <Input value={form.phone || ""} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Timezone</FormLabel>
+                  <Select value={form.timezone || "UTC"} onChange={(e) => setForm((p) => ({ ...p, timezone: e.target.value }))}>
+                    <option value="UTC">UTC</option>
+                    <option value="America/New_York">America/New_York</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles</option>
+                  </Select>
+                </FormControl>
+              </HStack>
+              <FormControl>
+                <FormLabel>Address</FormLabel>
+                <Input value={form.address || ""} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
+              </FormControl>
+              <HStack>
+                <FormControl>
+                  <FormLabel>City</FormLabel>
+                  <Input value={form.city || ""} onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Country</FormLabel>
+                  <Input value={form.country || ""} onChange={(e) => setForm((p) => ({ ...p, country: e.target.value }))} />
+                </FormControl>
+              </HStack>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button colorScheme="brand" onClick={handleSubmit} isLoading={submitting} disabled={!form.name || (!isEditing && !form.code)}>
+              {isEditing ? "Save Changes" : "Create Store"}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </VStack>
   );
 }
