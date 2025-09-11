@@ -40,6 +40,7 @@ import {
   FiTrendingUp,
   FiDollarSign,
   FiShoppingCart,
+  FiRefreshCw,
 } from "react-icons/fi";
 import PageHeader from "../components/ui/PageHeader";
 import StatCard from "../components/ui/StatCard";
@@ -61,8 +62,7 @@ export default function Suppliers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [form, setForm] = useState<Partial<SupplierCreateRequest & SupplierUpdateRequest & { code: string }>>({
-    code: "",
+  const [form, setForm] = useState<Partial<SupplierCreateRequest & SupplierUpdateRequest & { code?: string }>>({
     name: "",
     category: "",
     contactPerson: "",
@@ -72,7 +72,16 @@ export default function Suppliers() {
     city: "",
     address: "",
     leadTimeDays: 7,
+    status: undefined,
   });
+
+  const CATEGORY_OPTIONS = [
+    "Premium Apparel",
+    "Designer Wear",
+    "Casual Wear",
+    "Accessories",
+  ];
+  const STATUS_OPTIONS = ["ACTIVE", "INACTIVE", "SUSPENDED"] as const;
 
   useEffect(() => {
     loadSuppliers();
@@ -111,7 +120,7 @@ export default function Suppliers() {
   const handleAddSupplier = () => {
     setIsEditing(false);
     setSelectedId(null);
-    setForm({ code: "", name: "", category: "", contactPerson: "", email: "", phone: "", country: "", city: "", address: "", leadTimeDays: 7 });
+    setForm({ name: "", category: "", contactPerson: "", email: "", phone: "", country: "", city: "", address: "", leadTimeDays: 7, status: undefined });
     setIsModalOpen(true);
   };
 
@@ -133,6 +142,7 @@ export default function Suppliers() {
   };
 
   const handleDeleteSupplier = async (supplier: UISupplier) => {
+    if (!window.confirm(`Delete supplier ${supplier.name}?`)) return;
     try {
       await supplierAPI.delete(supplier.id);
       setSuppliers((prev) => prev.filter((s) => s.id !== supplier.id));
@@ -155,14 +165,19 @@ export default function Suppliers() {
           city: form.city,
           address: form.address,
           leadTimeDays: form.leadTimeDays,
+          status: form.status as any,
         };
         const res = await supplierAPI.update(selectedId, update);
         const s = res.data as APISupplier;
         setSuppliers((prev) => prev.map((x) => (x.id === selectedId ? { ...s, location: [s.city, s.country].filter(Boolean).join(", "), statusText: s.status ?? "Active" } : x)));
         toast({ title: "Supplier updated", status: "success" });
       } else {
+        // Auto-generate code from name
+        const base = (form.name || "SUP").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+        const suffix = String(Date.now()).slice(-4);
+        const code = `${base.substring(0, 4)}-${suffix}`;
         const create: SupplierCreateRequest = {
-          code: form.code || "",
+          code,
           name: form.name || "",
           category: form.category,
           contactPerson: form.contactPerson,
@@ -253,19 +268,22 @@ export default function Suppliers() {
         title="Suppliers"
         subtitle="Manage vendor relationships, performance metrics, and contact information"
         actions={
-          <Button
-            leftIcon={<Icon as={FiPlus} />}
-            onClick={handleAddSupplier}
-            bg="brand.500"
-            color="white"
-            _hover={{
-              bg: "brand.600",
-              transform: "translateY(-1px)",
-              boxShadow: "0 4px 12px rgba(0, 102, 204, 0.4)",
-            }}
-          >
-            Add Supplier
-          </Button>
+          <HStack spacing={3}>
+            <Button variant="outline" size="md" leftIcon={<Icon as={FiRefreshCw} />} onClick={loadSuppliers} isLoading={isLoading}>Refresh</Button>
+            <Button
+              leftIcon={<Icon as={FiPlus} />}
+              onClick={handleAddSupplier}
+              bg="brand.500"
+              color="white"
+              _hover={{
+                bg: "brand.600",
+                transform: "translateY(-1px)",
+                boxShadow: "0 4px 12px rgba(0, 102, 204, 0.4)",
+              }}
+            >
+              Add Supplier
+            </Button>
+          </HStack>
         }
       />
 
@@ -332,10 +350,7 @@ export default function Suppliers() {
               label: "Filter by category",
               options: [
                 { value: "all", label: "All Categories" },
-                { value: "Premium Apparel", label: "Premium Apparel" },
-                { value: "Designer Wear", label: "Designer Wear" },
-                { value: "Casual Wear", label: "Casual Wear" },
-                { value: "Accessories", label: "Accessories" },
+                ...CATEGORY_OPTIONS.map((c) => ({ value: c, label: c })),
               ],
               onFilter: handleCategoryFilter,
             },
@@ -364,12 +379,6 @@ export default function Suppliers() {
           <ModalCloseButton />
           <ModalBody>
             <VStack spacing={4} align="stretch">
-              {!isEditing && (
-                <FormControl isRequired>
-                  <FormLabel>Code</FormLabel>
-                  <Input value={form.code || ""} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} />
-                </FormControl>
-              )}
               <FormControl isRequired>
                 <FormLabel>Name</FormLabel>
                 <Input value={form.name || ""} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
@@ -377,13 +386,27 @@ export default function Suppliers() {
               <HStack>
                 <FormControl>
                   <FormLabel>Category</FormLabel>
-                  <Input value={form.category || ""} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} />
+                  <Select value={form.category || ""} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} placeholder="Select category">
+                    {CATEGORY_OPTIONS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </Select>
                 </FormControl>
                 <FormControl>
                   <FormLabel>Contact Person</FormLabel>
                   <Input value={form.contactPerson || ""} onChange={(e) => setForm((p) => ({ ...p, contactPerson: e.target.value }))} />
                 </FormControl>
               </HStack>
+              {isEditing && (
+                <FormControl>
+                  <FormLabel>Status</FormLabel>
+                  <Select value={(form.status as any) || ""} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value as any }))} placeholder="Select status">
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
               <HStack>
                 <FormControl>
                   <FormLabel>Email</FormLabel>
@@ -414,7 +437,7 @@ export default function Suppliers() {
             <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button colorScheme="brand" onClick={handleSubmit} disabled={!form.name || (!isEditing && !form.code)}>
+            <Button colorScheme="brand" onClick={handleSubmit} disabled={!form.name}>
               {isEditing ? "Save Changes" : "Create Supplier"}
             </Button>
           </ModalFooter>
