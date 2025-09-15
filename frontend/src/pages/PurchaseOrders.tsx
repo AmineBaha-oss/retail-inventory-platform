@@ -8,7 +8,6 @@ import {
   Badge,
   useToast,
   Icon,
-  Flex,
   Input,
   InputGroup,
   InputLeftElement,
@@ -16,6 +15,15 @@ import {
   HStack,
   Tooltip,
   IconButton,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  FormControl,
+  FormLabel,
 } from "@chakra-ui/react";
 import {
   FiSearch,
@@ -33,6 +41,8 @@ import PageHeader from "../components/ui/PageHeader";
 import StatCard from "../components/ui/StatCard";
 import SectionCard from "../components/ui/SectionCard";
 import DataTable from "../components/ui/DataTable";
+import { purchaseOrderAPI, supplierAPI, storeAPI } from "../services/api";
+import { PurchaseOrder as APIPO, Supplier, Store } from "../types/api";
 
 // Mock data
 const purchaseOrdersData = [
@@ -60,39 +70,67 @@ const purchaseOrdersData = [
   },
 ];
 
+type UIPurchaseOrder = {
+  id: string;
+  poNumber: string;
+  supplier: string;
+  supplierId?: string;
+  store: string;
+  storeId?: string;
+  amount: number;
+  status: string;
+  priority?: string;
+  orderDate?: string;
+  itemCount?: number;
+};
+
 export default function PurchaseOrders() {
-  const [purchaseOrders, setPurchaseOrders] = useState(purchaseOrdersData);
-  const [isLoading, setIsLoading] = useState(false);
+  const [purchaseOrders, setPurchaseOrders] = useState<UIPurchaseOrder[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [supplierFilter, setSupplierFilter] = useState("all");
   const toast = useToast();
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [form, setForm] = useState<{ supplierId: string; storeId: string; status?: string; priority?: string; notes?: string }>({ supplierId: "", storeId: "", status: "DRAFT", priority: "MEDIUM", notes: "" });
+
   useEffect(() => {
     loadPurchaseOrders();
+    (async () => {
+      try {
+        const [s, t] = await Promise.all([supplierAPI.getAll(), storeAPI.getAll()]);
+        setSuppliers((Array.isArray(s.data) ? s.data : (s.data as any).content) || []);
+        setStores((Array.isArray(t.data) ? t.data : (t.data as any).content) || []);
+      } catch (_) {}
+    })();
   }, []);
 
   const loadPurchaseOrders = async () => {
     try {
       setIsLoading(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setPurchaseOrders(purchaseOrdersData);
-      toast({
-        title: "Purchase orders loaded successfully",
-        description: `Loaded ${purchaseOrdersData.length} purchase orders`,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+      const res = await purchaseOrderAPI.getAll();
+      const data: any[] = Array.isArray(res.data) ? res.data : (res.data as any).content ?? [];
+      const ui: UIPurchaseOrder[] = (data as APIPO[]).map((po) => ({
+        id: po.id,
+        poNumber: po.poNumber || "",
+        supplier: (po as any).supplierName || "",
+        supplierId: po.supplierId,
+        store: (po as any).storeName || "",
+        storeId: po.storeId,
+        amount: po.totalAmount ?? 0,
+        status: po.status,
+        priority: (po as any).priority,
+        orderDate: po.orderDate,
+        itemCount: (po as any).itemCount,
+      }));
+      setPurchaseOrders(ui);
     } catch (error) {
-      toast({
-        title: "Error loading purchase orders",
-        description: "Failed to load purchase orders data",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      toast({ title: "Failed to load purchase orders", status: "error" });
     } finally {
       setIsLoading(false);
     }
@@ -111,33 +149,28 @@ export default function PurchaseOrders() {
   };
 
   const handleCreatePO = () => {
-    toast({
-      title: "Create Purchase Order",
-      description: "Create PO functionality coming soon",
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
+    setIsEditing(false);
+    setSelectedId(null);
+    setForm({ supplierId: "", storeId: "", status: "DRAFT", priority: "MEDIUM", notes: "" });
+    setIsModalOpen(true);
   };
 
   const handleEditPO = (po: any) => {
-    toast({
-      title: "Edit Purchase Order",
-      description: `Edit ${po.poNumber} functionality coming soon`,
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
+    setIsEditing(true);
+    setSelectedId(po.id);
+    setForm({ supplierId: po.supplierId || "", storeId: po.storeId || "", status: po.status, priority: po.priority, notes: "" });
+    setIsModalOpen(true);
   };
 
-  const handleDeletePO = (po: any) => {
-    toast({
-      title: "Delete Purchase Order",
-      description: `Delete ${po.poNumber} functionality coming soon`,
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
+  const handleDeletePO = async (po: any) => {
+    if (!window.confirm(`Delete PO ${po.poNumber}?`)) return;
+    try {
+      await purchaseOrderAPI.delete(po.id);
+      setPurchaseOrders((prev) => prev.filter((x) => x.id !== po.id));
+      toast({ title: "Purchase order deleted", status: "success" });
+    } catch (e) {
+      toast({ title: "Failed to delete purchase order", status: "error" });
+    }
   };
 
   const filteredPOs = purchaseOrders.filter((po) => {
@@ -288,10 +321,14 @@ export default function PurchaseOrders() {
               label: "All Statuses",
               options: [
                 { value: "all", label: "All Statuses" },
-                { value: "PENDING APPROVAL", label: "Pending Approval" },
+                { value: "PENDING_APPROVAL", label: "Pending Approval" },
                 { value: "APPROVED", label: "Approved" },
-                { value: "IN TRANSIT", label: "In Transit" },
+                { value: "IN_TRANSIT", label: "In Transit" },
                 { value: "DELIVERED", label: "Delivered" },
+                { value: "DRAFT", label: "Draft" },
+                { value: "PROCESSING", label: "Processing" },
+                { value: "CANCELLED", label: "Cancelled" },
+                { value: "REJECTED", label: "Rejected" },
               ],
               onFilter: handleStatusFilter,
             },
@@ -311,6 +348,85 @@ export default function PurchaseOrders() {
           emptyMessage="No purchase orders found"
         />
       </SectionCard>
+      {/* Create/Edit Purchase Order Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>{isEditing ? "Edit Purchase Order" : "Create Purchase Order"}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} align="stretch">
+              <HStack>
+                <FormControl isRequired>
+                  <FormLabel>Supplier</FormLabel>
+                  <Select value={form.supplierId} onChange={(e) => setForm((p) => ({ ...p, supplierId: e.target.value }))} placeholder="Select supplier">
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Store</FormLabel>
+                  <Select value={form.storeId} onChange={(e) => setForm((p) => ({ ...p, storeId: e.target.value }))} placeholder="Select store">
+                    {stores.map((st) => (
+                      <option key={st.id} value={st.id}>{st.name}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+              </HStack>
+              <HStack>
+                <FormControl>
+                  <FormLabel>Status</FormLabel>
+                  <Select value={form.status || ""} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="PROCESSING">PROCESSING</option>
+                    <option value="IN_TRANSIT">IN_TRANSIT</option>
+                    <option value="DELIVERED">DELIVERED</option>
+                    <option value="CANCELLED">CANCELLED</option>
+                    <option value="REJECTED">REJECTED</option>
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Priority</FormLabel>
+                  <Select value={form.priority || ""} onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value }))}>
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="CRITICAL">CRITICAL</option>
+                  </Select>
+                </FormControl>
+              </HStack>
+              <FormControl>
+                <FormLabel>Notes</FormLabel>
+                <Input value={form.notes || ""} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button colorScheme="brand" onClick={async () => {
+              // reuse handler
+              try {
+                if (!form.storeId || !form.supplierId) { toast({ title: "Select store and supplier", status: "warning" }); return; }
+                if (isEditing && selectedId) {
+                  const res = await purchaseOrderAPI.update(selectedId, { status: form.status as any, priority: form.priority as any, notes: form.notes } as any);
+                  const po = res.data as any;
+                  setPurchaseOrders((prev) => prev.map((x) => (x.id === selectedId ? { id: po.id, poNumber: po.poNumber, supplier: po.supplierName, supplierId: po.supplierId, store: po.storeName, storeId: po.storeId, amount: po.totalAmount ?? 0, status: po.status, priority: po.priority, orderDate: po.orderDate, itemCount: po.itemCount } : x)));
+                  toast({ title: "PO updated", status: "success" });
+                } else {
+                  const res = await purchaseOrderAPI.create({ supplierId: form.supplierId, storeId: form.storeId, status: form.status as any, priority: form.priority as any, notes: form.notes } as any);
+                  const po = res.data as any;
+                  setPurchaseOrders((prev) => [{ id: po.id, poNumber: po.poNumber, supplier: po.supplierName, supplierId: po.supplierId, store: po.storeName, storeId: po.storeId, amount: po.totalAmount ?? 0, status: po.status, priority: po.priority, orderDate: po.orderDate, itemCount: po.itemCount }, ...prev]);
+                  toast({ title: "PO created", status: "success" });
+                }
+                setIsModalOpen(false);
+              } catch (e) { toast({ title: "Save failed", status: "error" }); }
+            }} disabled={!form.supplierId || !form.storeId}>{isEditing ? "Save Changes" : "Create PO"}</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </VStack>
   );
 }

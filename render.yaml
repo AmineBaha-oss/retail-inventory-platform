@@ -1,0 +1,85 @@
+services:
+  # Spring Boot API
+  - type: web
+    name: retail-inventory-spring-api
+    env: docker
+    dockerfilePath: ./backend/Dockerfile.spring
+    plan: free
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_HOST
+        fromDatabase:
+          name: retail-inventory-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: retail-inventory-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: retail-inventory-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: retail-inventory-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: retail-inventory-db
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: retail-inventory-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: retail-inventory-redis
+          property: port
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ML_API_BASEURL
+        value: https://retail-inventory-ml-api.onrender.com
+
+  # ML API
+  - type: web
+    name: retail-inventory-ml-api
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: retail-inventory-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: retail-inventory-redis
+          property: connectionString
+      - key: ALLOWED_ORIGINS
+        value: https://retail-inventory-frontend.onrender.com
+      - key: DEBUG
+        value: false
+
+  # Frontend
+  - type: web
+    name: retail-inventory-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    plan: free
+    envVars:
+      - key: VITE_API_URL
+        value: https://retail-inventory-spring-api.onrender.com/api
+
+databases:
+  # PostgreSQL Database
+  - name: retail-inventory-db
+    plan: free
+
+  # Redis Cache
+  - name: retail-inventory-redis
+    plan: free

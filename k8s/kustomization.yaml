@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: retail-inventory
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - postgres.yaml
+  - redis.yaml
+  - spring-api.yaml
+  - ml-api.yaml
+  - frontend.yaml
+  - monitoring.yaml
+  - ingress.yaml
+
+images:
+  - name: your-registry/retail-inventory-spring-api
+    newTag: latest
+  - name: your-registry/retail-inventory-ml-api
+    newTag: latest
+  - name: your-registry/retail-inventory-frontend
+    newTag: latest
+
+commonLabels:
+  app.kubernetes.io/name: retail-inventory-platform
+  app.kubernetes.io/version: "1.0.0"
+  app.kubernetes.io/component: retail-inventory

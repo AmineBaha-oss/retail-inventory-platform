@@ -98,18 +98,6 @@ const DataTable: React.FC<DataTableProps> = ({
     );
   }
 
-  if (data.length === 0) {
-    return (
-      <Center py={12}>
-        <VStack spacing={4}>
-          <Text color="gray.400" fontSize="lg">
-            {emptyMessage}
-          </Text>
-        </VStack>
-      </Center>
-    );
-  }
-
   return (
     <Box>
       {/* Search and Filters */}
@@ -156,83 +144,93 @@ const DataTable: React.FC<DataTableProps> = ({
         </Flex>
       )}
 
-      {/* Table */}
-      <TableContainer
-        maxH={maxH}
-        overflowY="auto"
-        borderRadius="lg"
-        border="1px solid"
-        borderColor="gray.700"
-        bg="gray.800"
-      >
-        <Table variant="simple" size="md">
-          <Thead position="sticky" top={0} zIndex={1} bg="gray.800">
-            <Tr>
-              {columns.map((column) => (
-                <Th
-                  key={column.key}
-                  color="gray.300"
-                  fontSize="sm"
-                  fontWeight="semibold"
-                  textTransform="uppercase"
-                  letterSpacing="wider"
-                  py={4}
-                  px={6}
-                  textAlign={column.align || "left"}
-                  borderColor="gray.700"
-                  width={column.width}
-                >
-                  {column.label}
-                </Th>
-              ))}
-              {actions && (
-                <Th
-                  color="gray.300"
-                  fontSize="sm"
-                  fontWeight="semibold"
-                  textTransform="uppercase"
-                  letterSpacing="wider"
-                  py={4}
-                  px={6}
-                  textAlign="center"
-                  borderColor="gray.700"
-                  width="80px"
-                >
-                  Actions
-                </Th>
-              )}
-            </Tr>
-          </Thead>
-          <Tbody>
-            {data.map((row, index) => (
-              <Tr
-                key={index}
-                _hover={{
-                  bg: "gray.750",
-                }}
-                transition="background-color 0.2s"
-              >
+      {/* Table or Empty State */}
+      {data.length === 0 ? (
+        <Center py={12} border="1px solid" borderColor="gray.700" bg="gray.800" borderRadius="lg">
+          <VStack spacing={4}>
+            <Text color="gray.400" fontSize="lg">
+              {emptyMessage}
+            </Text>
+          </VStack>
+        </Center>
+      ) : (
+        <TableContainer
+          maxH={maxH}
+          overflowY="auto"
+          borderRadius="lg"
+          border="1px solid"
+          borderColor="gray.700"
+          bg="gray.800"
+        >
+          <Table variant="simple" size="md">
+            <Thead position="sticky" top={0} zIndex={1} bg="gray.800">
+              <Tr>
                 {columns.map((column) => (
-                  <Td
+                  <Th
                     key={column.key}
+                    color="gray.300"
+                    fontSize="sm"
+                    fontWeight="semibold"
+                    textTransform="uppercase"
+                    letterSpacing="wider"
                     py={4}
                     px={6}
-                    borderColor="gray.700"
                     textAlign={column.align || "left"}
+                    borderColor="gray.700"
+                    width={column.width}
                   >
-                    {renderCell(column, row)}
-                  </Td>
+                    {column.label}
+                  </Th>
                 ))}
                 {actions && (
-                  <Td py={4} px={6} borderColor="gray.700" textAlign="center">
-                    {actions(row)}
-                  </Td>
+                  <Th
+                    color="gray.300"
+                    fontSize="sm"
+                    fontWeight="semibold"
+                    textTransform="uppercase"
+                    letterSpacing="wider"
+                    py={4}
+                    px={6}
+                    textAlign="center"
+                    borderColor="gray.700"
+                    width="80px"
+                  >
+                    Actions
+                  </Th>
                 )}
               </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      </TableContainer>
+            </Thead>
+            <Tbody>
+              {data.map((row, index) => (
+                <Tr
+                  key={index}
+                  _hover={{
+                    bg: "gray.750",
+                  }}
+                  transition="background-color 0.2s"
+                >
+                  {columns.map((column) => (
+                    <Td
+                      key={column.key}
+                      py={4}
+                      px={6}
+                      borderColor="gray.700"
+                      textAlign={column.align || "left"}
+                    >
+                      {renderCell(column, row)}
+                    </Td>
+                  ))}
+                  {actions && (
+                    <Td py={4} px={6} borderColor="gray.700" textAlign="center">
+                      {actions(row)}
+                    </Td>
+                  )}
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </TableContainer>
+      )}
     </Box>
   );
 };
