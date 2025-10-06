@@ -13,6 +13,7 @@ The platform consists of three main components:
 ## Technology Stack
 
 ### Backend Services
+
 - **Java 21** with Spring Boot 3.x
 - **Python 3.13** with FastAPI
 - **PostgreSQL 15** with TimescaleDB extension
@@ -21,12 +22,14 @@ The platform consists of three main components:
 - **JWT** authentication with RBAC
 
 ### Frontend
+
 - **React 18** with TypeScript
 - **Vite** for build tooling
 - **Chakra UI** for component library
 - **Axios** for API communication
 
 ### Infrastructure
+
 - **Docker** and Docker Compose for containerization
 - **Prometheus** for metrics collection
 - **Grafana** for monitoring dashboards
@@ -35,6 +38,7 @@ The platform consists of three main components:
 ## Features
 
 ### Core Functionality
+
 - **Multi-store inventory management**
 - **Probabilistic demand forecasting** (P50/P90 quantiles)
 - **Automated reorder point calculations**
@@ -42,6 +46,7 @@ The platform consists of three main components:
 - **Real-time inventory tracking**
 
 ### Advanced Features
+
 - **GraphQL API** for efficient data queries
 - **Webhook integration** (Shopify, Lightspeed)
 - **PDF generation** for purchase orders
@@ -51,6 +56,7 @@ The platform consists of three main components:
 - **Data analytics** with dbt transformations
 
 ### Observability
+
 - **Prometheus metrics** collection
 - **Grafana dashboards** for monitoring
 - **Health checks** for all services
@@ -59,6 +65,7 @@ The platform consists of three main components:
 ## Quick Start
 
 ### Prerequisites
+
 - Docker and Docker Compose
 - Java 21 (for local development)
 - Node.js 18+ (for frontend development)
@@ -66,12 +73,14 @@ The platform consists of three main components:
 ### Running the Application
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd retail-inventory-platform
    ```
 
 2. **Start all services**
+
    ```bash
    docker-compose up -d
    ```
@@ -85,26 +94,28 @@ The platform consists of three main components:
 
 ### Service URLs
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| Frontend | http://localhost:3000 | React web application |
-| Spring Boot API | http://localhost:8080 | Main business logic API |
-| ML API | http://localhost:8000 | Forecasting and ML services |
-| ML API Docs | http://localhost:8000/docs | FastAPI documentation |
-| Grafana | http://localhost:3001 | Monitoring dashboards |
-| Prometheus | http://localhost:9090 | Metrics collection |
+| Service         | URL                        | Description                 |
+| --------------- | -------------------------- | --------------------------- |
+| Frontend        | http://localhost:3000      | React web application       |
+| Spring Boot API | http://localhost:8080      | Main business logic API     |
+| ML API          | http://localhost:8000      | Forecasting and ML services |
+| ML API Docs     | http://localhost:8000/docs | FastAPI documentation       |
+| Grafana         | http://localhost:3001      | Monitoring dashboards       |
+| Prometheus      | http://localhost:9090      | Metrics collection          |
 
 ## Development
 
 ### Backend Development
 
 #### Spring Boot API
+
 ```bash
 cd backend
 ./mvnw spring-boot:run
 ```
 
 #### ML API
+
 ```bash
 cd backend
 python -m venv venv
@@ -114,6 +125,7 @@ uvicorn main:app --reload
 ```
 
 ### Frontend Development
+
 ```bash
 cd frontend
 npm install
@@ -155,26 +167,31 @@ SELECT create_hypertable('forecasts_daily', 'date');
 ## API Documentation
 
 ### Spring Boot API
+
 - **GraphQL Playground**: http://localhost:8080/graphiql
 - **REST API**: http://localhost:8080/api/v1
 - **Actuator**: http://localhost:8080/actuator
 
 ### ML API
+
 - **OpenAPI Docs**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
 ### Key Endpoints
 
 #### Forecasting
+
 - `POST /api/v1/forecasting/train` - Train forecasting model
 - `POST /api/v1/forecasting/generate` - Generate forecasts
 - `GET /api/v1/forecasting/{product_id}` - Get product forecasts
 
 #### Inventory
+
 - `GET /api/v1/inventory/` - List inventory items
 - `POST /api/v1/inventory/reorder-recommendations` - Get reorder suggestions
 
 #### Authentication
+
 - `POST /api/v1/auth/register` - User registration
 - `POST /api/v1/auth/login` - User authentication
 
@@ -183,6 +200,7 @@ SELECT create_hypertable('forecasts_daily', 'date');
 ### Environment Variables
 
 #### Spring Boot API
+
 ```bash
 DB_HOST=postgres
 DB_PORT=5432
@@ -196,6 +214,7 @@ ML_API_BASEURL=http://ml-api:8000
 ```
 
 #### ML API
+
 ```bash
 DATABASE_URL=postgresql://retail_user:retail_password@postgres:5432/retail_inventory
 REDIS_URL=redis://redis:6379
@@ -205,12 +224,14 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 ## Monitoring
 
 ### Grafana Dashboards
+
 - **System Overview**: Key performance indicators
 - **Inventory Metrics**: Stock levels and turnover
 - **Forecast Accuracy**: Model performance tracking
 - **API Performance**: Response times and error rates
 
 ### Prometheus Metrics
+
 - `inventory_updates_total` - Inventory update counter
 - `forecasts_generated_total` - Forecast generation counter
 - `purchase_orders_created_total` - PO creation counter
@@ -228,6 +249,7 @@ dbt test
 ```
 
 ### Key Models
+
 - **Staging models**: Raw data cleaning and validation
 - **Marts models**: Business-ready data marts
 - **Metrics models**: KPI calculations and aggregations
@@ -243,11 +265,23 @@ dbt test
 ## Deployment
 
 ### Production Considerations
+
 - Use environment-specific configuration files
 - Set up proper SSL/TLS certificates
 - Configure production database credentials
 - Set up monitoring and alerting
 - Implement backup strategies for TimescaleDB
 
+## Documentation
 
+For comprehensive documentation, including detailed guides, best practices, and troubleshooting information, please visit our [Documentation Hub](docs/README.md).
 
+The documentation covers:
+
+- **Architecture & Design** - System design and component interactions
+- **Getting Started** - Installation and setup guides
+- **Development** - Coding standards and workflows
+- **Operations** - Deployment and monitoring
+- **Features & Usage** - User guides and feature documentation
+- **Security & Compliance** - Security best practices and compliance
+- **Contributing** - How to contribute to the project
